@@ -18,19 +18,23 @@ public static class HomeBase
     public static readonly double[] ExpandCash = [0, 5000, 20000, 60000, 150000];
     public static readonly double[] ExpandPower = [0, 40, 150, 400, 900];
     public const int HqSize = 3;
+    /// <summary>A strip of open land around the walls where fields, pumps and panels can go. Beyond it is fog.</summary>
+    public const int Yard = 3;
+    /// <summary>The tutorial's buildings cost this much together; new settlers get enough to build them all.</summary>
+    public static double TutorialCost => Tutorial.Where(t => Kinds.ContainsKey(t.Do)).Sum(t => Kinds[t.Do].Cost);
 
-    public record Kind(string Name, double Cost, int W, int H, string Res, double PerHour, string Blurb, int Max = 99, string? SuitAs = null);
+    public record Kind(string Name, double Cost, int W, int H, string Res, double PerHour, string Blurb, int Max = 99, string? SuitAs = null, bool Field = false);
 
     public static readonly Dictionary<string, Kind> Kinds = new()
     {
         ["barracks"] = new("Barracks", 600, 2, 2, "cash", 0, "Trains and houses your troops", 2),
         ["warehouse"] = new("Warehouse", 500, 2, 2, "cash", 0, "+2 hours of storage before you must collect", 3),
         ["research"] = new("Research lab", 800, 2, 2, "cash", 0, "+5% to everything your land produces", 2),
-        ["crops"] = new("Crop plot", 300, 2, 2, "grain", 10, "Grows grain. Better on fertile ground", SuitAs: "farm"),
-        ["oilpump"] = new("Oil pump", 400, 1, 1, "oil", 6, "A small pump. Only pays on oil sands", SuitAs: "rig"),
-        ["solar"] = new("Solar panel", 350, 1, 1, "power", 5, "Electricity. Best on open, sunny ground", SuitAs: "solar"),
+        ["crops"] = new("Crop plot", 300, 2, 2, "grain", 10, "Grows grain. Better on fertile ground", SuitAs: "farm", Field: true),
+        ["oilpump"] = new("Oil pump", 400, 1, 1, "oil", 6, "A small pump. Only pays on oil sands", SuitAs: "rig", Field: true),
+        ["solar"] = new("Solar panel", 350, 1, 1, "power", 5, "Electricity. Best on open, sunny ground", SuitAs: "solar", Field: true),
         ["workshop"] = new("Workshop", 500, 2, 1, "cash", 25, "Odd jobs and repairs for cash"),
-        ["generator"] = new("Generator", 700, 1, 1, "fuel", 4, "Turns scrap into fuel"),
+        ["generator"] = new("Generator", 700, 1, 1, "fuel", 4, "Turns scrap into fuel", Field: true),
     };
 
     /// <summary>The tutorial, in order. Each step is done by placing that building (or collecting), and pays a reward.</summary>
@@ -56,6 +60,18 @@ public static class HomeBase
 
     static (int x, int y) HqAt => ((GridMax - HqSize) / 2, (GridMax - HqSize) / 2);
 
+    /// <summary>Why a building can't stand there, or null if it can. Everything fits inside the walls; fields can also go in the yard outside them, but nothing straddles a wall.</summary>
+    static string? OutOfBounds(Player p, Kind k, int x, int y, int w, int h)
+    {
+        var (lo, hi) = Bounds(p);
+        if (x >= lo && y >= lo && x + w <= hi && y + h <= hi) return null;
+        if (!k.Field) return "That has to go inside your walls.";
+        int ylo = lo - Yard, yhi = hi + Yard;
+        if (x < ylo || y < ylo || x + w > yhi || y + h > yhi) return "That's in the fog. Expand your base to reach it.";
+        if (Overlaps(x, y, w, h, lo, lo, hi - lo, hi - lo)) return "It can't straddle the wall.";
+        return null;
+    }
+
     static bool Overlaps(int ax, int ay, int aw, int ah, int bx, int by, int bw, int bh) =>
         ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
 
@@ -72,8 +88,7 @@ public static class HomeBase
     {
         if (!Kinds.TryGetValue(type, out var k)) return "Unknown building.";
         int w = rotate ? k.H : k.W, h = rotate ? k.W : k.H;
-        var (lo, hi) = Bounds(p);
-        if (x < lo || y < lo || x + w > hi || y + h > hi) return "That spot is outside your walls. Expand your base for more room.";
+        if (OutOfBounds(p, k, x, y, w, h) is { } oob) return oob;
         var (hx, hy) = HqAt;
         if (Overlaps(x, y, w, h, hx, hy, HqSize, HqSize)) return "Your HQ stands there.";
         foreach (var t in tiles)
@@ -103,9 +118,7 @@ public static class HomeBase
         tiles.Remove(t);
         var k = Kinds[t.Type];
         int w = rotate ? k.H : k.W, h = rotate ? k.W : k.H;
-        var (lo, hi) = Bounds(p);
-        string? error = null;
-        if (x < lo || y < lo || x + w > hi || y + h > hi) error = "That spot is outside your walls.";
+        var error = OutOfBounds(p, k, x, y, w, h);
         var (hx, hy) = HqAt;
         if (error is null && Overlaps(x, y, w, h, hx, hy, HqSize, HqSize)) error = "Your HQ stands there.";
         if (error is null)
@@ -161,12 +174,30 @@ public static class HomeBase
         var next = p.HomeLevel + 1 < Sizes.Length ? p.HomeLevel + 1 : -1;
         return new
         {
-            grid = GridMax, lo, hi, hq = new { x = HqAt.x, y = HqAt.y, size = HqSize }, hqLevel = p.HqLevel,
+            grid = GridMax, lo, hi, yard = Yard, hq = new { x = HqAt.x, y = HqAt.y, size = HqSize }, hqLevel = p.HqLevel,
             maxBuildings = MaxBuildings(p), upgradeCost = Economy.HqUpgradeCost(p),
             tiles = tiles.Select(t => new { t.Id, t.Type, t.X, t.Y, rotated = t.Rotated }),
-            kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max }),
+            kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field }),
             expand = next < 0 ? null : new { size = Sizes[next], cash = ExpandCash[next], power = ExpandPower[next], needHq = next + 1 },
             tutorial = p.TutorialStep < Tutorial.Length ? new { step = p.TutorialStep + 1, of = Tutorial.Length, Tutorial[p.TutorialStep].Do, Tutorial[p.TutorialStep].Text, reward = Tutorial[p.TutorialStep].Cash } : null,
         };
+    }
+
+    /// <summary>Starts a settler over: home base, land, money and tutorial back to day one. Name, nation and record stay.</summary>
+    public static async Task Restart(GameDb db, Player p)
+    {
+        db.HomeTiles.RemoveRange(p.HomeTiles);
+        p.HomeTiles.Clear();
+        foreach (var o in await db.Orders.Where(o => o.PlayerId == p.Id && o.Remaining > 0).ToListAsync()) db.Orders.Remove(o);
+        foreach (var x in p.Parcels.ToList())
+        {
+            x.Buildings = "";
+            if (!x.IsHome) { p.Parcels.Remove(x); db.Parcels.Remove(x); }
+        }
+        var start = new Player();
+        foreach (var r in Ledger.Resources)
+            Ledger.Add(db, p, r, Ledger.Get(start, r) - Ledger.Get(p, r), "Started over");
+        p.HqLevel = 1; p.HomeLevel = 0; p.TutorialStep = 0;
+        p.LastCollectAt = DateTime.UtcNow;
     }
 }

@@ -94,6 +94,18 @@ api.MapPost("/collect", async (HttpContext ctx, GameDb db, World world) =>
     }));
 });
 
+api.MapPost("/me/restart", async (HttpContext ctx, GameDb db, World world) =>
+{
+    var who = await Auth.PlayerFrom(ctx, db);
+    if (who is null) return Results.Unauthorized();
+    return Results.Ok(await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+        await HomeBase.Restart(gdb, p);
+        return new { player = Dto.Me(p) };
+    }));
+});
+
 api.MapGet("/sentinel", (Siege siege) => siege.Status());
 
 api.MapPost("/admin/sentinel/start", async (HttpContext ctx, Siege siege) =>
@@ -143,7 +155,7 @@ static class Dto
             pending = Economy.Pending(p, now),
             ratesPerHour = Economy.RatesPerHour(p),
             parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x) }),
-            home = HomeBase.View(p, p.HomeTiles),
+            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash,
             claimCost = Economy.ClaimCost,
             buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour }),
             suitability = Economy.Suitability,
