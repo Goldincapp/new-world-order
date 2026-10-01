@@ -8,7 +8,7 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles) : Hub
+public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles, Siege siege) : Hub
 {
     record Conn(Guid Id, string Name, DateTime LastMsg, int Watching, int Visiting = 0);
 
@@ -52,7 +52,11 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<World.Result> Build(int sector, int i, int j, string type) => world.Build(Me.Id, sector, i, j, type);
 
-    public Task<World.Result> BuildHome(string type) => world.BuildHome(Me.Id, type);
+    public Task<World.Result> PlaceHome(string type, int x, int y, bool rotate) => world.PlaceHome(Me.Id, type, x, y, rotate);
+
+    public Task<World.Result> MoveHome(long id, int x, int y, bool rotate) => world.MoveHome(Me.Id, id, x, y, rotate);
+
+    public Task<World.Result> ExpandHome() => world.ExpandHome(Me.Id);
 
     public Task<World.Result> UpgradeHq() => world.UpgradeHq(Me.Id);
 
@@ -101,6 +105,23 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public string? Strike(double x, double z) => battles.Strike(Me.Id, x, z);
 
     public string? Retreat() => battles.Retreat(Me.Id);
+
+    public Task<object> SiegeStatus() => siege.Status();
+
+    /// <summary>Join the Sentinel siege: everyone fights in the same battle.</summary>
+    public async Task<Siege.Result> JoinSiege()
+    {
+        var me = Me;
+        var r = siege.Join(me.Id, me.Name);
+        if (r.Ok) await Groups.AddToGroupAsync(Context.ConnectionId, Siege.Group);
+        return r;
+    }
+
+    public string? SiegeDeploy(string type, int lane) => siege.Deploy(Me.Id, type, lane);
+
+    public string? SiegeStrike(double x, double z) => siege.Strike(Me.Id, x, z);
+
+    public string? SiegeFlak(int droneId) => siege.Flak(Me.Id, droneId);
 
     /// <summary>Start receiving every truck on the map and the posted contracts, and get the current ones.</summary>
     public async Task<object> WatchShipping()

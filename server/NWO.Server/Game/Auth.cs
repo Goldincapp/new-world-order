@@ -36,7 +36,7 @@ public static partial class Auth
         if (token is null) return null;
         var hash = Hash(token);
         var q = db.Players.AsQueryable();
-        if (withParcels) q = q.Include(p => p.Parcels);
+        if (withParcels) q = q.Include(p => p.Parcels).Include(p => p.HomeTiles);
         return await q.FirstOrDefaultAsync(p => p.TokenHash == hash);
     }
 }

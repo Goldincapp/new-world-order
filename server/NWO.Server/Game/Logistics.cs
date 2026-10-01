@@ -85,7 +85,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         object? view = null;
         var result = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var c = await db.Contracts.FirstOrDefaultAsync(x => x.Id == contractId);
             if (c is null || c.Status != "open") return new Result(false, "Someone else is already delivering that one.");
             if (c.Sector == me.HomeSector) return new Result(false, "That need is in your own sector. Build there instead.");
@@ -126,7 +126,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         var events = new List<Func<Task>>();
         var result = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == inspectorId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == inspectorId);
             var s = await db.Shipments.FirstOrDefaultAsync(x => x.Id == shipmentId);
             var now = DateTime.UtcNow;
             Fade(me, now);
@@ -140,7 +140,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
             Ledger.Add(db, me, "cash", -InspectCost, $"Inspected {s.PlayerName}'s truck");
             me.InspectsToday++;
             s.InspectedBy = string.Join(",", s.InspectedBy.Split(',', StringSplitOptions.RemoveEmptyEntries).Append(me.Id.ToString()));
-            var owner = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == s.PlayerId);
+            var owner = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == s.PlayerId);
 
             if (s.Legal)
             {
@@ -181,10 +181,10 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         var events = new List<Func<Task>>();
         var result = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == inspectorId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == inspectorId);
             var s = await db.Shipments.FirstOrDefaultAsync(x => x.Id == shipmentId);
             if (s is null || s.HeldById != me.Id) return new Result(false, "You're not holding that truck any more.");
-            var owner = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == s.PlayerId);
+            var owner = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == s.PlayerId);
             var env = s.Envelope;
             s.HeldById = null;
             s.HeldUntil = null;
@@ -218,7 +218,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         add = Math.Floor(add);
         return await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var s = await db.Shipments.FirstOrDefaultAsync(x => x.Id == shipmentId && x.PlayerId == playerId);
             if (s is null || s.Status != "stopped") return new Result(false, "Too late: the inspector has decided.");
             if (add <= 0 || me.Cash < add) return new Result(false, "Not enough cash.");
@@ -275,11 +275,11 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
                 .ToListAsync();
             foreach (var s in due)
             {
-                var owner = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == s.PlayerId);
+                var owner = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == s.PlayerId);
                 if (s.AuditAt is { } at && at <= now)
                 {
                     s.AuditAt = null;
-                    var inspector = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == s.AuditPlayerId);
+                    var inspector = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == s.AuditPlayerId);
                     if (Rng.NextDouble() < AuditChance)
                     {
                         var fine = Math.Min(inspector.Cash, AuditFine);

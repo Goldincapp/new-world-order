@@ -121,7 +121,7 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
     /// <summary>Load flak shells to hunt a drone. The hunt itself is a short mini-game; only a win reported in time counts.</summary>
     public Task<Result> StartDroneHunt(Guid playerId, int sector, int idx) => world.Locked(async db =>
     {
-        var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+        var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
         var d = await db.Drones.FirstOrDefaultAsync(x => x.Sector == sector && x.Idx == idx);
         var now = DateTime.UtcNow;
         if (d is null) return new Result(false, "There's no drone there.");
@@ -139,7 +139,7 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
         object? ev = null;
         var result = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var d = await db.Drones.FirstOrDefaultAsync(x => x.Sector == sector && x.Idx == idx);
             var now = DateTime.UtcNow;
             var huntAge = now - me.DroneHuntAt;
@@ -161,7 +161,7 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
     /// <summary>Pay for an assault on a militia camp. The battle must be won within ten minutes to count.</summary>
     public Task<Result> StartCampAssault(Guid playerId, int sector) => world.Locked(async db =>
     {
-        var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+        var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
         var camp = await db.Camps.FindAsync(sector);
         var now = DateTime.UtcNow;
         if (camp is null) return new Result(false, "There's no militia camp here.");
@@ -181,7 +181,7 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
         string? clearer = null;
         var result = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var camp = await db.Camps.FindAsync(sector);
             var now = DateTime.UtcNow;
             if (camp is null) return new Result(false, "There's no militia camp here.");

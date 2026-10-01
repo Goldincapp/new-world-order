@@ -84,7 +84,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
         string? announce = null;
         var result = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var n = await Of(db);
             var (r, a) = await change(db, me, n);
             announce = r.Ok ? a : null;

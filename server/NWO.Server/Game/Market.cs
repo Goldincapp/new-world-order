@@ -55,7 +55,7 @@ public class Market(World world, IHubContext<GameHub> hub)
 
         var result = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var nation = await Politics.Of(db);
             var fee = nation.MarketTax;
 
@@ -150,7 +150,7 @@ public class Market(World world, IHubContext<GameHub> hub)
         string? res = null;
         var result = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var o = await db.Orders.FirstOrDefaultAsync(x => x.Id == orderId && x.PlayerId == playerId && x.Remaining > 0);
             if (o is null) return new Result(false, "That order is gone.");
             if (o.Side == "sell") Ledger.Add(db, me, o.Resource, o.Remaining, $"Cancelled sell order: {o.Remaining:N0} {o.Resource} returned");

@@ -37,6 +37,7 @@ public static class Economy
         ["sawmill"] = new("Sawmill", 700, 2, "cash", 30),
         ["mine"] = new("Mine", 900, 2, "cash", 40),
         ["warehouse"] = new("Warehouse", 1000, 3, "cash", 10),
+        ["solar"] = new("Solar farm", 900, 2, "power", 12),
     };
 
     /// <summary>
@@ -50,29 +51,14 @@ public static class Economy
         ["mine"] = new() { ["ro"] = 1.0, ["ru"] = 0.35, ["ba"] = 0.15, ["sc"] = 0.1, ["gr"] = 0.1, ["fe"] = 0.1, ["oi"] = 0.2 },
         ["sawmill"] = new() { ["sc"] = 1.0, ["gr"] = 0.4, ["fe"] = 0.3, ["ba"] = 0.1, ["ro"] = 0.1, ["ru"] = 0.15, ["oi"] = 0.1 },
         ["housing"] = new() { ["ru"] = 1.2, ["ro"] = 0.8 },
+        // Open, dry ground gets the most sun; scrub and crops shade the panels.
+        ["solar"] = new() { ["ba"] = 1.25, ["oi"] = 1.1, ["ru"] = 1.0, ["ro"] = 1.0, ["gr"] = 0.9, ["fe"] = 0.85, ["sc"] = 0.6 },
     };
 
     public static double Suit(string type, string landCode) =>
         Suitability.TryGetValue(type, out var t) && t.TryGetValue(landCode, out var f) ? f : 1.0;
 
-    /// <summary>
-    /// What settlers can build inside their home base walls: small, self-sufficient basics.
-    /// Real output comes from claiming and working more land.
-    /// </summary>
-    public static readonly Dictionary<string, BuildingType> HomeBuildings = new()
-    {
-        ["garden"] = new("Vegetable garden", 300, 1, "grain", 8),
-        ["workshop"] = new("Workshop", 500, 1, "cash", 25),
-        ["generator"] = new("Generator", 700, 1, "fuel", 4),
-        ["handpump"] = new("Hand pump", 600, 1, "oil", 6),
-        ["storehouse"] = new("Storehouse", 400, 1, "cash", 0),
-    };
-
-    public static int HomeSlots(Player p) => 2 + p.HqLevel * 2;
     public static double HqUpgradeCost(Player p) => 2000 * p.HqLevel * p.HqLevel;
-
-    public static IEnumerable<string> HomeBuildingsOf(Player p) =>
-        string.IsNullOrEmpty(p.HomeBuildings) ? [] : p.HomeBuildings.Split(',');
 
     /// <summary>Sectors that are not open for settlement: the capital, rival garrisons and Caretaker land.</summary>
     public static readonly HashSet<int> Closed = [3, 5, 8, 18, 30, 44, 46];
@@ -85,18 +71,15 @@ public static class Economy
     public static TimeSpan Storage(Player p)
     {
         var warehouses = p.Parcels.Sum(x => BuildingsOn(x).Count(b => b == "warehouse"))
-            + HomeBuildingsOf(p).Count(b => b == "storehouse");
+            + p.HomeTiles.Count(t => t.Type == "warehouse");
         return BaseStorage + TimeSpan.FromHours(Math.Min(8, warehouses * 2));
     }
 
     public static Dictionary<string, double> RatesPerHour(Player p)
     {
         var r = new Dictionary<string, double> { ["cash"] = 40, ["oil"] = 0, ["grain"] = 0, ["fuel"] = 0 };
-        foreach (var b in HomeBuildingsOf(p))
-        {
-            var t = HomeBuildings[b];
-            r[t.Res] += t.PerHour;
-        }
+        r["power"] = 0;
+        HomeBase.AddRates(p, p.HomeTiles, r);
         foreach (var parcel in p.Parcels.Where(x => !x.IsHome))
         {
             var (res, perHour) = Yield[parcel.Resource];
@@ -108,6 +91,8 @@ public static class Economy
                 r[t.Res] += t.PerHour * Suit(b, land);
             }
         }
+        var labs = Math.Min(2, p.HomeTiles.Count(t => t.Type == "research"));
+        if (labs > 0) foreach (var k in r.Keys.ToList()) r[k] *= 1 + 0.05 * labs;
         return r;
     }
 

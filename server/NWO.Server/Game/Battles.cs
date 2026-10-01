@@ -45,7 +45,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         BattleSim? sim = null;
         var r = await world.Locked(async db =>
         {
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var now = DateTime.UtcNow;
             double fuel;
             switch (kind)
@@ -140,7 +140,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         {
             await world.Locked(async db =>
             {
-                var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == b.PlayerId);
+                var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == b.PlayerId);
                 if (s.Won && b.Kind == "raid" && b.RivalKey is not null)
                 {
                     var rv = Rivals[b.RivalKey];

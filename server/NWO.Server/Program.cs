@@ -12,6 +12,8 @@ builder.Services.AddSingleton<World>();
 builder.Services.AddSingleton<Market>();
 builder.Services.AddSingleton<Caretaker>();
 builder.Services.AddSingleton<Politics>();
+builder.Services.AddSingleton<Siege>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Siege>());
 builder.Services.AddSingleton<Battles>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Battles>());
 builder.Services.AddSingleton<Logistics>();
@@ -30,6 +32,7 @@ using (var scope = app.Services.CreateScope())
     await Market.EnsureCaretakerOrders(db);
     await Caretaker.EnsureLand(db);
     await Politics.EnsureNations(db);
+    await Siege.EnsureState(db);
 }
 
 app.UseCors();
@@ -84,10 +87,37 @@ api.MapPost("/collect", async (HttpContext ctx, GameDb db, World world) =>
     if (who is null) return Results.Unauthorized();
     return Results.Ok(await world.Locked(async gdb =>
     {
-        var p = await gdb.Players.Include(x => x.Parcels).FirstAsync(x => x.Id == who.Id);
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
         var got = Economy.Collect(gdb, p, DateTime.UtcNow);
+        HomeBase.Advance(gdb, p, "collect");
         return new { collected = got, player = Dto.Me(p) };
     }));
+});
+
+api.MapGet("/sentinel", (Siege siege) => siege.Status());
+
+api.MapPost("/admin/sentinel/start", async (HttpContext ctx, Siege siege) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    await siege.SummonNow();
+    return Results.Ok(new { summoned = true });
+});
+
+// Balance testing: fast-forward a Sentinel siege with AI players and report how it went.
+api.MapPost("/admin/sentinel/simulate", (HttpContext ctx, int bots, int? seed) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    var sim = new SentinelSim(seed ?? 1);
+    var ids = Enumerable.Range(0, Math.Clamp(bots, 1, 40)).Select(i => { var id = Guid.NewGuid(); sim.Join(id, $"Bot{i}"); return id; }).ToList();
+    var rng = new Random(seed ?? 1);
+    while (!sim.Done)
+    {
+        foreach (var id in ids) { sim.Fighters[id].LastActive = sim.T; if (rng.NextDouble() < 0.2) sim.BotAct(id); }
+        sim.Step(0.1);
+        sim.Events.Clear();
+    }
+    return Results.Ok(new { bots, sim.Won, sim.Why, minutes = Math.Round(sim.T / 60, 1), hpLeft = Math.Round(sim.Hp / sim.MaxHp, 3), line = Math.Round(sim.LineHp / SentinelSim.LineMaxHp, 3), sim.Phase, sim.RelayKills, sim.Revives, p2 = Math.Round(sim.Phase2At / 60, 1), p3 = Math.Round(sim.Phase3At / 60, 1), humans = sim.Units.Count(u => u.Side == 0), enemies = sim.Units.Count(u => u.Side == 1), sim.MaxLiveUnits, lineDamage = sim.LineDamage.ToDictionary(kv => kv.Key, kv => Math.Round(kv.Value)),
+        top = sim.Fighters.Values.OrderByDescending(f => f.Damage).Take(3).Select(f => new { f.Name, damage = Math.Round(f.Damage), f.Drones, f.Relays }) });
 });
 
 // The terrain of a sector, one row of two-letter codes per line (see SectorTemplate).
@@ -109,18 +139,11 @@ static class Dto
         return new
         {
             p.Name, p.Nation, p.HomeSector, p.Standing,
-            resources = new { cash = Math.Floor(p.Cash), oil = Math.Floor(p.Oil), fuel = Math.Floor(p.Fuel), grain = Math.Floor(p.Grain), gold = Math.Floor(p.Gold) },
+            resources = new { cash = Math.Floor(p.Cash), oil = Math.Floor(p.Oil), fuel = Math.Floor(p.Fuel), grain = Math.Floor(p.Grain), gold = Math.Floor(p.Gold), power = Math.Floor(p.Power) },
             pending = Economy.Pending(p, now),
             ratesPerHour = Economy.RatesPerHour(p),
             parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x) }),
-            home = new
-            {
-                hqLevel = p.HqLevel,
-                slots = Economy.HomeSlots(p),
-                buildings = Economy.HomeBuildingsOf(p),
-                upgradeCost = Economy.HqUpgradeCost(p),
-                catalog = Economy.HomeBuildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, res = kv.Value.Res, perHour = kv.Value.PerHour }),
-            },
+            home = HomeBase.View(p, p.HomeTiles),
             claimCost = Economy.ClaimCost,
             buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour }),
             suitability = Economy.Suitability,

@@ -18,7 +18,13 @@ public class Player
     public double Grain { get; set; } = 300;
     public double Gold { get; set; } = 50;
 
+    public double Power { get; set; }
+
     public int HqLevel { get; set; } = 1;
+    /// <summary>How far the home base walls reach (an index into HomeBase.Sizes).</summary>
+    public int HomeLevel { get; set; }
+    public int TutorialStep { get; set; }
+    public List<HomeTile> HomeTiles { get; set; } = new();
     /// <summary>Comma-separated buildings inside the home base walls, e.g. "garden,workshop".</summary>
     public string? HomeBuildings { get; set; }
 
@@ -67,6 +73,17 @@ public class Parcel
     public DateTime? ClaimedAt { get; set; }
     /// <summary>The parcel the player's home base stands on. It can never be taken.</summary>
     public bool IsHome { get; set; }
+}
+
+/// <summary>A building the player placed inside their home base walls.</summary>
+public class HomeTile
+{
+    public long Id { get; set; }
+    public Guid PlayerId { get; set; }
+    public string Type { get; set; } = "";
+    public int X { get; set; }
+    public int Y { get; set; }
+    public bool Rotated { get; set; }
 }
 
 public class ChatMessage
@@ -260,8 +277,22 @@ public class LawVote
     public bool For { get; set; }
 }
 
+/// <summary>Server-wide state: the season's timeline, the Sentinel, and whether Region 2 has opened.</summary>
+public class ServerState
+{
+    public int Id { get; set; } = 1;
+    public DateTime? SentinelNextAt { get; set; }
+    public int SentinelAttempts { get; set; }
+    public bool Region2Open { get; set; }
+    public DateTime? Region2OpenedAt { get; set; }
+    /// <summary>The names on the monument at the gate.</summary>
+    public string? Gatebreakers { get; set; }
+}
+
 public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
 {
+    public DbSet<ServerState> Server => Set<ServerState>();
+    public DbSet<HomeTile> HomeTiles => Set<HomeTile>();
     public DbSet<Nation> Nations => Set<Nation>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Ballot> Ballots => Set<Ballot>();
@@ -304,6 +335,8 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
         b.Entity<Shipment>().HasIndex(s => s.Status);
         b.Entity<Drone>().HasIndex(d => new { d.Sector, d.Idx }).IsUnique();
         b.Entity<Camp>().HasKey(c => c.Sector);
+        b.Entity<HomeTile>().HasIndex(t => t.PlayerId);
+        b.Entity<Player>().HasMany(p => p.HomeTiles).WithOne().HasForeignKey(t => t.PlayerId);
         b.Entity<Candidate>().HasIndex(c => new { c.NationId, c.ElectionNo, c.PlayerId }).IsUnique();
         b.Entity<Ballot>().HasIndex(x => new { x.NationId, x.ElectionNo, x.VoterId }).IsUnique();
         b.Entity<LawVote>().HasIndex(x => new { x.LawId, x.VoterId }).IsUnique();

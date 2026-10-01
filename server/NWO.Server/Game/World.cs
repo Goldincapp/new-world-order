@@ -84,25 +84,22 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         finally { gate.Release(); }
     }
 
-    /// <summary>Build one of the self-sufficient basics inside the home base walls.</summary>
-    public Task<Result> BuildHome(Guid playerId, string type) => ChangePlayer(playerId, (db, me) =>
-    {
-        if (!Economy.HomeBuildings.TryGetValue(type, out var t)) return "Unknown building.";
-        var have = Economy.HomeBuildingsOf(me).ToList();
-        if (have.Count + t.Slots > Economy.HomeSlots(me)) return $"Your HQ has no free space. Upgrade it to level {me.HqLevel + 1} for more room.";
-        if (type == "handpump" && me.Parcels.FirstOrDefault(p => p.IsHome)?.Resource != "oil") return "A hand pump needs oil under your home parcel.";
-        if (me.Cash < t.Cost) return $"Not enough cash to build a {t.Name.ToLower()}.";
-        Economy.Settle(db, me, DateTime.UtcNow);
-        Ledger.Add(db, me, "cash", -t.Cost, $"Built {t.Name} at home");
-        me.HomeBuildings = string.Join(",", have.Append(type));
-        return null;
-    });
+    public Task<Result> PlaceHome(Guid playerId, string type, int x, int y, bool rotate) =>
+        ChangePlayer(playerId, (db, me) => HomeBase.Place(db, me, me.HomeTiles, type, x, y, rotate));
+
+    public Task<Result> MoveHome(Guid playerId, long id, int x, int y, bool rotate) =>
+        ChangePlayer(playerId, (db, me) => HomeBase.Move(db, me, me.HomeTiles, id, x, y, rotate));
+
+    public Task<Result> ExpandHome(Guid playerId) => ChangePlayer(playerId, (db, me) => HomeBase.Expand(db, me));
 
     public Task<Result> UpgradeHq(Guid playerId) => ChangePlayer(playerId, (db, me) =>
     {
         if (me.HqLevel >= 10) return "Your HQ is at the maximum level for this season.";
         var cost = Economy.HqUpgradeCost(me);
+        var power = me.HqLevel >= 2 ? me.HqLevel * 15 : 0;
         if (me.Cash < cost) return $"Upgrading to level {me.HqLevel + 1} costs {cost:N0} cash.";
+        if (me.Power < power) return $"Upgrading to level {me.HqLevel + 1} also needs {power:N0} power. Build solar panels.";
+        if (power > 0) Ledger.Add(db, me, "power", -power, $"Power for HQ level {me.HqLevel + 1}");
         Ledger.Add(db, me, "cash", -cost, $"Upgraded HQ to level {me.HqLevel + 1}");
         me.HqLevel++;
         return null;
@@ -115,7 +112,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         {
             using var scope = scopes.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<GameDb>();
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var error = apply(db, me);
             if (error is not null) return new Result(false, error);
             await db.SaveChangesAsync();
@@ -133,7 +130,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         {
             using var scope = scopes.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<GameDb>();
-            var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+            var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var parcel = await db.Parcels.Include(p => p.Owner).FirstOrDefaultAsync(p => p.Sector == sector && p.I == i && p.J == j);
             var error = await apply(db, me, parcel, DateTime.UtcNow);
             if (error is not null) return new Result(false, error);

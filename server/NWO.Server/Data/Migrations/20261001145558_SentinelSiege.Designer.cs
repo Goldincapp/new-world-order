@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NWO.Server.Data;
 
@@ -10,9 +11,11 @@ using NWO.Server.Data;
 namespace NWO.Server.Data.Migrations
 {
     [DbContext(typeof(GameDb))]
-    partial class GameDbModelSnapshot : ModelSnapshot
+    [Migration("20261001145558_SentinelSiege")]
+    partial class SentinelSiege
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.10");
@@ -189,35 +192,6 @@ namespace NWO.Server.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Drones");
-                });
-
-            modelBuilder.Entity("NWO.Server.Data.HomeTile", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("Rotated")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("X")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Y")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PlayerId");
-
-                    b.ToTable("HomeTiles");
                 });
 
             modelBuilder.Entity("NWO.Server.Data.Law", b =>
@@ -493,9 +467,6 @@ namespace NWO.Server.Data.Migrations
                     b.Property<string>("HomeBuildings")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("HomeLevel")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("HomeSector")
                         .HasColumnType("INTEGER");
 
@@ -540,18 +511,12 @@ namespace NWO.Server.Data.Migrations
                     b.Property<double>("Oil")
                         .HasColumnType("REAL");
 
-                    b.Property<double>("Power")
-                        .HasColumnType("REAL");
-
                     b.Property<int>("Standing")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("TutorialStep")
-                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -737,15 +702,6 @@ namespace NWO.Server.Data.Migrations
                     b.ToTable("Trades");
                 });
 
-            modelBuilder.Entity("NWO.Server.Data.HomeTile", b =>
-                {
-                    b.HasOne("NWO.Server.Data.Player", null)
-                        .WithMany("HomeTiles")
-                        .HasForeignKey("PlayerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("NWO.Server.Data.Order", b =>
                 {
                     b.HasOne("NWO.Server.Data.Player", "Player")
@@ -766,8 +722,6 @@ namespace NWO.Server.Data.Migrations
 
             modelBuilder.Entity("NWO.Server.Data.Player", b =>
                 {
-                    b.Navigation("HomeTiles");
-
                     b.Navigation("Parcels");
                 });
 #pragma warning restore 612, 618
