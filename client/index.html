@@ -450,7 +450,7 @@ html.app .screen{border-radius:0}
           <div><h4 style="font:700 1.02em/1.2 'Baloo 2','Trebuchet MS',sans-serif;margin:.1em 0 .3em">Ready to collect</h4><div class="collect" id="brCollect"></div><button class="primary bigbtn" id="brCollectBtn">Collect all</button>
             <h4 style="font:700 1.02em/1.2 'Baloo 2','Trebuchet MS',sans-serif;margin:.9em 0 .3em">Today's goals</h4><div id="brGoals"></div>
             <div class="note" style="margin-top:.6em">Login streak: day 6 of 7 · tomorrow: gold crate</div><div class="streak"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
-            <div class="acts" style="margin-top:.8em"><button id="brGo">Go to Sector 12</button><button id="brBoard">Open the Board</button><button id="brSave" hidden>Save my account</button></div></div>
+            <div class="acts" style="margin-top:.8em"><button id="brGo">Go to Sector 12</button><button id="brBoard">Open the Board</button><button id="brSave" hidden>Save my account</button><button id="brGfx">Graphics: New</button></div></div>
         </div>
         <div class="toast" id="toast"></div>
         <div class="tutbar" id="tutBar" hidden></div>
@@ -603,6 +603,11 @@ const coneGs=[new THREE.ConeGeometry(0.3,0.45,10),new THREE.ConeGeometry(0.23,0.
 function tree(x,y,z,s){add(trunkG,0x8b5a2b,x,y+0.16*s,z).scale.setScalar(s);const g=true?[0x2f5a2e,0x355f30,0x284f28][Math.floor(hash(x,z)*3)]:[0x4fb04a,0x5cc04c,0x3f9d45][Math.floor(hash(x,z)*3)];
  add(crownG,g,x,y+0.5*s,z).scale.setScalar(s);add(crownG,g,x+0.12*s,y+0.72*s,z-0.05*s).scale.setScalar(0.62*s);}
 function pine(x,y,z,s){add(trunkG,0x7a4f28,x,y+0.14*s,z).scale.setScalar(s);[[0.4,0],[0.66,1],[0.88,2]].forEach(p=>add(coneGs[p[1]],true?0x1f4a30:0x2f8f4e,x,y+p[0]*s,z).scale.setScalar(s));}
+/* Graphics switch: "new" (smooth terrain, model trees and towns on the maps) or "classic". Remove NEWGFX and the code it guards to drop the experiment. */
+const NEWGFX=(()=>{try{return localStorage.getItem('nwo.gfx')!=='classic';}catch(_){return true;}})();
+const DECOR=[];
+function tagDecor(kind,fn){return function(x,y,z,s0,a,b){const par=(kind==='house'?b:null)||P,before=par.children.length;const ret=fn(x,y,z,s0,a,b);DECOR.push({kind,x,y,z,s:s0,rot:kind==='house'?s0:0,ret,par,objs:par.children.slice(before)});return ret;};}
+tree=tagDecor('tree',tree);pine=tagDecor('pine',pine);
 const rockG=new THREE.DodecahedronGeometry(0.35,0);
 function rocks(x,y,z,s){for(let n=0;n<3;n++){const a=n*2.1+hash(x,n)*1.5,d=n?0.25*s:0;const r=add(rockG,n%2?0xa9aab0:0x93949b,x+Math.cos(a)*d,y+0.2*s*(n?0.7:1.2),z+Math.sin(a)*d,null,{flatShading:true});r.scale.setScalar(s*(n?0.65:1.1));r.rotation.set(hash(n,x)*3,hash(z,n)*3,0);}}
 const busy=['10,1','12,1','12,3','10,3','12,5','13,5','10,5','12,0','13,0'];
@@ -613,7 +618,9 @@ Object.values(cells).forEach(c=>{const k=c.i+','+c.j;if(occupied.has(k)||c.type=
 const roofMat=[0xe0533d,0x9b59b6,0x3d7fd6,0xe39b2d];
 function roofGeo(w,h,d){const s=new THREE.Shape();s.moveTo(-w/2,0);s.lineTo(w/2,0);s.lineTo(0,h);s.closePath();const g=new THREE.ExtrudeGeometry(s,{depth:d,bevelEnabled:false});g.translate(0,0,-d/2);return g;}
 const bodyG=new RoundedBoxGeometry(0.42,0.32,0.36,2,0.04),rG=roofGeo(0.54,0.25,0.44);
-function house(x,y,z,rot,ci,p){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=rot;(p||P).add(g);
+function house(x,y,z,rot,ci,p){return houseTagged(x,y,z,rot,ci,p);}
+const houseTagged=tagDecor('house',(x,y,z,rot,ci,p)=>houseRaw(x,y,z,rot,ci,p));
+function houseRaw(x,y,z,rot,ci,p){const g=new THREE.Group();g.position.set(x,y,z);g.rotation.y=rot;(p||P).add(g);
  add(bodyG,0xf6ead2,0,0.16,0,g);add(rG,roofMat[ci%4],0,0.32,0,g);add(boxG,0x7a4f28,0,0.09,0.185,g).scale.set(0.1,0.17,0.02);add(boxG,0xffc46b,0.12,0.19,0.185,g,{emissive:0xffa53a,emissiveIntensity:1.5},true).scale.set(0.07,0.07,0.02);add(boxG,0xffc46b,-0.12,0.19,0.185,g,{emissive:0xffa53a,emissiveIntensity:1.5},true).scale.set(0.07,0.07,0.02);add(boxG,0x8a8a8a,0.12,0.5,-0.08,g).scale.set(0.06,0.14,0.06);return g;}
 [[0,10,0.3],[1,9,-0.4],[3,10,1.2],[0,12,0.1],[1,13,-0.2],[3,12,0.6],[3,13,-0.5],[0,11,1.6],[1,11,2.4]].forEach((h,n)=>{const c=cells[h[0]+','+h[1]];c.feat='house';house(c.x+(hash(n,1)-0.5)*0.3,c.top,c.z+(hash(1,n)-0.5)*0.3,h[2],n);});
 const cap=cells['2,11'];cap.feat='capitol';
@@ -1263,7 +1270,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{dx=e.clientX;dy=e.clientY
 renderer.domElement.addEventListener('pointermove',e=>{if(followShip&&e.buttons&&Math.hypot(e.clientX-dx,e.clientY-dy)>8){followShip=null;toast('Stopped tracking');}});
 renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-dx,e.clientY-dy)>6)return;if(!sheet.hidden)return;const r=renderer.domElement.getBoundingClientRect();
  ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);
- if(mode==='county'){const h=ray.intersectObjects(picks,false)[0];if(!h)return;const c=cells[h.object.userData.inst?h.object.userData.keys[h.instanceId]:h.object.userData.key];if(!c||c.type==='water')return;current=c;
+ if(mode==='county'){const h=ray.intersectObjects(picks,false)[0];if(!h)return;const c=cells[h.object.userData.terrainKey?h.object.userData.terrainKey(h.object.worldToLocal(h.point.clone())):h.object.userData.inst?h.object.userData.keys[h.instanceId]:h.object.userData.key];if(!c||c.type==='water')return;current=c;
   sel.position.set(c.x,c.top+0.02,c.z);sel.visible=true;parcelInfo(c);controls.autoRotate=false;controls.minDistance=2.5;
   const tgt=new THREE.Vector3(c.x,c.top+0.15,c.z),o=camera.position.clone().sub(controls.target);o.y=0;o.normalize();flyTo(tgt,tgt.clone().add(o.multiplyScalar(2.6)).add(new THREE.Vector3(0,2.3,0)));}
  else if(mode==='hq'&&window.NET&&NET.me&&HB.built){homePointer(ray);}
@@ -1704,6 +1711,8 @@ $('brCollectBtn').onclick=e=>{if(NET.me){if(collected&&!(NET.me.ration&&NET.me.r
   const ration=NET.me.ration&&NET.me.ration.ready;api('/collect',{}).then(async r=>{const c=r.collected;applyMe(r.player);if(ration){const rr=await NET.conn.invoke('ClaimRation');if(rr.ok){applyMe(rr.player);setTimeout(()=>toast('Caretaker ration crate collected'),2400);}}collected=true;renderBrief();const rr=screen.getBoundingClientRect();floatText('+'+fmtN(c.oil)+' oil',e.clientX-rr.left-40,e.clientY-rr.top-40);toast('Collected '+fmtN(c.cash)+' cash, '+fmtN(c.oil)+' oil and '+fmtN(c.grain)+' grain');}).catch(er=>toast(er.message));return;}
  if(collected){toast('Already collected. Come back later for more');return;}collected=true;res.oil+=OFFLINE.oil;res.grain+=OFFLINE.grain;res.cash+=OFFLINE.cash;res.fuel+=OFFLINE.fuel;renderRes(['oil','grain','cash','fuel']);
  const r=screen.getBoundingClientRect();floatText('+'+fmtN(OFFLINE.oil)+' oil',e.clientX-r.left-40,e.clientY-r.top-40);toast('Collected everything your land made while you were away');renderBrief();};
+$('brGfx').textContent='Graphics: '+(NEWGFX?'New':'Classic');
+$('brGfx').onclick=()=>{try{localStorage.setItem('nwo.gfx',NEWGFX?'classic':'new');}catch(_){}location.reload();};
 $('brGo').onclick=()=>{closeBrief();if(window.NET&&NET.me){sectorToHome();return;}if(mode!=='county')setMode('county');};
 $('brBoard').onclick=()=>{briefEl.hidden=true;openBoard('needs');};
 document.querySelector('.me').onclick=()=>{if(briefEl.hidden)openBrief();else closeBrief();};
@@ -2328,15 +2337,27 @@ function addBase(v){const c=cells[v.i+','+v.j];if(!c||bigBases[v.i+','+v.j])retu
  add(boxG,0xffc46b,0,0.18,0.255,null,{emissive:0xffa53a,emissiveIntensity:1.5},true).scale.set(0.12,0.08,0.01);
  add(new THREE.CylinderGeometry(0.012,0.012,0.5,6),0x444444,0.3,0.25,-0.3);const fl=add(boxG,col,0.4,0.42,-0.3,null,{emissive:col,emissiveIntensity:0.3});fl.scale.set(0.2,0.12,0.01);flags.push(fl);
  P=P0;if(mine)label('Your base','#ffc933',c.x,c.top+1.2,c.z,0.9,bigGroup,true);bigBases[v.i+','+v.j]=g;}
-function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:snap.sector,size:S,biome:snap.biome,settlers:snap.settlers};setTimeout(renderSec,0);
+/** Smooth sector terrain: vertices at every cell's corners, edges and centre, so each parcel keeps its own colour and height in the middle and blends into its neighbours at the edges. */
+function buildTerrain(S,H,C){const N=2*S+1,pos=new Float32Array(N*N*3),cols=new Float32Array(N*N*3),uvs=new Float32Array(N*N*2);
+ for(let b=0;b<N;b++)for(let a=0;a<N;a++){const is=a%2?[(a-1)/2]:[a/2-1,a/2],js=b%2?[(b-1)/2]:[b/2-1,b/2];let h=0,r=0,g=0,bl=0,n=0;
+  for(const i of is)for(const j of js){if(i<0||j<0||i>=S||j>=S)continue;const id=j*S+i;h+=H[id];r+=C[id].r;g+=C[id].g;bl+=C[id].b;n++;}
+  const v=b*N+a,x=-S/2+a*0.5,z=-S/2+b*0.5;pos[v*3]=x;pos[v*3+1]=h/n;pos[v*3+2]=z;cols[v*3]=r/n;cols[v*3+1]=g/n;cols[v*3+2]=bl/n;uvs[v*2]=x/3;uvs[v*2+1]=z/3;}
+ const idx=[];for(let b=0;b<N-1;b++)for(let a=0;a<N-1;a++){const p=b*N+a;idx.push(p,p+N,p+1,p+1,p+N,p+N+1);}
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.setAttribute('uv',new THREE.BufferAttribute(uvs,2));geo.setIndex(idx);geo.computeVertexNormals();
+ const map=DT.grass.clone();map.wrapS=map.wrapT=THREE.RepeatWrapping;map.needsUpdate=true;
+ const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({vertexColors:true,map,roughness:0.95}));m.receiveShadow=true;
+ m.userData.terrainKey=p=>{const i=Math.round(p.x+(S-1)/2),j=Math.round(p.z+(S-1)/2);return i>=0&&j>=0&&i<S&&j<S?i+','+j:null;};
+ // a skirt of earth under the edges so the surface doesn't float
+ const base=new THREE.Mesh(new THREE.BoxGeometry(S,0.3,S),new THREE.MeshStandardMaterial({color:0x3a2e22,roughness:1}));base.position.y=0.02;m.add(base);return m;}
+function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:snap.sector,size:S,biome:snap.biome,settlers:snap.settlers,region:snap.region||1,claimCost:snap.claimCost,open:snap.open};setTimeout(renderSec,0);
  if(bigGroup){county.remove(bigGroup);bigGroup.traverse(o=>{if(o.geometry&&o.isInstancedMesh)o.geometry.dispose();});}
  if(!oldCounty){oldCounty=county.children.filter(o=>o!==sel);oldCounty.forEach(o=>o.visible=false);}
  bigGroup=new THREE.Group();county.add(bigGroup);bigBases={};
  Object.keys(cells).forEach(k=>delete cells[k]);picks.length=0;
  const n=S*S,tile=new THREE.BoxGeometry(1.002,1,1.002),tm=new THREE.MeshStandardMaterial({roughness:0.95}),ground=new THREE.InstancedMesh(tile,tm,n);ground.receiveShadow=true;
- const keys=[],m4=new THREE.Matrix4(),col=new THREE.Color(),trees=[],rocks=[],ruins=[],rigs=[],dead=[],bush=[],crop=[],reed=[];
+ const TH=new Float32Array(n),TC=[];const keys=[],m4=new THREE.Matrix4(),col=new THREE.Color(),trees=[],rocks=[],ruins=[],rigs=[],dead=[],bush=[],crop=[],reed=[];
  for(let j=0;j<S;j++)for(let i=0;i<S;i++){const code=snap.rows[j].substr(i*2,2),idx=j*S+i,x=i-half,z=j-half,h=LANDH[code]+(code==='ro'?hash(i,j)*0.25:code==='wa'?0:hash(i*3.1,j*1.7)*0.04);
-  m4.makeScale(1,h,1).setPosition(x,h/2-0.05,z);ground.setMatrixAt(idx,m4);col.setHex(LANDCOL[code]).multiplyScalar(0.92+hash(i*0.7,j*1.3)*0.14);ground.setColorAt(idx,col);
+  m4.makeScale(1,h,1).setPosition(x,h/2-0.05,z);ground.setMatrixAt(idx,m4);col.setHex(LANDCOL[code]).multiplyScalar(0.92+hash(i*0.7,j*1.3)*0.14);ground.setColorAt(idx,col);TH[idx]=h-0.05;TC[idx]=col.clone();
   const k=i+','+j;keys[idx]=k;cells[k]={x,z,top:h-0.05,type:TYPEOF[code],code,res:landRes(code,i,j,snap.sector),i,j,lvl:code==='ro'?2:1};
   if(code==='sc'){const nT=1+Math.floor(hash(i,j*2)*3);for(let q=0;q<nT;q++)trees.push([x+(hash(i+q,j)-0.5)*0.7,h-0.05,z+(hash(i,j+q)-0.5)*0.7,0.25+hash(q,i+j)*0.15]);}
   else if(code==='gr'&&hash(i*2,j)<0.25)trees.push([x+(hash(i,j)-0.5)*0.5,h-0.05,z+(hash(j,i)-0.5)*0.5,0.3]);
@@ -2348,7 +2369,8 @@ function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:sna
   if((code==='gr'||code==='sc')&&hash(i*4.1,j*3.3)<0.45)for(let q=0;q<2;q++)bush.push([x+(hash(i*q+1,j)-0.5)*0.8,h-0.05,z+(hash(i,j*q+2)-0.5)*0.8,0.12+hash(q,j)*0.1]);
   if(code==='fe')for(let q=0;q<3;q++)crop.push([x,h-0.05,z-0.3+q*0.3]);
   if(code==='wa'&&hash(i*1.1,j*6.1)<0.3)reed.push([x+(hash(i,j)-0.5)*0.7,h-0.05,z+(hash(j,i)-0.5)*0.7]);}
- ground.instanceMatrix.needsUpdate=true;ground.instanceColor.needsUpdate=true;ground.userData={inst:true,keys};bigGroup.add(ground);picks.push(ground);
+ ground.instanceMatrix.needsUpdate=true;ground.instanceColor.needsUpdate=true;ground.userData={inst:true,keys};
+ if(NEWGFX){const terr=buildTerrain(S,TH,TC);bigGroup.add(terr);picks.push(terr);}else{bigGroup.add(ground);picks.push(ground);}
  const inst=(geo,color,list,place,opts)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial(Object.assign({color,roughness:0.9},opts||{})),list.length);im.castShadow=true;list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);});im.instanceMatrix.needsUpdate=true;bigGroup.add(im);};
  const rot=new THREE.Matrix4(),place=(hk,y0)=>(m,p)=>m.makeRotationY(hash(p[0]*3.1,p[2]*1.7)*6.28).premultiply(new THREE.Matrix4().makeScale(p[3]*hk,p[3]*hk,p[3]*hk)).setPosition(p[0],p[1]+(y0||0),p[2]);
  const trA=trees.filter((p,i)=>hash(p[0],p[2])<0.6),trB=trees.filter((p,i)=>hash(p[0],p[2])>=0.6);
@@ -2357,7 +2379,7 @@ function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:sna
  inst(new THREE.BoxGeometry(1,1,1),0x6a645a,ruins,(m,p)=>m.makeScale(p[3],p[4],p[5]).setPosition(p[0],p[1]+p[4]/2,p[2]));
  inst(new THREE.CylinderGeometry(0.02,0.04,1,5),0x3a2e24,dead,(m,p)=>m.makeScale(1,p[3],1).setPosition(p[0],p[1]+p[3]/2,p[2]));
  if(!instModel('bush',bigGroup,bush,place(1.1)))inst(new THREE.IcosahedronGeometry(1,0),0x3d5a2c,bush,(m,p)=>m.makeScale(p[3],p[3]*0.7,p[3]).setPosition(p[0],p[1]+p[3]*0.4,p[2]),{flatShading:true});
- inst(new THREE.BoxGeometry(0.86,0.07,0.12),0x7a7a30,crop,(m,p)=>m.makeTranslation(p[0],p[1]+0.035,p[2]));
+ inst(new THREE.BoxGeometry(0.86,NEWGFX?0.04:0.07,0.12),NEWGFX?0x5a5a28:0x7a7a30,crop,(m,p)=>m.makeTranslation(p[0],p[1]+(NEWGFX?0.02:0.035),p[2]));
  inst(new THREE.CylinderGeometry(0.012,0.012,0.35,4),0x5a6a3a,reed,(m,p)=>m.makeTranslation(p[0],p[1]+0.17,p[2]));
  inst(new THREE.CylinderGeometry(0.05,0.08,1,6),0x2b2b30,rigs,(m,p)=>m.makeScale(1,0.7,1).setPosition(p[0],p[1]+0.35,p[2]));
  // water shimmer and the sector hall
@@ -2369,7 +2391,7 @@ function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:sna
  const mineHome=snap.parcels.find(p=>p.home&&p.owner===NET.me.name);NET.homeKey=mineHome?mineHome.i+','+mineHome.j:snap.hall.i+','+snap.hall.j;
  sun.shadow.camera.left=sun.shadow.camera.bottom=-20;sun.shadow.camera.right=sun.shadow.camera.top=20;sun.shadow.camera.updateProjectionMatrix();
  if(mode==='county'){scene.fog=new THREE.Fog(0x0c0f14,48,105);controls.maxDistance=66;if(!diving&&!NET.noFly){const hm=home();flyTo(hm[0],hm[1]);}}
- if(/[?&]ov/.test(location.search)){setTimeout(()=>{briefEl.hidden=true;anim=null;controls.target.set(0,0,0);camera.position.set(20,30,24);controls.update();},3000);}}
+ if(/[?&]ov/.test(location.search)&&!NET.ovDone){NET.ovDone=true;setTimeout(()=>{briefEl.hidden=true;anim=null;controls.target.set(0,0,0);camera.position.set(20,30,24);controls.update();},3000);}}
 function openSectorMap(n){NET.viewSector=n;go('county',V3(0,0,0),V3(2,40,2),'Sector '+n);setTimeout(watchHome,700);}
 
 
@@ -2528,17 +2550,31 @@ const MODEL_FILES={hq:'commercial/building-n',barracks:'industrial/building-t',w
 const MODELS={};
 (async()=>{const L=new GLTFLoader();await Promise.all(Object.entries(MODEL_FILES).map(async([k,p])=>{try{const g=await L.loadAsync('models/'+p+'.glb');g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});g.scene.updateMatrixWorld(true);MODELS[k]=g.scene;}catch(e){console.warn('model failed',k,e);}}));
  window.__modelsReady=true;
+ if(NEWGFX)swapMapDecor();
  // Rebuild whatever is on screen so it picks the models up
  if(window.NET&&NET.me&&NET.me.home&&HB.built){HB.key=null;buildHomeBase();}
  if(window.NET&&NET.lastSnap&&mode==='county'){NET.noFly=true;try{applySnapshot(NET.lastSnap);}finally{NET.noFly=false;}}})();
+function underMaps(o){while(o){if(o===province||o===region)return true;o=o.parent;}return false;}
+if(/[?&]dbg2/.test(location.search))setInterval(()=>{if(mode==='province'||mode==='region'){anim=null;const h=home();controls.target.copy(h[0]);camera.position.copy(h[1]);controls.update();window.__composer.render();}const sc=window.__composer.passes[0].scene;console.log('DBG2',JSON.stringify({mode,cam:camera.position.toArray().map(v=>+v.toFixed(1)),tgt:controls.target.toArray().map(v=>+v.toFixed(1)),vis:sc.children.map(g=>g.visible?1:0).join(''),calls:renderer.info.render.calls,tris:renderer.info.render.triangles,anim:!!anim,models:!!window.__modelsReady}));},2000);
+function swapMapDecor(){const groups=new Map();
+ DECOR.forEach(d=>{if(!underMaps(d.par)||d.kind==='house')return;/* houses stay the classic coloured ones: they read better at map zoom */const key=d.par.uuid;if(!groups.has(key))groups.set(key,{par:d.par,pine:[],pine2:[],tree:[],oak:[],house1:[],house2:[]});const g=groups.get(key);
+  /* use where the original ended up: the maps raise objects onto their hills after building */
+  const y=d.kind==='house'?(d.ret?d.ret.position.y:d.y):(d.objs[0]?d.objs[0].position.y-(d.kind==='pine'?0.14:0.16)*d.s:d.y);
+  if(d.kind==='house'){const r=d.ret,sc=r?r.scale.x:1;(hash(d.x*2.3,d.z)<0.5?g.house1:g.house2).push([d.x,y,d.z,0.55*sc,r?r.rotation.y:d.rot]);}
+  else if(d.kind==='pine')(hash(d.x,d.z*1.7)<0.6?g.pine:g.pine2).push([d.x,y,d.z,1.05*d.s,hash(d.z,d.x)*6.28]);
+  else (hash(d.x,d.z)<0.5?g.tree:g.oak).push([d.x,y,d.z,0.95*d.s,hash(d.z,d.x)*6.28]);
+  d.objs.forEach(o=>o.visible=false);if(d.ret&&d.ret.isObject3D)d.ret.visible=false;});
+ const place=(m,p)=>m.makeRotationY(p[4]||0).premultiply(new THREE.Matrix4().makeScale(p[3],p[3],p[3])).setPosition(p[0],p[1],p[2]);
+ const HT=[0xffffff,0xf2d9bf,0xe6c9a8,0xd9dde6,0xf0e0c0,0xc9b8a0];
+ groups.forEach(g=>['pine','pine2','tree','oak','house1','house2'].forEach(k=>instModel(k,g.par,g[k],place,k.startsWith('house')?(p=>HT[Math.floor(hash(p[0]*1.3,p[2]*2.1)*HT.length)]):null)));}
 /** A clone of a model, scaled to fit a w x d footprint (and no taller than h, if given), centred, sitting on y=0. */
 function model(k,w,d,h){const src=MODELS[k];if(!src)return null;const g=src.clone(true);const box=new THREE.Box3().setFromObject(g),sz=box.getSize(new THREE.Vector3());
  const sc=Math.min(w/sz.x,d/sz.z,h?h/sz.y:1e9);g.scale.setScalar(sc);box.setFromObject(g);const c=box.getCenter(new THREE.Vector3());g.position.set(-c.x,-box.min.y,-c.z);const wrap=new THREE.Group();wrap.add(g);return wrap;}
 /** Instanced copies of a model for big scenes: one InstancedMesh per part, the model normalised to height 1 at the origin. */
-function instModel(k,group,list,place){const src=MODELS[k];if(!src||!list.length)return false;const box=new THREE.Box3().setFromObject(src),sz=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());
+function instModel(k,group,list,place,tint){const src=MODELS[k];if(!src||!list.length)return false;const box=new THREE.Box3().setFromObject(src),sz=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());
  const norm=new THREE.Matrix4().makeScale(1/sz.y,1/sz.y,1/sz.y).multiply(new THREE.Matrix4().makeTranslation(-c.x,-box.min.y,-c.z));const m4=new THREE.Matrix4();
  src.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(norm,o.matrixWorld));const im=new THREE.InstancedMesh(geo,o.material,list.length);im.castShadow=true;im.receiveShadow=true;
-  list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);});im.instanceMatrix.needsUpdate=true;group.add(im);});return true;}
+  const tc=new THREE.Color();list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);if(tint)im.setColorAt(i,tc.setHex(tint(p,i)));});im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;group.add(im);});return true;}
 const HOME_MODEL={barracks:'barracks',warehouse:'warehouse',research:'research',workshop:'workshop',generator:'generator',solar:'solar'};
 function homeModel2(type,w,h){const kd=homeKindOf(type),mk=HOME_MODEL[type];
  if(mk&&MODELS[mk]){const m=model(mk,kd.w*0.92,kd.h*0.92);if(m)return m;}
