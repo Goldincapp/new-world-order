@@ -23,6 +23,7 @@ public static class SectorTemplate
 
     public static string Biome(int sector)
     {
+        if (Region2.Contains(sector)) return Region2.Biome(sector);
         int c = (sector - 1) / 5, r = (sector - 1) % 5;
         return Biomes[r][c];
     }
@@ -78,6 +79,11 @@ public static class SectorTemplate
             "oil" or "yours" => [("wa", .02), ("oi", .20), ("ro", .06), ("gr", .05), ("fe", .03), ("sc", .04), ("ru", .05)],
             "town" => [("wa", .03), ("ru", .14), ("gr", .10), ("fe", .06), ("sc", .05), ("ro", .03), ("oi", .02)],
             "city" => [("wa", .02), ("ru", .24), ("gr", .06), ("fe", .03), ("sc", .03), ("ro", .04), ("oi", .02)],
+            // The Ashlands: richer than anything in Region 1, which is why people fight over it.
+            "deepoil" => [("wa", .02), ("oi", .34), ("ro", .08), ("ru", .06), ("gr", .03), ("sc", .03)],
+            "breadbasket" => [("wa", .05), ("fe", .32), ("gr", .14), ("sc", .03), ("ru", .03), ("oi", .02)],
+            "ironhills" => [("wa", .02), ("ro", .36), ("oi", .06), ("sc", .05), ("ru", .04), ("gr", .03)],
+            "deadcity" => [("wa", .02), ("ru", .40), ("ro", .06), ("oi", .04), ("gr", .04), ("fe", .02)],
             _ => [("wa", .03), ("gr", .16), ("fe", .07), ("sc", .08), ("ro", .04), ("oi", .02), ("ru", .04)],
         };
         for (var j = 0; j < Size; j++) for (var i = 0; i < Size; i++) g[i, j] = "ba";

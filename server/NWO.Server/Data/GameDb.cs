@@ -48,6 +48,9 @@ public class Player
     public int CampAssaultSector { get; set; }
     public DateTime CampAssaultAt { get; set; }
     public DateTime LastCampClearAt { get; set; }
+    /// <summary>Banked Ashlands war score from claims and captures (holding land adds more live).</summary>
+    public int WarScore { get; set; }
+    public int Captures { get; set; }
 
     /// <summary>A drone hunt that has been paid for (flak shells loaded) and not yet finished.</summary>
     public int DroneHuntSector { get; set; }

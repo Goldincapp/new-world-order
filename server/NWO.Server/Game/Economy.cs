@@ -83,12 +83,13 @@ public static class Economy
         foreach (var parcel in p.Parcels.Where(x => !x.IsHome))
         {
             var (res, perHour) = Yield[parcel.Resource];
-            r[res] += perHour;
+            var rich = Region2.Contains(parcel.Sector) ? Region2.YieldMult : 1;
+            r[res] += perHour * rich;
             var land = SectorTemplate.Code(parcel.Sector, parcel.I, parcel.J);
             foreach (var b in BuildingsOn(parcel))
             {
                 var t = Buildings[b];
-                r[t.Res] += t.PerHour * Suit(b, land);
+                r[t.Res] += t.PerHour * Suit(b, land) * rich;
             }
         }
         var labs = Math.Min(2, p.HomeTiles.Count(t => t.Type == "research"));

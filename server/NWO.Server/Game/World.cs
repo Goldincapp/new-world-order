@@ -32,9 +32,11 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         var db = scope.ServiceProvider.GetRequiredService<GameDb>();
         var owned = await db.Parcels.Include(p => p.Owner).Where(p => p.Sector == sector).ToListAsync();
         var settlers = owned.Select(p => p.OwnerId).Distinct().Count();
+        var r2 = Region2.Contains(sector);
+        var open = r2 ? (await db.Server.FindAsync(1))?.Region2Open ?? false : !Economy.Closed.Contains(sector);
         return new
         {
-            sector, open = !Economy.Closed.Contains(sector), settlers, size = SectorTemplate.Size, biome = SectorTemplate.Biome(sector),
+            sector, open, region = r2 ? 2 : 1, claimCost = r2 ? Region2.ClaimCost : Economy.ClaimCost, settlers, size = SectorTemplate.Size, biome = SectorTemplate.Biome(sector),
             hall = new { i = SectorTemplate.Hall.i, j = SectorTemplate.Hall.j },
             rows = SectorTemplate.Rows(sector),
             parcels = owned.Select(p => ParcelView(sector, p.I, p.J, p)),
@@ -46,11 +48,31 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (Economy.Closed.Contains(sector)) return "This sector belongs to the Caretaker or a rival. It can't be settled.";
         if (!SectorTemplate.Claimable(sector, i, j)) return "Roads, water and the sector hall can't be claimed.";
         if (parcel is not null) return parcel.OwnerId == me.Id ? "You already own this parcel." : $"{parcel.Owner!.Name} already owns this parcel.";
-        if (me.Cash < Economy.ClaimCost) return "Not enough cash to claim this parcel.";
+        var r2 = Region2.Contains(sector);
+        if (r2 && await Region2.CanClaim(db, me) is { } why) return why;
+        var cost = r2 ? Region2.ClaimCost : Economy.ClaimCost;
+        if (me.Cash < cost) return "Not enough cash to claim this parcel.";
         Economy.Settle(db, me, now);
-        Ledger.Add(db, me, "cash", -Economy.ClaimCost, $"Claimed parcel {sector}:{i},{j}");
+        Ledger.Add(db, me, "cash", -cost, $"Claimed parcel {sector}:{i},{j}");
+        if (r2) { me.WarScore += Region2.ClaimScore; Caretaker.Remember(db, me, 0, "war", $"Staked a claim in the Ashlands, Sector {sector}"); }
         var p = new Parcel { Sector = sector, I = i, J = j, Resource = SectorTemplate.Resource(sector, i, j), Owner = me, ClaimedAt = now };
         db.Parcels.Add(p); // setting Owner already adds it to me.Parcels
+        return null;
+    });
+
+    /// <summary>An attacker won the battle for an Ashlands parcel: it changes hands, and half its buildings are wrecked.</summary>
+    public Task<Result> Seize(Guid attackerId, int sector, int i, int j) => Change(attackerId, sector, i, j, async (db, me, parcel, now) =>
+    {
+        if (parcel is null || parcel.IsHome) return "That land is no longer there to take.";
+        var loser = parcel.Owner!;
+        await db.Entry(loser).Collection(x => x.Parcels).LoadAsync();
+        var kept = Economy.BuildingsOn(parcel).Where((_, k) => k % 2 == 0).ToList();
+        parcel.Buildings = string.Join(",", kept);
+        loser.Parcels.Remove(parcel);
+        parcel.Owner = me; parcel.OwnerId = me.Id; parcel.ClaimedAt = now;
+        me.WarScore += Region2.CaptureScore; me.Captures++;
+        Caretaker.Remember(db, me, -3, "war", $"Seized Ashlands land in Sector {sector} from {loser.Name}");
+        Caretaker.Remember(db, loser, 0, "war", $"Lost Ashlands land in Sector {sector} to {me.Name}");
         return null;
     });
 
@@ -123,7 +145,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
 
     async Task<Result> Change(Guid playerId, int sector, int i, int j, Func<GameDb, Player, Parcel?, DateTime, Task<string?>> apply)
     {
-        if (sector is < 1 or > 50 || i is < 0 or >= SectorTemplate.Size || j is < 0 or >= SectorTemplate.Size)
+        if (!Region2.ValidSector(sector) || i is < 0 or >= SectorTemplate.Size || j is < 0 or >= SectorTemplate.Size)
             return new Result(false, "That parcel doesn't exist.");
         await gate.WaitAsync();
         try

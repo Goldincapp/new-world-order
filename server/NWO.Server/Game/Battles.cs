@@ -18,6 +18,8 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
     static readonly ConcurrentDictionary<string, DateTime> Cooldowns = new();
 
     public const double CampFuel = 100, RaidFuel = 60, AmbushFuel = 30;
+    /// <summary>Who owned an Ashlands parcel when its seizure started, so a win only transfers if nothing changed.</summary>
+    static readonly ConcurrentDictionary<long, (int i, int j, Guid owner)> SeizeTargets = new();
 
     /// <summary>The Blue Party garrisons the player can raid, and what they hold.</summary>
     static readonly Dictionary<string, (int sector, BattleSim.Rival rival, double lootRes, string res, double lootCash)> Rivals = new()
@@ -43,6 +45,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         }
 
         BattleSim? sim = null;
+        (int i, int j, Guid owner)? target = null;
         var r = await world.Locked(async db =>
         {
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
@@ -66,6 +69,19 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     fuel = AmbushFuel;
                     sim = new BattleSim($"Ambush on a patrol · Sector {sector}", "Patrol", null, null, Random.Shared.Next()) { En = 1400, EnMax = 1400, TimeLeft = 90 };
                     break;
+                case "seize":
+                    if (!Region2.Contains(sector)) return new Result(false, "Only Ashlands land can be seized.");
+                    var ij = (rivalKey ?? "").Split(',');
+                    if (ij.Length != 2 || !int.TryParse(ij[0], out var pi) || !int.TryParse(ij[1], out var pj)) return new Result(false, "Pick a parcel to seize.");
+                    var parcel = await db.Parcels.Include(x => x.Owner).ThenInclude(o => o!.HomeTiles).FirstOrDefaultAsync(x => x.Sector == sector && x.I == pi && x.J == pj);
+                    if (parcel?.Owner is null) return new Result(false, "Nobody holds that parcel. Claim it instead.");
+                    if (parcel.OwnerId == playerId) return new Result(false, "That land is already yours.");
+                    if (Region2.Protected(parcel, now)) return new Result(false, $"{parcel.Owner.Name} only just took this land. It's protected for {(int)Math.Ceiling(((parcel.ClaimedAt ?? now) + Region2.Protection - now).TotalMinutes)} more minutes.");
+                    fuel = Region2.SeizeFuel;
+                    var g = Region2.Garrison(parcel.Owner, parcel);
+                    sim = new BattleSim($"Seizing {parcel.Owner.Name}'s land · Sector {sector}", g.Name, g, deck, Random.Shared.Next());
+                    target = (pi, pj, parcel.Owner.Id);
+                    break;
                 default: return new Result(false, "Unknown battle.");
             }
             if (me.Fuel < fuel) return new Result(false, $"This needs {fuel:N0} fuel for the trucks.");
@@ -74,6 +90,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         });
         if (!r.Ok || sim is null) return r;
         var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, sim);
+        if (target is { } t0) SeizeTargets[live.Id] = t0;
         Active[playerId] = live;
         return r with { Battle = new { id = live.Id, title = sim.Title, enemy = sim.Enemy, deck = sim.Deck, rival = sim.Opponent?.Name, state = sim.State() } };
     }
@@ -129,7 +146,20 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         var rows = new List<string[]> { new[] { "Result", s.Why } };
         string? announce = null;
         object? player = null;
-        if (b.Kind == "camp" && s.Won)
+        if (b.Kind == "seize")
+        {
+            SeizeTargets.TryRemove(b.Id, out var tg);
+            if (s.Won)
+            {
+                // Only transfer if the same owner still holds it (they could have lost it to someone else meanwhile).
+                var still = await world.Locked(async db => await db.Parcels.AnyAsync(x => x.Sector == b.Sector && x.I == tg.i && x.J == tg.j && x.OwnerId == tg.owner));
+                var r = still ? await world.Seize(b.PlayerId, b.Sector, tg.i, tg.j) : new World.Result(false, "Someone else took that land first.");
+                player = r.Player;
+                rows.Add(["Land", r.Ok ? $"Parcel {tg.i},{tg.j} in Sector {b.Sector} is yours. It's protected for 6 hours" : r.Error ?? ""]);
+                if (r.Ok) { rows.Add(["War score", $"+{Region2.CaptureScore}"]); announce = $"Ashlands: land in Sector {b.Sector} changed hands in battle."; }
+            }
+        }
+        else if (b.Kind == "camp" && s.Won)
         {
             var r = await caretaker.AwardCamp(b.PlayerId, b.Sector);
             player = r.Player;

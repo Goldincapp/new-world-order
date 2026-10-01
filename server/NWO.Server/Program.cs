@@ -131,6 +131,8 @@ api.MapPost("/me/restart", async (HttpContext ctx, GameDb db, World world) =>
 
 api.MapGet("/sentinel", (Siege siege) => siege.Status());
 
+api.MapGet("/region2", async (GameDb db) => Results.Ok(await Region2.Board(db)));
+
 // Admin: wipe the world back to a fresh season. Needs ?confirm=WIPE so it can't happen by accident.
 api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm) =>
 {
@@ -153,6 +155,14 @@ api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm)
         return n;
     });
     return Results.Ok(new { wiped = players });
+});
+
+// Admin: open the Ashlands without beating the Sentinel, for testing. Skips the gatebreakers' head start.
+api.MapPost("/admin/region2/open", async (HttpContext ctx, World world) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    await world.Locked(async db => { var st = (await db.Server.FindAsync(1))!; st.Region2Open = true; st.Region2OpenedAt = DateTime.UtcNow - Region2.HeadStart; st.Gatebreakers ??= "(opened by an admin)"; return true; });
+    return Results.Ok(new { open = true });
 });
 
 api.MapPost("/admin/sentinel/start", async (HttpContext ctx, Siege siege) =>
@@ -180,7 +190,7 @@ api.MapPost("/admin/sentinel/simulate", (HttpContext ctx, int bots, int? seed) =
 });
 
 // The terrain of a sector, one row of two-letter codes per line (see SectorTemplate).
-api.MapGet("/sector/{n:int}/map", (int n) => n is < 1 or > 50 ? Results.NotFound() : Results.Ok(new { sector = n, biome = SectorTemplate.Biome(n), size = SectorTemplate.Size, rows = SectorTemplate.Rows(n) }));
+api.MapGet("/sector/{n:int}/map", (int n) => !Region2.ValidSector(n) ? Results.NotFound() : Results.Ok(new { sector = n, biome = SectorTemplate.Biome(n), size = SectorTemplate.Size, rows = SectorTemplate.Rows(n) }));
 
 api.MapGet("/chat/{channel}", async (string channel, GameDb db) =>
     (await db.Chat.Where(m => m.Channel == channel).OrderByDescending(m => m.Id).Take(50)
@@ -203,7 +213,7 @@ static class Dto
             pending = Economy.Pending(p, now),
             ratesPerHour = Economy.RatesPerHour(p),
             parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x) }),
-            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools,
+            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, warScore = Region2.Score(p),
             claimCost = Economy.ClaimCost,
             buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour }),
             suitability = Economy.Suitability,
