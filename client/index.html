@@ -2555,7 +2555,7 @@ function homeFootprint(k,rot){return rot?[k.h,k.w]:[k.w,k.h];}
 const MODEL_FILES={hq:'commercial/building-n',barracks:'industrial/building-t',warehouse:'industrial/building-s',research:'industrial/building-q',workshop:'industrial/building-h',
  generator:'industrial/detail-tank',solar:'industrial/solar-panel-landscape',chimney:'industrial/chimney-small',house1:'suburban/building-type-a',house2:'suburban/building-type-c',
  pine:'nature/tree_pineDefaultA',pine2:'nature/tree_pineRoundC',tree:'nature/tree_default',oak:'nature/tree_oak',rock:'nature/rock_largeA',rock2:'nature/rock_smallC',bush:'nature/plant_bushLarge',wheat:'nature/crops_wheatStageB',corn:'nature/crops_cornStageD',
- truckBox:'car/delivery',truckFlat:'car/truck-flat',tankL:'industrial/detail-tank-large',
+ truckBox:'car/delivery',truckFlat:'car/truck-flat',tankL:'industrial/detail-tank-large',wallN:'castle/wall-narrow',wallGate:'castle/wall-narrow-gate',towerBase:'castle/tower-square-base',towerTop:'castle/tower-square-top',towerMid:'castle/tower-square-mid-windows',pennant:'castle/flag-pennant',
  cityA:'commercial/building-a',cityC:'commercial/building-c',cityE:'commercial/building-e',cityH:'commercial/building-h',cityJ:'commercial/building-j',tower:'commercial/building-skyscraper-a'};
 const MODELS={};
 (async()=>{const L=new GLTFLoader();await Promise.all(Object.entries(MODEL_FILES).map(async([k,p])=>{try{const g=await L.loadAsync('models/'+p+'.glb');g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});g.scene.updateMatrixWorld(true);MODELS[k]=g.scene;}catch(e){console.warn('model failed',k,e);}}));
@@ -2605,6 +2605,16 @@ function homeModel2(type,w,h){const kd=homeKindOf(type),mk=HOME_MODEL[type];
  else if(type==='workshop'){add(new RoundedBoxGeometry(w*0.85,0.5,h*0.8,2,0.04),0x6b5a46,0,0.25,0);add(roofGeo(w*0.95,0.3,h*0.9),0x3a3d44,0,0.5,0);add(boxG,0xffc46b,0,0.22,h*0.41,null,{emissive:0xffa53a,emissiveIntensity:1.4},true).scale.set(0.3,0.2,0.01);}
  else if(type==='generator'){add(new RoundedBoxGeometry(0.75,0.42,0.55,2,0.05),0x4a5058,0,0.21,0);add(new THREE.CylinderGeometry(0.06,0.07,0.5,10),0x2b2d33,0.22,0.65,0);add(boxG,0x6fe3ff,-0.2,0.28,0.28,null,{emissive:0x6fe3ff,emissiveIntensity:1.6},true).scale.set(0.12,0.06,0.01);}
  P=P0;return g;}
+/** Castle-kit walls: narrow wall segments along every side, an arched gate in the south wall, square towers on the corners. */
+function castlePiece(k,sx,sy,sz){const src=MODELS[k];const g=src.clone(true);const box=new THREE.Box3().setFromObject(g),cn=box.getCenter(new THREE.Vector3());g.position.set(-cn.x,-box.min.y,-cn.z);const w=new THREE.Group();w.add(g);w.scale.set(sx,sy,sz);return w;}
+function castleWalls(lo,hi,c){const G=HB.group,WH=0.55,T=0.6;
+ const seg=(x,z,alongX,gate)=>{const p=castlePiece(gate&&MODELS.wallGate?'wallGate':'wallN',T,WH,1);if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
+ for(let k=lo;k<hi;k++){seg(k+0.5,lo-0.15,true);seg(lo-0.15,k+0.5,false);seg(hi+0.15,k+0.5,false);
+  const gate=Math.abs(k+0.5-c)<1;seg(k+0.5,hi+0.15,true,gate);}
+ [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z],i)=>{const b=castlePiece('towerBase',0.95,0.85,0.95);b.position.set(x,0.02,z);G.add(b);
+  let top=0.02+0.86;if(MODELS.towerMid){const m=castlePiece('towerMid',0.95,0.6,0.95);m.position.set(x,top,z);G.add(m);top+=0.6;}
+  if(MODELS.towerTop){const t=castlePiece('towerTop',1.0,0.9,1.0);t.position.set(x,top,z);G.add(t);}
+  if(MODELS.pennant&&i%3===0){const fl=castlePiece('pennant',0.8,0.8,0.8);fl.position.set(x,top+0.26,z);G.add(fl);}});}
 function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSON.stringify([h.lo,h.hi,h.hqLevel,h.tiles]);
  if(!HB.built){hq.children.forEach(o=>{if(!pickHQ.includes(o)||o.userData.info!=='hq')o.visible=false;});hqLabels.forEach(l=>l.visible=false);
   HB.group=new THREE.Group();hq.add(HB.group);HB.built=true;}
@@ -2622,8 +2632,10 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  HB.group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xe8e0cc,transparent:true,opacity:0.12})));
  // walls with corner towers and a south gate
  const W=(x,z,w,d)=>add(new RoundedBoxGeometry(1,1,1,1,0.05),0x6f6a62,x,0.32,z).scale.set(w,0.6,d);
- const L=hi-lo,c=(lo+hi)/2;W(c,lo-0.15,L+0.3,0.3);W(lo-0.15,c,0.3,L+0.3);W(hi+0.15,c,0.3,L+0.3);W(lo+(L/2-1)/2-0.15,hi+0.15,L/2-1+0.3,0.3);W(hi-(L/2-1)/2+0.15,hi+0.15,L/2-1+0.3,0.3);
- [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z])=>{add(new THREE.CylinderGeometry(0.4,0.45,1.2,12),0x5f5a53,x,0.6,z);add(new THREE.ConeGeometry(0.5,0.5,12),0x7a2a22,x,1.45,z);const fl=add(new THREE.SphereGeometry(0.08,8,6),0xffa040,x,1.0,z,null,{emissive:0xff7a1a,emissiveIntensity:2},true);});
+ const L=hi-lo,c=(lo+hi)/2;
+ if(NEWGFX&&MODELS.wallN&&MODELS.towerBase){castleWalls(lo,hi,c);}else{
+ W(c,lo-0.15,L+0.3,0.3);W(lo-0.15,c,0.3,L+0.3);W(hi+0.15,c,0.3,L+0.3);W(lo+(L/2-1)/2-0.15,hi+0.15,L/2-1+0.3,0.3);W(hi-(L/2-1)/2+0.15,hi+0.15,L/2-1+0.3,0.3);
+ [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z])=>{add(new THREE.CylinderGeometry(0.4,0.45,1.2,12),0x5f5a53,x,0.6,z);add(new THREE.ConeGeometry(0.5,0.5,12),0x7a2a22,x,1.45,z);const fl=add(new THREE.SphereGeometry(0.08,8,6),0xffa040,x,1.0,z,null,{emissive:0xff7a1a,emissiveIntensity:2},true);});}
  // fog over everything beyond the walls
  if(true){for(let i=0;i<80;i++){const a=hash(i,7)*Math.PI*2,r=(L/2+Y+1.2)+hash(i,3)*(G/2-L/2+3);const x=c+Math.cos(a)*r,z=c+Math.sin(a)*r;if(Math.abs(x)>half+2||Math.abs(z)>half+2)continue;
    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:fogT,transparent:true,opacity:0.9,depthWrite:false}));const sz=3+hash(i,i)*2.5;sp.scale.set(sz,sz*0.6,1);sp.position.set(x,0.6+hash(i,9)*0.6,z);HB.group.add(sp);}
