@@ -8,7 +8,7 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker) : Hub
+public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics) : Hub
 {
     record Conn(Guid Id, string Name, DateTime LastMsg, int Watching, int Visiting = 0);
 
@@ -77,6 +77,18 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     }
 
     public Task<object> MyRecord() => caretaker.Record(Me.Id);
+
+    public Task<object> GetPolitics() => politics.View(Me.Id);
+
+    public Task<Politics.Result> RunForOffice(string speech) => politics.Run(Me.Id, speech);
+
+    public Task<Politics.Result> GiveSpeech(string speech) => politics.Speech(Me.Id, speech);
+
+    public Task<Politics.Result> VoteFor(long candidateId) => politics.Vote(Me.Id, candidateId);
+
+    public Task<Politics.Result> ProposeLaw(string kind, double value, bool decree) => politics.Propose(Me.Id, kind, value, decree);
+
+    public Task<Politics.Result> VoteLaw(long lawId, bool yes) => politics.VoteLaw(Me.Id, lawId, yes);
 
     public Task<Caretaker.Result> StartDroneHunt(int sector, int idx) => caretaker.StartDroneHunt(Me.Id, sector, idx);
 

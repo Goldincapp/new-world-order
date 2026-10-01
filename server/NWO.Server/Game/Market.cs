@@ -56,7 +56,8 @@ public class Market(World world, IHubContext<GameHub> hub)
         var result = await world.Locked(async db =>
         {
             var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
-            var label = res;
+            var nation = await Politics.Of(db);
+            var fee = nation.MarketTax;
 
             // Escrow for a limit order: goods for a sell, cash at the limit price for a buy.
             if (limit is not null)
@@ -96,7 +97,8 @@ public class Market(World world, IHubContext<GameHub> hub)
                 }
 
                 var gross = Cents(q * price);
-                var proceeds = Cents(gross * (1 - Fee));
+                var proceeds = Cents(gross * (1 - fee));
+                nation.Treasury += gross - proceeds;
                 var seller = side == "sell" ? me : o.Player;
                 var buyer = side == "buy" ? me : o.Player;
 
@@ -110,13 +112,13 @@ public class Market(World world, IHubContext<GameHub> hub)
                 else
                 {
                     if (limit is null) Ledger.Add(db, me, res, -q, $"Sold {q:N0} {res} at {price:N2}");
-                    Ledger.Add(db, me, "cash", proceeds, $"Sold {q:N0} {res} at {price:N2} (2% market tax)");
+                    Ledger.Add(db, me, "cash", proceeds, $"Sold {q:N0} {res} at {price:N2} ({fee:P0} market tax)");
                 }
 
                 // The waiting order's side (already in escrow). The Caretaker's side has no balances.
                 if (o.Player is { } other)
                 {
-                    if (side == "buy") Ledger.Add(db, other, "cash", proceeds, $"Sold {q:N0} {res} at {price:N2} (2% market tax)");
+                    if (side == "buy") Ledger.Add(db, other, "cash", proceeds, $"Sold {q:N0} {res} at {price:N2} ({fee:P0} market tax)");
                     else Ledger.Add(db, other, res, q, $"Bought {q:N0} {res} at {price:N2}");
                 }
                 if (o.PlayerId is not null) o.Remaining -= q;
@@ -183,7 +185,7 @@ public class Market(World world, IHubContext<GameHub> hub)
             trades,
             mine,
             caretaker = new { band.buy, band.sell },
-            fee = Fee,
+            fee = (await Politics.Of(db)).MarketTax,
         };
     }
 

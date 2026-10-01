@@ -11,6 +11,7 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<World>();
 builder.Services.AddSingleton<Market>();
 builder.Services.AddSingleton<Caretaker>();
+builder.Services.AddSingleton<Politics>();
 builder.Services.AddSingleton<Logistics>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Logistics>());
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
@@ -26,6 +27,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
     await Market.EnsureCaretakerOrders(db);
     await Caretaker.EnsureLand(db);
+    await Politics.EnsureNations(db);
 }
 
 app.UseCors();

@@ -9,7 +9,7 @@ namespace NWO.Server.Game;
 /// Everything runs on stored timestamps and a once-a-second clock, so trucks keep moving and arriving
 /// whether or not anyone is online, and nothing is lost if the server restarts.
 /// </summary>
-public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretaker) : BackgroundService
+public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretaker, Politics politics) : BackgroundService
 {
     public const double NationTax = 0.08;
     public const double CaretakerFee = 0.05;
@@ -62,7 +62,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
             ships = ships.Select(View),
             contracts = contracts.Select(ContractView),
             inspector = InspectorView(me),
-            rates = new { tax = NationTax, fee = CaretakerFee, inspectCost = InspectCost },
+            rates = new { tax = (await Politics.Of(db)).TaxRate, fee = CaretakerFee, inspectCost = InspectCost },
         };
     }
 
@@ -233,7 +233,9 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         s.Status = "seized";
         var c = s.ContractId is { } cid ? await db.Contracts.FindAsync(cid) : null;
         if (c is not null && c.Status == "taken") { c.Status = "open"; c.TakenById = null; }
-        var fine = Math.Min(owner.Cash, Math.Round(s.Reward * 0.5));
+        var nation = await Politics.Of(db);
+        var fine = Math.Min(owner.Cash, Math.Round(s.Reward * nation.SmuggleFine));
+        nation.Treasury += fine;
         Ledger.Add(db, owner, "cash", -fine, $"Fine: smuggled {s.Resource} seized by {by}");
         if (s.Envelope > 0) s.Envelope = 0; // the hidden cash is lost with the cargo
         Caretaker.Remember(db, owner, bribeReported ? -8 : -3, "smuggle", bribeReported ? "Caught smuggling, and tried to bribe the inspector" : $"Caught smuggling {s.Resource}");
@@ -253,7 +255,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
     {
         while (!stop.IsCancellationRequested)
         {
-            try { await Tick(); await caretaker.SendMemories(); }
+            try { await Tick(); await caretaker.SendMemories(); await politics.Tick(); }
             catch (Exception e) { Console.WriteLine($"Logistics tick failed: {e}"); }
             await Task.Delay(1000, stop);
         }
@@ -324,7 +326,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
                     else { await Seize(db, s, owner, by, events, bribeReported: true); contractsChanged = true; }
                     continue;
                 }
-                if (s.Status == "moving" && s.ArriveAt <= now) { Deliver(db, s, owner, events); contractsChanged = true; }
+                if (s.Status == "moving" && s.ArriveAt <= now) { Deliver(db, s, owner, await Politics.Of(db), events); contractsChanged = true; }
             }
 
             // Contracts: expire old ones and keep a fresh set posted.
@@ -351,13 +353,14 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         if (contractsChanged) await BroadcastContracts();
     }
 
-    void Deliver(GameDb db, Shipment s, Player owner, List<Func<Task>> events)
+    void Deliver(GameDb db, Shipment s, Player owner, Nation nation, List<Func<Task>> events)
     {
         s.Status = "arrived";
-        var tax = s.Legal ? Math.Round(s.Reward * NationTax) : 0;
+        var tax = s.Legal ? Math.Round(s.Reward * nation.TaxRate) : 0;
+        nation.Treasury += tax;
         var fee = s.Legal ? Math.Round(s.Reward * CaretakerFee) : 0;
         Ledger.Add(db, owner, "cash", s.Reward, $"Delivered {s.Qty:N0} {s.Resource} to Sector {s.To}");
-        if (tax > 0) Ledger.Add(db, owner, "cash", -tax, "Aurelia nation tax (8%)");
+        if (tax > 0) Ledger.Add(db, owner, "cash", -tax, $"{nation.Name} delivery tax ({nation.TaxRate:P0})");
         if (fee > 0) Ledger.Add(db, owner, "cash", -fee, "Caretaker transit fee (5%)");
         if (s.Envelope > 0) { Ledger.Add(db, owner, "cash", s.Envelope, "Envelope returned unopened"); }
         var env = s.Envelope;

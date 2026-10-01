@@ -194,8 +194,79 @@ public class Camp
     public string? ClearedBy { get; set; }
 }
 
+/// <summary>A player-run nation: its government, treasury and the laws that set its taxes.</summary>
+public class Nation
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Government { get; set; } = "Democracy";
+    public Guid? PresidentId { get; set; }
+    public string? PresidentName { get; set; }
+    public int Legitimacy { get; set; } = 50;
+    public double Treasury { get; set; }
+    /// <summary>Tax on deliveries into the nation.</summary>
+    public double TaxRate { get; set; } = 0.08;
+    /// <summary>Tax on every market sale.</summary>
+    public double MarketTax { get; set; } = 0.02;
+    /// <summary>Fine for smuggling, as a share of the shipment's reward.</summary>
+    public double SmuggleFine { get; set; } = 0.5;
+    public int ElectionNo { get; set; } = 1;
+    public DateTime ElectionAt { get; set; }
+    public DateTime LastSpeechAt { get; set; }
+}
+
+public class Candidate
+{
+    public long Id { get; set; }
+    public int NationId { get; set; }
+    public int ElectionNo { get; set; }
+    public Guid PlayerId { get; set; }
+    public string Name { get; set; } = "";
+    public string Speech { get; set; } = "";
+    public DateTime SpeechAt { get; set; } = DateTime.UtcNow;
+}
+
+public class Ballot
+{
+    public long Id { get; set; }
+    public int NationId { get; set; }
+    public int ElectionNo { get; set; }
+    public Guid VoterId { get; set; }
+    public long CandidateId { get; set; }
+}
+
+public class Law
+{
+    public long Id { get; set; }
+    public int NationId { get; set; }
+    /// <summary>tax, market or fine.</summary>
+    public string Kind { get; set; } = "";
+    public double Value { get; set; }
+    public string Title { get; set; } = "";
+    public string ProposedBy { get; set; } = "";
+    /// <summary>voting, passed, failed or decreed.</summary>
+    public string Status { get; set; } = "voting";
+    public int For { get; set; }
+    public int Against { get; set; }
+    public DateTime EndsAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class LawVote
+{
+    public long Id { get; set; }
+    public long LawId { get; set; }
+    public Guid VoterId { get; set; }
+    public bool For { get; set; }
+}
+
 public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
 {
+    public DbSet<Nation> Nations => Set<Nation>();
+    public DbSet<Candidate> Candidates => Set<Candidate>();
+    public DbSet<Ballot> Ballots => Set<Ballot>();
+    public DbSet<Law> Laws => Set<Law>();
+    public DbSet<LawVote> LawVotes => Set<LawVote>();
     public DbSet<Drone> Drones => Set<Drone>();
     public DbSet<Camp> Camps => Set<Camp>();
     public DbSet<Contract> Contracts => Set<Contract>();
@@ -233,5 +304,9 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
         b.Entity<Shipment>().HasIndex(s => s.Status);
         b.Entity<Drone>().HasIndex(d => new { d.Sector, d.Idx }).IsUnique();
         b.Entity<Camp>().HasKey(c => c.Sector);
+        b.Entity<Candidate>().HasIndex(c => new { c.NationId, c.ElectionNo, c.PlayerId }).IsUnique();
+        b.Entity<Ballot>().HasIndex(x => new { x.NationId, x.ElectionNo, x.VoterId }).IsUnique();
+        b.Entity<LawVote>().HasIndex(x => new { x.LawId, x.VoterId }).IsUnique();
+        b.Entity<Law>().HasIndex(x => new { x.NationId, x.Status });
     }
 }
