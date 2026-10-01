@@ -1456,7 +1456,14 @@ function unitMesh(t,side){const rv=side&&BT&&BT.rival;const g=new THREE.Group(),
  else if(t==='mortar'){soldier(g,1,-0.1,-0.07,'mortar');soldier(g,1,0.05,0.09,'mortar',0.85);add(new THREE.CylinderGeometry(0.05,0.05,0.012,12),0x2b2d24,0.12,0.01,-0.05,g);
   const mt=add(new THREE.CylinderGeometry(0.018,0.02,0.22,10),0x3a3d35,0.12,0.09,-0.05,g);mt.rotation.z=-0.7;g.userData.muzzle=V3(0.2,0.18,-0.05);}
  else{soldier(g,side,0,0,t);g.userData.muzzle=V3(0.16,0.15,0.04);}
+ unitModelSwap(g,t,side);
  const bar=new THREE.Mesh(hpBarG,new THREE.MeshBasicMaterial({color:side?0xff5a4a:0xffc933,depthTest:false}));bar.renderOrder=12;bar.position.y=t==='heli'?0.35:0.45;g.add(bar);g.userData.bar=bar;return g;}
+/* Battle units: the procedural unit stays as the container (muzzle, rotor, hp bar); a model is drawn in its place, on a team-coloured disc */
+const UNIT_MODEL={tank:['uTank',0.52,0.34],guard:['uTank',0.52,0.34],technical:['uTech',0.46,0.24],heli:['uHeli',0.62,0.42],gunner:['uSoldier',0.13,0.13,0.3],launcher:['uSoldier',0.13,0.13,0.3],militia:['uSoldier',0.13,0.13,0.28],raider:['uSoldier',0.13,0.13,0.28]};
+const teamDiscG=new THREE.CircleGeometry(1,20);
+function unitModelSwap(g,t,side){const um=UNIT_MODEL[t];if(!NEWGFX||!um||!MODELS[um[0]])return;
+ g.children.forEach(c=>c.visible=false);const m=model(um[0],um[2],um[1],um[3]);m.rotation.y=Math.PI/2;if(t==='heli')m.position.y=-0.12;g.add(m);
+ const d=new THREE.Mesh(teamDiscG,new THREE.MeshBasicMaterial({color:side?0xd0402f:0x3d7fd6,transparent:true,opacity:0.55,depthWrite:false}));d.rotation.x=-Math.PI/2;d.position.y=t==='heli'?-0.64:0.01;d.scale.setScalar(Math.max(um[1],um[2])*0.62);g.add(d);}
 function spawn(t,side,z,x){const u=UT[t];const n=u.squad||1;for(let i=0;i<n;i++){const g=unitMesh(t,side);const ux=(x!==undefined?x:(side?7:-7))+(side?1:-1)*i*0.25,uz=z+(i-(n-1)/2)*0.28;
  g.position.set(ux,u.type==='air'?1.3:0.07,uz);if(side)g.rotation.y=Math.PI;units.push({t,side,g,hp:u.hp,max:u.hp,cd:0,u});}}
 function boom(x,y,z,big){const m=new THREE.Mesh(new THREE.SphereGeometry(big?0.5:0.18,12,10),new THREE.MeshBasicMaterial({color:0xffb050,transparent:true,opacity:0.9}));m.position.set(x,y,z);(mode==='siege'?siegeG:battle).add(m);fx.push({m,life:big?0.5:0.3,max:big?0.5:0.3,grow:big?3:2});}
@@ -2555,7 +2562,7 @@ function homeFootprint(k,rot){return rot?[k.h,k.w]:[k.w,k.h];}
 const MODEL_FILES={hq:'commercial/building-n',barracks:'industrial/building-t',warehouse:'industrial/building-s',research:'industrial/building-q',workshop:'industrial/building-h',
  generator:'industrial/detail-tank',solar:'industrial/solar-panel-landscape',chimney:'industrial/chimney-small',house1:'suburban/building-type-a',house2:'suburban/building-type-c',
  pine:'nature/tree_pineDefaultA',pine2:'nature/tree_pineRoundC',tree:'nature/tree_default',oak:'nature/tree_oak',rock:'nature/rock_largeA',rock2:'nature/rock_smallC',bush:'nature/plant_bushLarge',wheat:'nature/crops_wheatStageB',corn:'nature/crops_cornStageD',
- truckBox:'car/delivery',truckFlat:'car/truck-flat',tankL:'industrial/detail-tank-large',wallN:'castle/wall-narrow',wallGate:'castle/wall-narrow-gate',towerBase:'castle/tower-square-base',towerTop:'castle/tower-square-top',towerMid:'castle/tower-square-mid-windows',pennant:'castle/flag-pennant',
+ truckBox:'car/delivery',truckFlat:'car/truck-flat',tankL:'industrial/detail-tank-large',wallN:'castle/wall-narrow',uTank:'units/tank',uTech:'units/technical',uHeli:'units/heli',uSoldier:'units/soldier',wallGate:'castle/wall-narrow-gate',towerBase:'castle/tower-square-base',towerTop:'castle/tower-square-top',towerMid:'castle/tower-square-mid-windows',pennant:'castle/flag-pennant',
  cityA:'commercial/building-a',cityC:'commercial/building-c',cityE:'commercial/building-e',cityH:'commercial/building-h',cityJ:'commercial/building-j',tower:'commercial/building-skyscraper-a'};
 const MODELS={};
 (async()=>{const L=new GLTFLoader();await Promise.all(Object.entries(MODEL_FILES).map(async([k,p])=>{try{const g=await L.loadAsync('models/'+p+'.glb');g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});g.scene.updateMatrixWorld(true);MODELS[k]=g.scene;}catch(e){console.warn('model failed',k,e);}}));
@@ -2566,7 +2573,7 @@ const MODELS={};
  if(window.NET&&NET.lastSnap&&mode==='county'){NET.noFly=true;try{applySnapshot(NET.lastSnap);}finally{NET.noFly=false;}}})();
 function underProvince(o){while(o){if(o===province)return true;o=o.parent;}return false;}
 function underMaps(o){while(o){if(o===province||o===region)return true;o=o.parent;}return false;}
-if(/[?&]dbg2/.test(location.search))setInterval(()=>{if(mode==='province'||mode==='region'){anim=null;const h=home();controls.target.copy(h[0]);camera.position.copy(h[1]);controls.update();window.__composer.render();}const sc=window.__composer.passes[0].scene;console.log('DBG2',JSON.stringify({mode,cam:camera.position.toArray().map(v=>+v.toFixed(1)),tgt:controls.target.toArray().map(v=>+v.toFixed(1)),vis:sc.children.map(g=>g.visible?1:0).join(''),calls:renderer.info.render.calls,tris:renderer.info.render.triangles,anim:!!anim,models:!!window.__modelsReady}));},2000);
+if(/[?&]dbg2/.test(location.search))setInterval(()=>{if(mode==='siege'||mode==='battle')window.__composer.render();if(mode==='province'||mode==='region'){anim=null;const h=home();controls.target.copy(h[0]);camera.position.copy(h[1]);controls.update();window.__composer.render();}const sc=window.__composer.passes[0].scene;console.log('DBG2',JSON.stringify({mode,cam:camera.position.toArray().map(v=>+v.toFixed(1)),tgt:controls.target.toArray().map(v=>+v.toFixed(1)),vis:sc.children.map(g=>g.visible?1:0).join(''),calls:renderer.info.render.calls,tris:renderer.info.render.triangles,anim:!!anim,models:!!window.__modelsReady}));},2000);
 function swapMapDecor(){const groups=new Map();
  DECOR.forEach(d=>{if(!underMaps(d.par)||d.kind==='house')return;if((d.kind==='rocks'||d.kind==='tank'||d.kind==='city')&&!underProvince(d.par))return;/* houses stay the classic coloured ones: they read better at map zoom */const key=d.par.uuid;if(!groups.has(key))groups.set(key,{par:d.par,pine:[],pine2:[],tree:[],oak:[],house1:[],house2:[],rock:[],rock2:[]});const g=groups.get(key);
   /* use where the original ended up: the maps raise objects onto their hills after building */
