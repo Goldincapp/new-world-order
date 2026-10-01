@@ -1405,7 +1405,7 @@ function renderCards(){const el=$('ucards');el.innerHTML=((BT&&BT.deck)||['gunne
  el.querySelectorAll('.ucard').forEach(b=>b.onclick=()=>{const t=b.dataset.t;selUnit=selUnit===t?null:t;$('btip').textContent=selUnit?(selUnit==='strike'?'Tap the battlefield to call the strike':'Tap a lane to deploy '+UT[selUnit].n.toLowerCase()+'s'):'Pick a unit, then tap a lane to deploy it';renderCards();});}
 function startBattle(o){const prev=mode;troopsLeft={...troops0};
  go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>initBattle(o,prev),700);}
-function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={prev,title:o.title,enemy:o.enemy||'Militia camp',t:120,cp:5,you:1600,youMax:1600,en:2600,enMax:2600,wave:3,waveN:0,done:false,lost:{},elost:{},sector:o.sector};setupRival(o);
+function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={prev,campAssault:o.campAssault,title:o.title,enemy:o.enemy||'Militia camp',t:120,cp:5,you:1600,youMax:1600,en:2600,enMax:2600,wave:3,waveN:0,done:false,lost:{},elost:{},sector:o.sector};setupRival(o);
   $('bEnemyN').textContent=BT.enemy;selUnit=null;renderCards();toast(o.title);}}
 function lossText(o){return Object.entries(o).map(([t,n])=>n+' '+UT[t].n.toLowerCase()+(n>1?'s':'')).join(', ')||'none';}
 let war18=0;
@@ -1416,7 +1416,7 @@ function endBattle(win,why){if(!BT||BT.done)return;BT.done=true;const lost=lossT
    rows=[['Result',why],['Loot','+'+R.loot[2].toLocaleString('en-US')+' cash, +'+R.loot[0].toLocaleString('en-US')+' '+R.loot[1]],['War score',R.sector?'Sector '+R.sector+': '+war18+'/100 to capture':'Eastern front +5'],['Their losses',elost],['Your losses',lost],['Deeds','Unchanged: only sovereignty changes in war']];
    pushMsg('global',R.leader,R.faction,'You will pay for that raid.');ctRemember(-2,'Raided the '+R.name,'war');NEWS.unshift('Aurelian forces raided the '+R.name);}
   else rows=[['Result',why],['Their losses',elost],['Your losses',lost],['Tip',R.doctrine==='counter'?'They counter what you send: mix units and switch lanes':'They dig in mid-field: launchers and artillery break the line']];}
- else{if(win){res.cash+=2400;res.fuel+=120;renderRes(['cash','fuel']);if(BT.sector===30)sec30=55;if(BT.sector)cleared.add(BT.sector);if(win)ctRemember(4,'Brought order to Sector '+BT.sector,'order');}
+ else{if(win){if(BT.campAssault&&window.NET&&NET.conn){const sec=BT.sector;NET.conn.invoke('ClearCamp',sec).then(r=>{if(r.ok)applyMe(r.player);toast(r.ok?r.summary:r.error);}).catch(er=>toast(er.message));}else{res.cash+=2400;res.fuel+=120;renderRes(['cash','fuel']);}if(BT.sector===30)sec30=55;if(BT.sector)cleared.add(BT.sector);if(win)ctRemember(4,'Brought order to Sector '+BT.sector,'order');}
   rows=win?[['Result',why],['Loot','+2,400 cash, +120 fuel'],['Security',BT.sector===30?'Sector 30: 22 → 55':'Improved'],['Troops lost',lost]]:[['Result',why],['Troops lost',lost],['Tip','Launchers break camps; gunners stop helis']];}
  showCard(title,sub,rows,['Leave battle']);}
 $('bRetreat').onclick=()=>{if(BT&&!BT.done)endBattle(false,'You retreated');};
@@ -1848,7 +1848,7 @@ function buildVisit(n){disposeVisit();vFollow=null;[vPicks,vPat,vSpin,vBeams,vFl
  const who=u.o==='rival'?'Blue Party':ownName[u.o];vSec.hostile=hostile;const dn=vSec.drones||0;
  $('visText').innerHTML='<span class="ms'+(hostile?' bad':'')+'">'+(hostile?'warning':'shield')+'</span>Sector '+n+' · '+who+'<span class="nd">'+(hostile?hostile+' enemy force'+(hostile>1?'s':'')+' spotted':'no enemies spotted')+(dn?' · '+dn+' Caretaker drone'+(dn>1?'s':''):'')+'</span>';
  return hostile;}
-function enterVisit(n){const h=buildVisit(n);go('visit',V3(0,0,0),V3(2,33,2),'Entered Sector '+n+(h?' · '+h+' enemy force'+(h>1?'s':'')+' spotted':''));}
+function enterVisit(n){if(window.NET&&NET.conn&&!enterVisit.busy){enterVisit.busy=true;NET.conn.invoke('VisitSector',n).then(st=>{enterVisit.busy=false;applySectorState(st,true);const h=buildVisit(n);applySectorState(st,false);go('visit',V3(0,0,0),V3(2,33,2),'Entered Sector '+n+(h?' · '+h+' enemy force'+(h>1?'s':'')+' spotted':''));}).catch(()=>{enterVisit.busy=false;});return;}const h=buildVisit(n);go('visit',V3(0,0,0),V3(2,33,2),'Entered Sector '+n+(h?' · '+h+' enemy force'+(h>1?'s':'')+' spotted':''));}
 function visitToProvince(){const u=vSec;const [x,z]=sc(u.c,u.r);go('province',V3(x,PT,z),V3(x,2.4,z+1.3),'Vellmoor province');}
 function vFocus(p,d){controls.autoRotate=false;const o=camera.position.clone().sub(controls.target);o.y=0;if(o.length()<0.01)o.set(0,0,1);o.normalize();controls.minDistance=2.5;flyTo(p.clone(),p.clone().add(o.multiplyScalar(d||3.4)).add(V3(0,(d||3.4)*0.9,0)));}
 let vCur=null;
@@ -1868,9 +1868,11 @@ function vCard(v,o){vCur=v;chatEl.hidden=true;const wp=o.getWorldPosition(new TH
   const str=P0.kind==='tank'?'1 tank, 2 gunners':(P0.kind==='scouts'?'3 scouts':'5 gunners');
   showCard(P0.F.name+(P0.kind==='scouts'?' scouts':' patrol'),'Sector '+vSec.n+' · '+(P0.hostile?'hostile':'friendly'),[['Strength',str],['Moving',P0.kind==='tank'?'Along the road':'Circling the area'],['Threat',P0.hostile?'Raids convoys and parcels':'Escorts allied convoys']],P0.hostile?['Ambush patrol','Track']:['Track','Close']);}}
 function visitAct(a){if(!vCur)return false;const v=vCur;
- if(a==='Attack camp'){card.hidden=true;startBattle({title:'Assault on the militia camp: Sector '+vSec.n,enemy:'Militia camp',sector:vSec.n});return true;}
+ if(a==='Attack camp'){card.hidden=true;const n=vSec.n,go2=()=>startBattle({title:'Assault on the militia camp: Sector '+n,enemy:'Militia camp',sector:n,campAssault:!!(window.NET&&NET.conn)});
+  if(window.NET&&NET.conn){NET.conn.invoke('StartCampAssault',n).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);go2();}).catch(er=>toast(er.message));return true;}go2();return true;}
  if(a==='Ambush patrol'&&v.kind==='patrol'){card.hidden=true;startBattle({title:'Ambush: '+v.P.F.name+' patrol · Sector '+vSec.n,enemy:v.P.F.name+' patrol',sector:vSec.n});return true;}
  if(a==='Track'&&v.kind==='patrol'){card.hidden=true;hint.hidden=false;vFollow=v.P.units[0];controls.autoRotate=false;toast('Tracking the patrol. Drag to stop');return true;}
+ if(a==='Shoot down'&&v.kind==='drone'&&window.NET&&NET.conn){card.hidden=true;hint.hidden=false;vFollow=null;NET.conn.invoke('ShootDrone',vSec.n,v.D.idx).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);v.D.alive=false;toast(r.summary);}).catch(er=>toast(er.message));return true;}
  if(a==='Shoot down'&&v.kind==='drone'){card.hidden=true;hint.hidden=false;v.D.alive=false;vFollow=null;wanted=Math.min(3,wanted+1);ctRemember(-8,'Destroyed a Caretaker drone over Sector '+vSec.n,'chaos');res.cash+=180;renderRes(['cash']);
   toast('Drone down: +180 cash in salvage. Wanted level '+wanted);NEWS.unshift('A Caretaker drone was shot down over Sector '+vSec.n);return true;}
  if(a==='Track'&&v.kind==='drone'){card.hidden=true;hint.hidden=false;vFollow=v.D.g;controls.autoRotate=false;toast('Tracking the drone. Drag to stop');return true;}
@@ -1989,7 +1991,7 @@ function makeDrone(p,sc){const g=new THREE.Group();p.add(g);g.scale.setScalar(sc
  const spot=new THREE.Mesh(new THREE.CircleGeometry(0.55,24),new THREE.MeshBasicMaterial({color:0x6fe3ff,transparent:true,opacity:0.14,depthWrite:false,toneMapped:false,fog:false}));spot.rotation.x=-Math.PI/2;spot.renderOrder=4;p.add(spot);
  return {g,rotors,beam,spot};}
 function vDrone(p,cx,cz,r,sp,off,n){const d=makeDrone(p,1.25);Object.assign(d,{cx,cz,r,sp,off,alive:true,fall:0});d.tag=label('Caretaker drone','#6fe3ff',0,0,0,0.7,p,true);
- d.g.userData.vk={kind:'drone',D:d,n};vPicks.push(d.g);vDrones.push(d);return d;}
+ d.g.userData.vk={kind:'drone',D:d,n};vPicks.push(d.g);vDrones.push(d);d.idx=vDrones.length-1;return d;}
 function droneTick(list,H,t,dt,k){list.forEach(d=>{if(!d.alive&&d.fall>1.2)return;
   const a=t*d.sp+d.off,x=d.cx+Math.cos(a)*d.r+Math.sin(a*2.3)*d.r*0.25,z=d.cz+Math.sin(a)*d.r*0.8,gy=H(x,z);
   if(!d.alive){d.fall+=dt;d.g.position.y-=dt*2.2;d.g.rotation.z+=dt*6;d.beam.visible=d.spot.visible=false;if(d.tag)d.tag.visible=false;return;}
@@ -2022,7 +2024,7 @@ let ctMsgT=null;
 function ctSay(txt){const el=$('ctMsg');$('ctMsgT').textContent='';el.classList.remove('off');let i=0;clearInterval(ctMsgT);
  ctMsgT=setInterval(()=>{i+=2;$('ctMsgT').textContent=txt.slice(0,i);if(i>=txt.length){clearInterval(ctMsgT);ctMsgT=setTimeout(()=>el.classList.add('off'),3800);}},28);
  if(VO.ac&&VO.on)try{const ac=VO.ac,o=ac.createOscillator(),g=ac.createGain();o.type='square';o.frequency.value=880;g.gain.setValueAtTime(0.03,ac.currentTime);g.gain.exponentialRampToValueAtTime(0.0001,ac.currentTime+0.15);o.connect(g);g.connect(ac.destination);o.start();o.stop(ac.currentTime+0.16);}catch(e){}}
-function ctRemember(d,t,k,line){const before=ctTier();CT.score=clampN(CT.score+d,0,100);CT.log.unshift({d,t,k,w:'just now'});if(CT.log.length>30)CT.log.pop();const after=ctTier();
+function ctRemember(d,t,k,line){if(window.NET&&NET.me)return;const before=ctTier();CT.score=clampN(CT.score+d,0,100);CT.log.unshift({d,t,k,w:'just now'});if(CT.log.length>30)CT.log.pop();const after=ctTier();
  const pool=CT_LINES[line||k]||['Noted.'];let msg=pool[Math.floor(Math.random()*pool.length)];
  if(after!==before)msg+=after>before?' Your standing rises: '+CT_TIERS[after][0]+'.':' Your standing falls: '+CT_TIERS[after][0]+'.';
  setTimeout(()=>ctSay(msg),900);droneTint();if(!$('ctSheet').hidden)renderRecord();}
@@ -2079,8 +2081,8 @@ function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);re
 async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
  c.on('chat',m=>{if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
- c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
- try{await c.start();NET.conn=c;watchHome();watchMarket();watchShipping();
+ c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.on('record',onRecord);c.on('drone',onDrone);c.on('camp',onCamp);c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
+ try{await c.start();NET.conn=c;watchHome();watchMarket();watchShipping();c.invoke('MyRecord').then(syncRecord).catch(()=>{});
   const hist=await api('/chat/global');hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
 async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(a&&r.awaySeconds>60)a.textContent='You were away '+awayText(r.awaySeconds)+' · '+a.textContent;connectLive();return true;}
  catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
@@ -2197,6 +2199,17 @@ function netInspect(sh){toast('Inspecting '+sh.who+'\'s truck...');NET.conn.invo
 function netEnvelope(sh,take){card.hidden=true;hint.hidden=false;NET.conn.invoke('ResolveEnvelope',sh.sid,take).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);refreshInspector();}).catch(er=>toast(er.message));}
 function refreshInspector(){NET.conn.invoke('MyShipping').then(s=>setInspector(s.inspector)).catch(()=>{});}
 setInterval(()=>{if(NET.conn&&NEEDSB.length&&!boardEl.hidden&&boardTab==='needs')renderBoard();},30000);
+
+
+/* ---------- The Caretaker, from the server: record, drones and camps ---------- */
+function agoText(iso){const s=Math.max(0,(serverNow()-Date.parse(iso))/1000);if(s<90)return 'just now';if(s<5400)return Math.round(s/60)+' min ago';if(s<129600)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+' days ago';}
+function syncRecord(rec){CT.score=rec.standing;CT.log=rec.log.map(e=>({d:e.delta,t:e.text,k:e.kind||'order',w:agoText(e.at)}));if(!CT.log.length)CT.log.push({d:0,t:'Registered as a settler in Region 1',k:'order',w:'just now'});droneTint();if(!$('ctSheet').hidden)renderRecord();}
+function onRecord(e){CT.score=e.standing;CT.log.unshift({d:e.delta,t:e.text,k:e.kind,w:'just now'});if(CT.log.length>40)CT.log.pop();droneTint();if(!$('ctSheet').hidden)renderRecord();if(NET.me)NET.me.standing=e.standing;setTimeout(()=>ctSay(e.line),700);}
+function applySectorState(st,before){if(before){if(st.camp){if(st.camp.cleared)cleared.add(st.sector);else cleared.delete(st.sector);}if(st.sector===30)sec30=st.camp&&st.camp.cleared?55:22;return;}
+ st.drones.forEach(x=>{const d=vDrones[x.idx];if(d&&x.down){d.alive=false;d.fall=9;d.g.visible=false;d.beam.visible=false;d.spot.visible=false;if(d.tag)d.tag.visible=false;}});
+ const alive=vDrones.filter(d=>d.alive).length,el=$('visText');el.innerHTML=el.innerHTML.replace(/ · \d+ Caretaker drones?/,alive?' · '+alive+' Caretaker drone'+(alive===1?'':'s'):'');}
+function onDrone(e){if(mode!=='visit'||!vSec||vSec.n!==e.sector)return;const d=vDrones[e.idx];if(d&&d.alive){d.alive=false;if(!NET.me||e.by!==NET.me.name)toast(e.by+' shot down a Caretaker drone over this sector');}}
+function onCamp(e){if(e.cleared)cleared.add(e.sector);if(mode==='visit'&&vSec&&vSec.n===e.sector&&(!NET.me||e.clearedBy!==NET.me.name))toast(e.clearedBy+' cleared the militia camp here');}
 
 function worldToNation(){go('region',V3(-0.9,0,-0.9),V3(-0.9,23,18),'Region 1 · 9 nations');}
 function nationToWorld(){go('world',V3(0,0,0),V3(0,1.2,3.5),'World');}

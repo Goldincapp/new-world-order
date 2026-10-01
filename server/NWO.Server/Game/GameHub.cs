@@ -8,9 +8,9 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world, Market market, Logistics logistics) : Hub
+public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker) : Hub
 {
-    record Conn(Guid Id, string Name, DateTime LastMsg, int Watching);
+    record Conn(Guid Id, string Name, DateTime LastMsg, int Watching, int Visiting = 0);
 
     static readonly ConcurrentDictionary<string, Conn> Online = new();
     static readonly string[] Channels = ["global", "nation", "alliance"];
@@ -65,6 +65,24 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics)
     }
 
     public Task<object> MyBook(string res) => market.Book(res, Me.Id);
+
+    /// <summary>Entering any sector: its drones and militia camp, live while you are there.</summary>
+    public async Task<object> VisitSector(int sector)
+    {
+        var me = Me;
+        if (me.Visiting != 0 && me.Visiting != sector) await Groups.RemoveFromGroupAsync(Context.ConnectionId, Caretaker.VisitGroup(me.Visiting));
+        await Groups.AddToGroupAsync(Context.ConnectionId, Caretaker.VisitGroup(sector));
+        Online[Context.ConnectionId] = me with { Visiting = sector };
+        return await caretaker.SectorState(sector);
+    }
+
+    public Task<object> MyRecord() => caretaker.Record(Me.Id);
+
+    public Task<Caretaker.Result> ShootDrone(int sector, int idx) => caretaker.ShootDrone(Me.Id, sector, idx);
+
+    public Task<Caretaker.Result> StartCampAssault(int sector) => caretaker.StartCampAssault(Me.Id, sector);
+
+    public Task<Caretaker.Result> ClearCamp(int sector) => caretaker.ClearCamp(Me.Id, sector);
 
     /// <summary>Start receiving every truck on the map and the posted contracts, and get the current ones.</summary>
     public async Task<object> WatchShipping()

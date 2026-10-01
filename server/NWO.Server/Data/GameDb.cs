@@ -36,6 +36,11 @@ public class Player
     public int InspectsToday { get; set; }
     public DateOnly InspectDay { get; set; }
 
+    /// <summary>An assault on a militia camp that has been paid for and not yet finished.</summary>
+    public int CampAssaultSector { get; set; }
+    public DateTime CampAssaultAt { get; set; }
+    public DateTime LastCampClearAt { get; set; }
+
     /// <summary>The Caretaker's standing for this player, 0 to 100.</summary>
     public int Standing { get; set; } = 54;
 
@@ -167,8 +172,27 @@ public class Shipment
     public string InspectedBy { get; set; } = "";
 }
 
+/// <summary>A Caretaker drone patrolling a sector. Shot down, it stays down for everyone until it respawns.</summary>
+public class Drone
+{
+    public int Id { get; set; }
+    public int Sector { get; set; }
+    public int Idx { get; set; }
+    public DateTime? DownUntil { get; set; }
+}
+
+/// <summary>A Caretaker militia camp. Cleared, the sector is safe for everyone until the militia returns.</summary>
+public class Camp
+{
+    public int Sector { get; set; }
+    public DateTime? ClearedUntil { get; set; }
+    public string? ClearedBy { get; set; }
+}
+
 public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
 {
+    public DbSet<Drone> Drones => Set<Drone>();
+    public DbSet<Camp> Camps => Set<Camp>();
     public DbSet<Contract> Contracts => Set<Contract>();
     public DbSet<Shipment> Shipments => Set<Shipment>();
     public DbSet<LedgerEntry> Ledger => Set<LedgerEntry>();
@@ -202,5 +226,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
         b.Entity<Trade>().HasIndex(t => new { t.Resource, t.Id });
         b.Entity<Contract>().HasIndex(c => c.Status);
         b.Entity<Shipment>().HasIndex(s => s.Status);
+        b.Entity<Drone>().HasIndex(d => new { d.Sector, d.Idx }).IsUnique();
+        b.Entity<Camp>().HasKey(c => c.Sector);
     }
 }

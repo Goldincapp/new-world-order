@@ -9,7 +9,7 @@ namespace NWO.Server.Game;
 /// Everything runs on stored timestamps and a once-a-second clock, so trucks keep moving and arriving
 /// whether or not anyone is online, and nothing is lost if the server restarts.
 /// </summary>
-public class Logistics(World world, IHubContext<GameHub> hub) : BackgroundService
+public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretaker) : BackgroundService
 {
     public const double NationTax = 0.08;
     public const double CaretakerFee = 0.05;
@@ -253,7 +253,7 @@ public class Logistics(World world, IHubContext<GameHub> hub) : BackgroundServic
     {
         while (!stop.IsCancellationRequested)
         {
-            try { await Tick(); }
+            try { await Tick(); await caretaker.SendMemories(); }
             catch (Exception e) { Console.WriteLine($"Logistics tick failed: {e}"); }
             await Task.Delay(1000, stop);
         }
@@ -290,7 +290,9 @@ public class Logistics(World world, IHubContext<GameHub> hub) : BackgroundServic
                 if (s.Status == "moving" && !s.Legal && !s.Checked && s.CheckAt <= now)
                 {
                     s.Checked = true;
-                    if (Rng.NextDouble() < Math.Min(0.9, CheckpointChance * Caretaker.InspectionRisk(owner)))
+                    // Every live drone over the destination makes the checkpoint more alert.
+                    var drones = await Caretaker.DronesAliveOver(db, s.To, now);
+                    if (Rng.NextDouble() < Math.Min(0.9, CheckpointChance * Caretaker.InspectionRisk(owner) * (1 + 0.25 * drones)))
                     {
                         var by = new[] { "Customs · Aurelia", "Caretaker checkpoint", "Kestrel", "Nyx" }[Rng.Next(4)];
                         if (s.Envelope > 0)
