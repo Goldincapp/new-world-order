@@ -1184,7 +1184,7 @@ function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.
  if(a==='Take command'){card.hidden=true;startBattle({title:'Defending Sector 12 against Mara_V',rival:'blue',defend:true});return;}
  if(a==='Let garrison defend'){card.hidden=true;hint.hidden=false;const held=Math.random()<0.6;if(held){toast('Your garrison held. Lost 4 gunners and 1 tank');pushMsg('global','Mara_V','Blue Party','Their walls held... this time.');}else{res.oil=Math.max(0,res.oil-1200);renderRes(['oil']);toast('Your garrison fell back. Raiders took 1,200 oil');}return;}
  if(a==='Leave siege'){card.hidden=true;leaveSiege();return;}
- if(a==='Leave battle'){card.hidden=true;if(NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);return;}
+ if(a==='Leave battle'){leaveBattleNow();return;}
  {const hit=Object.entries(BLD).find(([t,b])=>a.startsWith(b.name+' · '));if(hit){doBuild(hit[0]);return;}}
  if(a.startsWith('Deliver 100 fuel')){if(res.fuel<100){toast('You need 100 fuel. Refine crude or buy it on the market');return;}res.fuel-=100;res.cash+=5200;sec.fuel=Math.min(100,sec.fuel+30);renderRes(['fuel','cash']);renderSec();toast('Fuel delivered: +5,200 cash');goalDone('fuel');ctRemember(3,'Delivered fuel to a sector in need','trade');needsCard();return;}
  if(a==='How to help'){const n=secNeeds();toast(n.includes('housing')?'Build Housing on one of your parcels':(n.includes('jobs')?'Build a farm, rig, sawmill, mine or warehouse to add jobs':'Deliver fuel from the needs card'));card.hidden=true;hint.hidden=false;return;}
@@ -1493,6 +1493,11 @@ function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={
   $('bEnemyN').textContent=BT.enemy;selUnit=null;renderCards();toast(o.title);}}
 function lossText(o){return Object.entries(o).map(([t,n])=>n+' '+UT[t].n.toLowerCase()+(n>1?'s':'')).join(', ')||'none';}
 let war18=0;
+function leaveBattleNow(){card.hidden=true;if(window.NET&&NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle'&&BT.prev!=='siege')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);}
+/* A finished battle never strands you: leave as soon as the result card is closed, or 15 seconds after it ends */
+setInterval(()=>{const inB=mode==='battle',inS=mode==='siege';if(!inB&&!inS){window.__doneAt=0;return;}
+ const done=!BT||BT.done;if(!done){window.__doneAt=0;return;}if(!window.__doneAt)window.__doneAt=Date.now();
+ if(card.hidden||Date.now()-window.__doneAt>15000){window.__doneAt=0;if(inS)leaveSiege();else leaveBattleNow();}},1000);
 function endBattle(win,why){if(!BT||BT.done)return;BT.done=true;const lost=lossText(BT.lost),elost=lossText(BT.elost),R=BT.rival;let rows,title=win?'Victory':'Defeat',sub=why;
  if(BT.defend){if(win){res.cash+=800;renderRes(['cash']);rows=[['Result','Attack repelled'],['Their losses',elost],['Your losses',lost],['Bounty','+800 cash']];pushMsg('global',R.leader,R.faction,'Lucky. Next time we bring more.');}
   else{res.oil=Math.max(0,res.oil-1200);renderRes(['oil']);rows=[['Result','Your barricade fell'],['Raided','-1,200 oil (15% of storage)'],['Your losses',lost],['Deed','Still yours: raids take output, never land']];}}
@@ -1503,7 +1508,7 @@ function endBattle(win,why){if(!BT||BT.done)return;BT.done=true;const lost=lossT
  else{if(win){if(BT.campAssault&&window.NET&&NET.conn){const sec=BT.sector;NET.conn.invoke('ClearCamp',sec).then(r=>{if(r.ok)applyMe(r.player);toast(r.ok?r.summary:r.error);}).catch(er=>toast(er.message));}else{res.cash+=2400;res.fuel+=120;renderRes(['cash','fuel']);}if(BT.sector===30)sec30=55;if(BT.sector)cleared.add(BT.sector);if(win)ctRemember(4,'Brought order to Sector '+BT.sector,'order');}
   rows=win?[['Result',why],['Loot','+2,400 cash, +120 fuel'],['Security',BT.sector===30?'Sector 30: 22 → 55':'Improved'],['Troops lost',lost]]:[['Result',why],['Troops lost',lost],['Tip','Launchers break camps; gunners stop helis']];}
  showCard(title,sub,rows,['Leave battle']);}
-$('bRetreat').onclick=()=>{if(BT&&BT.siege){leaveSiege();toast('You left the siege. Your units fight on');return;}if(BT&&BT.server&&!BT.done){NET.conn.invoke('Retreat');return;}if(BT&&!BT.done)endBattle(false,'You retreated');};
+$('bRetreat').onclick=()=>{if(!BT||BT.done){if(mode==='siege')leaveSiege();else leaveBattleNow();return;}if(BT&&BT.siege){leaveSiege();toast('You left the siege. Your units fight on');return;}if(BT&&BT.server&&!BT.done){NET.conn.invoke('Retreat');return;}if(BT&&!BT.done)endBattle(false,'You retreated');};
 let sec30=22;
 function nearestEnemy(u){let best=null,bd=1e9;units.forEach(v=>{if(v.side===u.side||v.hp<=0)return;const m=u.u.m[v.u.type];if(!m)return;const dx=v.g.position.x-u.g.position.x,dz=v.g.position.z-u.g.position.z,d=Math.hypot(dx,dz*1.4);if(d<bd){bd=d;best=v;}});return [best,bd];}
 function battleTick(dt){if(BT&&BT.server){serverBattleFrame(dt);return;}if(!BT||BT.done)return;BT.t-=dt;BT.cp=Math.min(10,BT.cp+dt/1.15);
