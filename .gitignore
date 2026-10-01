@@ -6,3 +6,4 @@ obj/
 .vercel/
 node_modules/
 prototype/shots/
+server/*.log

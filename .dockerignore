@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+server/data/
+server/*.log
+prototype/
+.git/
+.claude/
+.vercel/
+node_modules/

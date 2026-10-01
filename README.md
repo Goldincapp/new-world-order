@@ -54,3 +54,12 @@ Requests are signed in with `Authorization: Bearer <token>`; the hub takes `?acc
 | `NWO_ORIGINS` | Extra allowed browser origins, comma separated (localhost and `*.vercel.app` are always allowed) |
 
 `client/config.js` sets `window.NWO_API`, the server address the client calls. Leave it empty when the server hosts the client.
+
+## Hosting (live)
+
+The live game runs on Railway: **https://game-server-production-8951.up.railway.app**
+
+- Project `new-world-order`, service `game-server`, built from the `Dockerfile` at the repo root. The server also hosts the client.
+- Game data is on a Railway volume mounted at `/data` (`NWO_DB=/data/nwo.db`), so it survives redeploys.
+- Deploy the current folder: `npx @railway/cli up --service game-server --ci` (in Git Bash, set `MSYS_NO_PATHCONV=1` first so paths like `/data` aren't rewritten).
+- Logs: `npx @railway/cli logs --service game-server`
