@@ -532,6 +532,7 @@ html.app .screen{border-radius:0}
 <script type="module">
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 import {RoundedBoxGeometry} from 'three/addons/geometries/RoundedBoxGeometry.js';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
@@ -1224,7 +1225,10 @@ function scaffold(c){const g=new THREE.Group();g.position.set(c.x,c.top,c.z);cou
  [[-0.3,-0.3],[0.3,-0.3],[-0.3,0.3],[0.3,0.3]].forEach(q=>{const m=new THREE.Mesh(boxG,pm);m.position.set(q[0],0.3,q[1]);m.scale.set(0.03,0.6,0.03);g.add(m);});
  [0.2,0.45].forEach(y=>[[0,-0.3,0.63,0.03],[0,0.3,0.63,0.03],[-0.3,0,0.03,0.63],[0.3,0,0.03,0.63]].forEach(q=>{const m=new THREE.Mesh(boxG,pm);m.position.set(q[0],y,q[1]);m.scale.set(q[2],0.03,q[3]);g.add(m);}));
  const l=label('Building...','#ffc933',c.x,c.top+1.1,c.z,0.8,county,true);return {g,l};}
+const PARCEL_MODEL={housing:n=>n%2?'house1':'house2',warehouse:()=>'warehouse',sawmill:()=>'workshop',solar:()=>'solar',mine:()=>'chimney'};
 function placeModel(c,t,n){const g=new THREE.Group();const ox=[[-0.25,-0.25],[0.25,-0.25],[-0.25,0.25],[0.25,0.25]][n%4];g.position.set(c.x+ox[0],c.top,c.z+ox[1]);county.add(g);
+ const pk=PARCEL_MODEL[t]&&PARCEL_MODEL[t](n);if(pk&&MODELS[pk]){const m=model(pk,0.44,0.44);m.rotation.y=(n%4)*Math.PI/2;g.add(m);return;}
+ if(t==='farm'&&MODELS.wheat){for(let a=0;a<2;a++)for(let b=0;b<2;b++){const m=model('wheat',0.2,0.2);m.position.set(-0.11+a*0.22,0,-0.11+b*0.22);g.add(m);}return;}
  if(t==='housing'){house(-0.08,0,0,0.2,n,g).scale.setScalar(0.62);house(0.12,0,0.08,1.4,n+1,g).scale.setScalar(0.55);}
  if(t==='farm'){for(let r=0;r<3;r++)add(new RoundedBoxGeometry(0.44,0.06,0.1,1,0.02),r%2?0xa8862a:0x46702a,0,0.03,-0.13+r*0.13,g);}
  if(t==='rig'){const q=new THREE.Group();q.scale.setScalar(0.55);g.add(q);add(new RoundedBoxGeometry(0.75,0.1,0.34,2,0.03),0x3a3a40,0,0.05,0,q);add(boxG,0x2b2b30,-0.05,0.33,0,q).scale.set(0.08,0.5,0.08);
@@ -2181,7 +2185,7 @@ function markMine(c){const before=county.children.length;markOwned(c);return cou
 function paintParcel(v,animateNew){const k=v.i+','+v.j,c=cells[k];if(!c)return;const prev=NET.sector[k];NET.sector[k]=v;
  if((prev&&prev.owner)!==v.owner){if(NET.marks[k]){county.remove(NET.marks[k]);delete NET.marks[k];}if(v.owner)NET.marks[k]=v.owner===NET.me.name?markMine(c):markOther(c,v.owner);}
  const have=(built[k]||[]).length;if(v.b.length>have&&(animateNew!=='mine')){for(let n=have;n<v.b.length;n++){const before=county.children.length;placeModel(c,v.b[n],n);(NET.models[k]=NET.models[k]||[]).push(...county.children.slice(before));}built[k]=v.b.slice();}}
-function applySnapshot(snap){if(snap.rows)buildBigSector(snap);Object.values(NET.marks).forEach(m=>county.remove(m));Object.values(NET.models).flat().forEach(m=>county.remove(m));NET.marks={};NET.models={};
+function applySnapshot(snap){if(snap.rows){NET.lastSnap=snap;buildBigSector(snap);}Object.values(NET.marks).forEach(m=>county.remove(m));Object.values(NET.models).flat().forEach(m=>county.remove(m));NET.marks={};NET.models={};
  Object.keys(built).forEach(k=>delete built[k]);NET.sector={};(window.__staticOwn||[]).forEach(m=>m.visible=false);
  snap.parcels.forEach(v=>paintParcel(v));$('secText').textContent='Sector '+snap.sector;}
 async function watchHome(){if(!NET.conn||!NET.me)return;try{applySnapshot(await NET.conn.invoke('WatchSector',NET.viewSector||NET.me.homeSector));}catch(e){console.warn('watch failed',e);}}
@@ -2346,11 +2350,13 @@ function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:sna
   if(code==='wa'&&hash(i*1.1,j*6.1)<0.3)reed.push([x+(hash(i,j)-0.5)*0.7,h-0.05,z+(hash(j,i)-0.5)*0.7]);}
  ground.instanceMatrix.needsUpdate=true;ground.instanceColor.needsUpdate=true;ground.userData={inst:true,keys};bigGroup.add(ground);picks.push(ground);
  const inst=(geo,color,list,place,opts)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial(Object.assign({color,roughness:0.9},opts||{})),list.length);im.castShadow=true;list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);});im.instanceMatrix.needsUpdate=true;bigGroup.add(im);};
- inst(new THREE.ConeGeometry(0.5,1.2,6),0x2a4a2a,trees,(m,p)=>m.makeScale(p[3],p[3],p[3]).setPosition(p[0],p[1]+p[3]*0.6,p[2]));
- inst(new THREE.DodecahedronGeometry(0.5,0),0x7a776e,rocks,(m,p)=>m.makeScale(p[3],p[3]*0.7,p[3]).setPosition(p[0],p[1]+p[3]*0.25,p[2]),{flatShading:true});
+ const rot=new THREE.Matrix4(),place=(hk,y0)=>(m,p)=>m.makeRotationY(hash(p[0]*3.1,p[2]*1.7)*6.28).premultiply(new THREE.Matrix4().makeScale(p[3]*hk,p[3]*hk,p[3]*hk)).setPosition(p[0],p[1]+(y0||0),p[2]);
+ const trA=trees.filter((p,i)=>hash(p[0],p[2])<0.6),trB=trees.filter((p,i)=>hash(p[0],p[2])>=0.6);
+ if(!(instModel('pine',bigGroup,trA,place(1.5))&&instModel('pine2',bigGroup,trB,place(1.2))))inst(new THREE.ConeGeometry(0.5,1.2,6),0x2a4a2a,trees,(m,p)=>m.makeScale(p[3],p[3],p[3]).setPosition(p[0],p[1]+p[3]*0.6,p[2]));
+ if(!instModel('rock',bigGroup,rocks,place(0.7,-0.02)))inst(new THREE.DodecahedronGeometry(0.5,0),0x7a776e,rocks,(m,p)=>m.makeScale(p[3],p[3]*0.7,p[3]).setPosition(p[0],p[1]+p[3]*0.25,p[2]),{flatShading:true});
  inst(new THREE.BoxGeometry(1,1,1),0x6a645a,ruins,(m,p)=>m.makeScale(p[3],p[4],p[5]).setPosition(p[0],p[1]+p[4]/2,p[2]));
  inst(new THREE.CylinderGeometry(0.02,0.04,1,5),0x3a2e24,dead,(m,p)=>m.makeScale(1,p[3],1).setPosition(p[0],p[1]+p[3]/2,p[2]));
- inst(new THREE.IcosahedronGeometry(1,0),0x3d5a2c,bush,(m,p)=>m.makeScale(p[3],p[3]*0.7,p[3]).setPosition(p[0],p[1]+p[3]*0.4,p[2]),{flatShading:true});
+ if(!instModel('bush',bigGroup,bush,place(1.1)))inst(new THREE.IcosahedronGeometry(1,0),0x3d5a2c,bush,(m,p)=>m.makeScale(p[3],p[3]*0.7,p[3]).setPosition(p[0],p[1]+p[3]*0.4,p[2]),{flatShading:true});
  inst(new THREE.BoxGeometry(0.86,0.07,0.12),0x7a7a30,crop,(m,p)=>m.makeTranslation(p[0],p[1]+0.035,p[2]));
  inst(new THREE.CylinderGeometry(0.012,0.012,0.35,4),0x5a6a3a,reed,(m,p)=>m.makeTranslation(p[0],p[1]+0.17,p[2]));
  inst(new THREE.CylinderGeometry(0.05,0.08,1,6),0x2b2b30,rigs,(m,p)=>m.makeScale(1,0.7,1).setPosition(p[0],p[1]+0.35,p[2]));
@@ -2362,7 +2368,7 @@ function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:sna
  snap.parcels.filter(p=>p.home).forEach(addBase);
  const mineHome=snap.parcels.find(p=>p.home&&p.owner===NET.me.name);NET.homeKey=mineHome?mineHome.i+','+mineHome.j:snap.hall.i+','+snap.hall.j;
  sun.shadow.camera.left=sun.shadow.camera.bottom=-20;sun.shadow.camera.right=sun.shadow.camera.top=20;sun.shadow.camera.updateProjectionMatrix();
- if(mode==='county'){scene.fog=new THREE.Fog(0x0c0f14,48,105);controls.maxDistance=66;if(!diving){const hm=home();flyTo(hm[0],hm[1]);}}
+ if(mode==='county'){scene.fog=new THREE.Fog(0x0c0f14,48,105);controls.maxDistance=66;if(!diving&&!NET.noFly){const hm=home();flyTo(hm[0],hm[1]);}}
  if(/[?&]ov/.test(location.search)){setTimeout(()=>{briefEl.hidden=true;anim=null;controls.target.set(0,0,0);camera.position.set(20,30,24);controls.update();},3000);}}
 function openSectorMap(n){NET.viewSector=n;go('county',V3(0,0,0),V3(2,40,2),'Sector '+n);setTimeout(watchHome,700);}
 
@@ -2515,7 +2521,30 @@ const HCOL={barracks:0x7a2a22,warehouse:0x8a8f98,research:0x8fd3ff,crops:0x6b8e3
 const HG=(x,y)=>{const h=NET.me.home;return [x-h.grid/2,y-h.grid/2];};
 function homeKindOf(t){return NET.me.home.kinds.find(k=>k.type===t);}
 function homeFootprint(k,rot){return rot?[k.h,k.w]:[k.w,k.h];}
-function homeModel2(type,w,h){const g=new THREE.Group();const P0=P;P=g;
+/* ---------- 3D models (Kenney packs, CC0 placeholders): loaded once, swapped in for the procedural boxes ---------- */
+const MODEL_FILES={hq:'commercial/building-n',barracks:'industrial/building-t',warehouse:'industrial/building-s',research:'industrial/building-q',workshop:'industrial/building-h',
+ generator:'industrial/detail-tank',solar:'industrial/solar-panel-landscape',chimney:'industrial/chimney-small',house1:'suburban/building-type-a',house2:'suburban/building-type-c',
+ pine:'nature/tree_pineDefaultA',pine2:'nature/tree_pineRoundC',tree:'nature/tree_default',oak:'nature/tree_oak',rock:'nature/rock_largeA',rock2:'nature/rock_smallC',bush:'nature/plant_bushLarge',wheat:'nature/crops_wheatStageB',corn:'nature/crops_cornStageD'};
+const MODELS={};
+(async()=>{const L=new GLTFLoader();await Promise.all(Object.entries(MODEL_FILES).map(async([k,p])=>{try{const g=await L.loadAsync('models/'+p+'.glb');g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});g.scene.updateMatrixWorld(true);MODELS[k]=g.scene;}catch(e){console.warn('model failed',k,e);}}));
+ window.__modelsReady=true;
+ // Rebuild whatever is on screen so it picks the models up
+ if(window.NET&&NET.me&&NET.me.home&&HB.built){HB.key=null;buildHomeBase();}
+ if(window.NET&&NET.lastSnap&&mode==='county'){NET.noFly=true;try{applySnapshot(NET.lastSnap);}finally{NET.noFly=false;}}})();
+/** A clone of a model, scaled to fit a w x d footprint (and no taller than h, if given), centred, sitting on y=0. */
+function model(k,w,d,h){const src=MODELS[k];if(!src)return null;const g=src.clone(true);const box=new THREE.Box3().setFromObject(g),sz=box.getSize(new THREE.Vector3());
+ const sc=Math.min(w/sz.x,d/sz.z,h?h/sz.y:1e9);g.scale.setScalar(sc);box.setFromObject(g);const c=box.getCenter(new THREE.Vector3());g.position.set(-c.x,-box.min.y,-c.z);const wrap=new THREE.Group();wrap.add(g);return wrap;}
+/** Instanced copies of a model for big scenes: one InstancedMesh per part, the model normalised to height 1 at the origin. */
+function instModel(k,group,list,place){const src=MODELS[k];if(!src||!list.length)return false;const box=new THREE.Box3().setFromObject(src),sz=box.getSize(new THREE.Vector3()),c=box.getCenter(new THREE.Vector3());
+ const norm=new THREE.Matrix4().makeScale(1/sz.y,1/sz.y,1/sz.y).multiply(new THREE.Matrix4().makeTranslation(-c.x,-box.min.y,-c.z));const m4=new THREE.Matrix4();
+ src.traverse(o=>{if(!o.isMesh)return;const geo=o.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(norm,o.matrixWorld));const im=new THREE.InstancedMesh(geo,o.material,list.length);im.castShadow=true;im.receiveShadow=true;
+  list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);});im.instanceMatrix.needsUpdate=true;group.add(im);});return true;}
+const HOME_MODEL={barracks:'barracks',warehouse:'warehouse',research:'research',workshop:'workshop',generator:'generator',solar:'solar'};
+function homeModel2(type,w,h){const kd=homeKindOf(type),mk=HOME_MODEL[type];
+ if(mk&&MODELS[mk]){const m=model(mk,kd.w*0.92,kd.h*0.92);if(m)return m;}
+ if(type==='crops'&&MODELS.wheat){const g=new THREE.Group();for(let a=0;a<kd.w*2;a++)for(let b=0;b<kd.h*2;b++){const m=model('wheat',0.46,0.46);m.position.set((a+0.5)*0.5-kd.w/2,0,(b+0.5)*0.5-kd.h/2);g.add(m);}
+  const soil=new THREE.Mesh(new THREE.BoxGeometry(kd.w*0.96,0.04,kd.h*0.96),new THREE.MeshStandardMaterial({color:0x5a4430,roughness:1}));soil.position.y=0.02;soil.receiveShadow=true;g.add(soil);return g;}
+ const g=new THREE.Group();const P0=P;P=g;
  if(type==='barracks'){add(new RoundedBoxGeometry(w*0.85,0.5,h*0.5,2,0.05),0xe9dcc2,0,0.25,-h*0.12);add(roofGeo(w*0.95,0.4,h*0.58),0x7a2a22,0,0.5,-h*0.12);for(let i=0;i<4;i++)add(new THREE.CylinderGeometry(0.05,0.06,0.16,8),0x55702f,-0.45+i*0.3,0.08,h*0.3);}
  else if(type==='warehouse'){add(new RoundedBoxGeometry(w*0.85,0.7,h*0.8,2,0.06),0xc98b4f,0,0.35,0);add(roofGeo(w*0.92,0.35,h*0.86),0x8a8f98,0,0.7,0);for(let i=0;i<4;i++)add(new RoundedBoxGeometry(0.2,0.2,0.2,1,0.02),0xd9a15a,w*0.45,0.1+(i%2)*0.2,-0.3+i*0.2);}
  else if(type==='research'){add(new THREE.CylinderGeometry(0.75,0.8,0.32,28),0xe7e7ea,0,0.16,0);add(new THREE.SphereGeometry(0.7,28,16,0,Math.PI*2,0,Math.PI/2),0x8fd3ff,0,0.32,0,null,{transparent:true,opacity:0.85,roughness:0.1});add(new THREE.CylinderGeometry(0.02,0.02,0.7,6),0x666666,0.55,0.9,-0.4);}
@@ -2550,6 +2579,7 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
   if(h.expand)label('In the fog · Expand to '+h.expand.size+'x'+h.expand.size,'#c9a24a',c,1.6,yhi+1.6,1.1,HB.group,true);}
  // the HQ stays in the middle
  const hqG=pickHQ.find(o=>o.userData.info==='hq');if(hqG){hqG.visible=true;hqG.position.set(0,0.04,0);}
+ if(MODELS.hq&&hqG){if(!hqG.userData.ghost){hqG.userData.ghost=true;hqG.traverse(o=>{if(o.isMesh){o.material=o.material.clone();o.material.transparent=true;o.material.opacity=0;o.material.depthWrite=false;o.castShadow=false;}});}const hm=model('hq',2.9,2.9,2.4);hm.position.set(0,0.04,0);HB.group.add(hm);}
  label('HQ Lv '+h.hqLevel,'#ffc933',0,3.3,0.4,1,HB.group,true);
  h.tiles.forEach(t=>{const k=homeKindOf(t.type);const [w,d]=homeFootprint(k,t.rotated);const [x,z]=HG(t.x+w/2,t.y+d/2);const m=homeModel2(t.type,w,d);m.position.set(x,0.04,z);if(t.rotated)m.rotation.y=Math.PI/2;m.userData.tile=t;HB.group.add(m);HB.meshes.set(t.id,m);});
  P=P0;renderTutorial();}
