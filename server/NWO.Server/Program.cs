@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using NWO.Server.Data;
@@ -177,6 +178,23 @@ api.MapPost("/admin/region2/open", async (HttpContext ctx, World world) =>
 });
 
 api.MapGet("/admin/sentinel/history", (HttpContext ctx) => Admin.Allowed(ctx) ? Results.Ok(Siege.History) : Results.Unauthorized());
+
+// Admin: give a player resources, e.g. /admin/grant?name=Kyle2&cash=100000. Recorded in the ledger.
+api.MapPost("/admin/grant", async (HttpContext ctx, World world, IHubContext<GameHub> hub, string name, double? cash, double? fuel, double? gold, double? oil, double? grain) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    var r = await world.Locked(async db =>
+    {
+        var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstOrDefaultAsync(x => x.Name.ToLower() == name.ToLower());
+        if (p is null) return (object?)null;
+        foreach (var (res, amt) in new[] { ("cash", cash), ("fuel", fuel), ("gold", gold), ("oil", oil), ("grain", grain) })
+            if (amt is > 0) Ledger.Add(db, p, res, amt.Value, "Granted by an admin");
+        var me = Dto.Me(p);
+        _ = hub.Clients.Clients(GameHub.ConnectionsOf(p.Id)).SendAsync("me", me);
+        return new { p.Name, resources = new { p.Cash, p.Fuel, p.Gold, p.Oil, p.Grain } };
+    });
+    return r is null ? Results.NotFound(new { error = "No player by that name." }) : Results.Ok(r);
+});
 
 api.MapPost("/admin/sentinel/start", async (HttpContext ctx, Siege siege) =>
 {
