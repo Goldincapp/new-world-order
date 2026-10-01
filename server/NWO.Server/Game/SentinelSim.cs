@@ -16,7 +16,10 @@ public class SentinelSim
 {
     public const double LineX = -14, SpawnX = -12.5, HomeX = 12;
     public static readonly double[] Lanes = [-4, -2, 0, 2, 4];
-    public const double BaseHp = 2_600_000, LineMaxHp = 60_000, TimeLimit = 15 * 60;
+    /// <summary>Tuning without a code change: NWO_SENTINEL_HP_MULT scales its health, NWO_SENTINEL_FULL_ARMOR sets how many commanders crack its armour.</summary>
+    public static readonly double BaseHp = 2_600_000 * (double.TryParse(Environment.GetEnvironmentVariable("NWO_SENTINEL_HP_MULT"), out var hm) ? hm : 1);
+    public static readonly double FullArmor = double.TryParse(Environment.GetEnvironmentVariable("NWO_SENTINEL_FULL_ARMOR"), out var fa) ? fa : 12;
+    public const double LineMaxHp = 60_000, TimeLimit = 15 * 60;
     const double Regen = 160, ShieldedMult = 0.15, VentMult = 3, Tick = 0.35;
 
     public class Unit
@@ -63,7 +66,7 @@ public class SentinelSim
     /// <summary>Commanders who hit the Sentinel in the last 10 seconds.</summary>
     public int Pressing => Fighters.Values.Count(f => T - f.LastHitAt < 10);
     /// <summary>Its armour only cracks when many commanders hit it at once: full damage needs twelve, one alone does almost nothing.</summary>
-    public double ArmorBreak => Math.Clamp(Math.Pow(Pressing / 12.0, 1.3), 0.04, 1);
+    public double ArmorBreak => Math.Clamp(Math.Pow(Pressing / FullArmor, 1.3), 0.04, 1);
     public int ActiveFighters => Fighters.Values.Count(f => T - f.LastActive < 60);
 
     void SpawnRelays(int phase)
@@ -88,7 +91,7 @@ public class SentinelSim
     void Grow()
     {
         var fighting = Fighters.Values.Count(x => x.Deployed > 0);
-        var want = BaseHp * Math.Pow(Math.Max(1, fighting / 12.0), 1.6);
+        var want = BaseHp * Math.Pow(Math.Max(1, fighting / FullArmor), 1.6);
         if (want > MaxHp) { Hp *= want / MaxHp; MaxHp = want; }
     }
 

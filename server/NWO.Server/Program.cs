@@ -141,6 +141,7 @@ api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm)
     var players = await world.Locked(async db =>
     {
         var n = await db.Players.CountAsync();
+        await db.Coups.ExecuteDeleteAsync(); await db.Wars.ExecuteDeleteAsync();
         await db.LawVotes.ExecuteDeleteAsync(); await db.Laws.ExecuteDeleteAsync();
         await db.Ballots.ExecuteDeleteAsync(); await db.Candidates.ExecuteDeleteAsync(); await db.Nations.ExecuteDeleteAsync();
         await db.Shipments.ExecuteDeleteAsync(); await db.Contracts.ExecuteDeleteAsync();
@@ -164,6 +165,8 @@ api.MapPost("/admin/region2/open", async (HttpContext ctx, World world) =>
     await world.Locked(async db => { var st = (await db.Server.FindAsync(1))!; st.Region2Open = true; st.Region2OpenedAt = DateTime.UtcNow - Region2.HeadStart; st.Gatebreakers ??= "(opened by an admin)"; return true; });
     return Results.Ok(new { open = true });
 });
+
+api.MapGet("/admin/sentinel/history", (HttpContext ctx) => Admin.Allowed(ctx) ? Results.Ok(Siege.History) : Results.Unauthorized());
 
 api.MapPost("/admin/sentinel/start", async (HttpContext ctx, Siege siege) =>
 {
