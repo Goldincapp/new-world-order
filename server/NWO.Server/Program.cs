@@ -9,6 +9,7 @@ var dbPath = Environment.GetEnvironmentVariable("NWO_DB") ?? "nwo.db";
 builder.Services.AddDbContext<GameDb>(o => o.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<World>();
+builder.Services.AddSingleton<Market>();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .SetIsOriginAllowed(origin => origin.StartsWith("http://localhost") || origin.EndsWith(".vercel.app")
         || (Environment.GetEnvironmentVariable("NWO_ORIGINS") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(origin))
@@ -17,7 +18,11 @@ builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<GameDb>().Database.Migrate();
+{
+    var db = scope.ServiceProvider.GetRequiredService<GameDb>();
+    db.Database.Migrate();
+    await Market.EnsureCaretakerOrders(db);
+}
 
 app.UseCors();
 
@@ -48,6 +53,8 @@ api.MapPost("/auth/guest", async (GuestRequest req, GameDb db) =>
     db.Players.Add(p);
     await Economy.GrantStarterLand(db, p);
     db.Records.Add(new RecordEntry { PlayerId = p.Id, Delta = 0, Kind = "order", Text = "Registered as a settler in Region 1" });
+    foreach (var res in Ledger.Resources)
+        db.Ledger.Add(new LedgerEntry { PlayerId = p.Id, Resource = res, Delta = Ledger.Get(p, res), Balance = Ledger.Get(p, res), Reason = "Starting supplies" });
     await db.SaveChangesAsync();
     await db.Entry(p).Collection(x => x.Parcels).LoadAsync();
     return Results.Ok(new { token, player = Dto.Me(p) });
@@ -63,29 +70,16 @@ api.MapGet("/me", async (HttpContext ctx, GameDb db) =>
     return Results.Ok(new { player = Dto.Me(p), awaySeconds = (int)away.TotalSeconds });
 });
 
-api.MapPost("/collect", async (HttpContext ctx, GameDb db) =>
+api.MapPost("/collect", async (HttpContext ctx, GameDb db, World world) =>
 {
-    var p = await Auth.PlayerFrom(ctx, db, withParcels: true);
-    if (p is null) return Results.Unauthorized();
-    var got = Economy.Collect(p, DateTime.UtcNow);
-    await db.SaveChangesAsync();
-    return Results.Ok(new { collected = got, player = Dto.Me(p) });
-});
-
-// A fixed-price sale for now; the player-run order book replaces it in Phase 2.
-api.MapPost("/sell", async (SellRequest req, HttpContext ctx, GameDb db) =>
-{
-    var p = await Auth.PlayerFrom(ctx, db, withParcels: true);
-    if (p is null) return Results.Unauthorized();
-    var price = req.Resource switch { "oil" => 42.0, "grain" => 18.0, "fuel" => 64.0, _ => 0 };
-    if (price == 0 || req.Qty <= 0 || req.Qty > 100_000) return Results.BadRequest(new { error = "Can't sell that." });
-    var have = req.Resource switch { "oil" => p.Oil, "grain" => p.Grain, _ => p.Fuel };
-    if (have < req.Qty) return Results.BadRequest(new { error = "You don't have that much." });
-    switch (req.Resource) { case "oil": p.Oil -= req.Qty; break; case "grain": p.Grain -= req.Qty; break; default: p.Fuel -= req.Qty; break; }
-    var earned = Math.Round(req.Qty * price * 0.98);
-    p.Cash += earned;
-    await db.SaveChangesAsync();
-    return Results.Ok(new { earned, player = Dto.Me(p) });
+    var who = await Auth.PlayerFrom(ctx, db);
+    if (who is null) return Results.Unauthorized();
+    return Results.Ok(await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).FirstAsync(x => x.Id == who.Id);
+        var got = Economy.Collect(gdb, p, DateTime.UtcNow);
+        return new { collected = got, player = Dto.Me(p) };
+    }));
 });
 
 api.MapGet("/chat/{channel}", async (string channel, GameDb db) =>
@@ -95,7 +89,6 @@ api.MapGet("/chat/{channel}", async (string channel, GameDb db) =>
 app.Run();
 
 record GuestRequest(string? Name);
-record SellRequest(string Resource, double Qty);
 
 static class Dto
 {
@@ -118,6 +111,7 @@ static class Dto
                 catalog = Economy.HomeBuildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, res = kv.Value.Res, perHour = kv.Value.PerHour }),
             },
             claimCost = Economy.ClaimCost,
+            ration = new { ready = now - p.LastRationAt >= Economy.RationEvery, nextAt = p.LastRationAt + Economy.RationEvery, crate = Economy.Ration(p) },
         };
     }
 }

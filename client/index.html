@@ -355,7 +355,8 @@ html.app .screen{border-radius:0}
           <button class="x" id="sx" aria-label="Close market"><span class="ms">close</span></button>
           <div>
             <h3>Aurelia market</h3>
-            <p class="note">Crude oil · prices move with supply and demand</p>
+            <div class="mtabs" id="mkTabs" style="margin:.4em 0 .2em" hidden><button data-r="oil" aria-pressed="true">Oil</button><button data-r="grain" aria-pressed="false">Grain</button><button data-r="fuel" aria-pressed="false">Fuel</button></div>
+            <p class="note" id="mkNote">Crude oil · prices move with supply and demand</p>
             <div style="display:flex;align-items:baseline;gap:.6em;margin-top:.5em"><span class="big" id="mPrice">42.10</span><span class="chg" id="mChg">+0.0%</span></div>
             <svg viewBox="0 0 240 70" aria-hidden="true"><polyline id="mLine" fill="none" stroke="#2f6fd0" stroke-width="2" points=""/></svg>
             <p class="note">Sell 100 and watch the price drop. Other players trade too, so it keeps moving.</p><div class="recent" id="recent"></div>
@@ -371,6 +372,16 @@ html.app .screen{border-radius:0}
             <div class="row"><span>Import tariff from Northern Union</span><span>8%</span></div>
             <div class="row"><span>You hold</span><span id="mHold">1,240 oil</span></div>
             <div class="acts"><button class="primary" id="mSell">Sell 100</button><button id="mBuy">Buy 100</button></div>
+            <div id="mkForm" hidden style="margin-top:.8em">
+              <div class="note" style="margin-bottom:.35em">Or set your own price and wait for a taker:</div>
+              <div style="display:flex;gap:.4em;align-items:center;flex-wrap:wrap">
+                <input id="mkQty" type="number" min="1" value="100" aria-label="Quantity" style="width:5.5em;padding:.45em .5em;border:1px solid #d9d1bf;border-radius:1.2cqh;font:inherit">
+                <span class="note">at</span>
+                <input id="mkPx" type="number" min="0.01" step="0.01" aria-label="Price" style="width:5.5em;padding:.45em .5em;border:1px solid #d9d1bf;border-radius:1.2cqh;font:inherit">
+                <button id="mkPostSell">Post sell</button><button id="mkPostBuy">Post buy</button>
+              </div>
+              <div id="mkMine" style="margin-top:.6em"></div>
+            </div>
           </div>
         </div>
         <div class="sheet" id="pol" hidden>
@@ -1252,16 +1263,16 @@ function drawMarket(){const lo=Math.min(...hist)-0.3,hi=Math.max(...hist)+0.3;
  $('mPrice').textContent=price.toFixed(2);const ch=(price-BASE)/BASE*100;const ce=$('mChg');ce.textContent=(ch>=0?'+':'')+ch.toFixed(1)+'%';ce.style.color=ch>=0?'#23864a':'#c0392b';
  $('s1').textContent=(price+0.3).toFixed(2)+' · 800';$('s2').textContent=(price+0.65).toFixed(2)+' · 350';$('s3').textContent=(price+0.9).toFixed(2)+' · 2,000';
  $('b1').textContent=(price-0.2).toFixed(2)+' · 1,200';$('b2').textContent=(price-0.6).toFixed(2)+' · 600';$('b3').textContent=(price-0.9).toFixed(2)+' · 900';}
-function openMarket(){card.hidden=true;hint.hidden=true;chatEl.hidden=true;polEl.hidden=true;sheet.hidden=false;$('tMarket').setAttribute('aria-pressed','true');drawMarket();}
+function openMarket(){card.hidden=true;hint.hidden=true;chatEl.hidden=true;polEl.hidden=true;sheet.hidden=false;$('tMarket').setAttribute('aria-pressed','true');if(window.NET&&NET.conn&&NET.mk&&NET.mk.books.oil){refreshMine(NET.mk.res);renderMk();}else drawMarket();}
 function closeMarket(silent){sheet.hidden=true;$('tMarket').setAttribute('aria-pressed','false');if(!silent)hint.hidden=false;}
 $('bMarket').onclick=openMarket;$('tMarket').onclick=()=>{if(sheet.hidden)openMarket();else closeMarket();};$('sx').onclick=()=>closeMarket();
-$('mSell').onclick=e=>{if(res.oil<100){toast('Not enough oil. Collect from your wells first');return;}if(NET.me)api('/sell',{resource:'oil',qty:100}).then(r=>applyMe(r.player)).catch(er=>toast(er.message));
+$('mSell').onclick=e=>{if(NET.conn&&NET.mk.books.oil){mkOrder('sell',false);return;}if(res.oil<100){toast('Not enough oil. Collect from your wells first');return;}
  const gross=price*100,tax=gross*0.02;res.oil-=100;res.cash+=gross-tax;price=Math.max(30,price-0.35);hist.push(price);hist.shift();renderRes(['oil','cash']);drawMarket();
  const r=screen.getBoundingClientRect();floatText('+'+fmt(gross-tax),e.clientX-r.left-20,e.clientY-r.top-34);toast('Sold 100 oil · '+fmt(tax)+' tax to the treasury');};
-$('mBuy').onclick=e=>{const cost=price*100*1.02;if(res.cash<cost){toast('Not enough cash');return;}
+$('mBuy').onclick=e=>{if(NET.conn&&NET.mk.books.oil){mkOrder('buy',false);return;}const cost=price*100*1.02;if(res.cash<cost){toast('Not enough cash');return;}
  res.oil+=100;res.cash-=cost;price+=0.35;hist.push(price);hist.shift();renderRes(['oil','cash']);drawMarket();toast('Bought 100 oil');};
 const TRADERS=['Kestrel','Olive_7','Tidewater','Nyx','Solano','Brann'];const recent=[];
-setInterval(()=>{const buy=Math.random()<0.5,q=[100,200,400,800][Math.floor(Math.random()*4)];price+=(BASE-price)*0.12+(buy?0.05:-0.05)*q/200;hist.push(price);hist.shift();recent.unshift(TRADERS[Math.floor(Math.random()*TRADERS.length)]+(buy?' bought ':' sold ')+q+' at '+price.toFixed(2));recent.length=Math.min(recent.length,3);$('recent').innerHTML='Recent trades<br>'+recent.join('<br>');if(!sheet.hidden)drawMarket();},2500);
+setInterval(()=>{if(window.NET&&NET.conn)return;const buy=Math.random()<0.5,q=[100,200,400,800][Math.floor(Math.random()*4)];price+=(BASE-price)*0.12+(buy?0.05:-0.05)*q/200;hist.push(price);hist.shift();recent.unshift(TRADERS[Math.floor(Math.random()*TRADERS.length)]+(buy?' bought ':' sold ')+q+' at '+price.toFixed(2));recent.length=Math.min(recent.length,3);$('recent').innerHTML='Recent trades<br>'+recent.join('<br>');if(!sheet.hidden)drawMarket();},2500);
 setInterval(()=>{res.oil+=3;res.grain+=1;res.cash+=8;renderRes();},4000);
 
 /* ---------- Living world: chat, ticker, notifications, other players ---------- */
@@ -1610,7 +1621,7 @@ const briefEl=$('brief');let collected=false;const OFFLINE={oil:1420,grain:380,c
 const GOALS=[{k:'fuel',t:'Deliver fuel to a sector in need',rw:'+20 gold',gold:20,done:false},{k:'vote',t:'Vote on a law in the council',rw:'+10 gold',gold:10,done:false},{k:'housing',t:'Build one housing block',rw:'+600 cash',cash:600,done:false}];
 function goalDone(k){const g=GOALS.find(x=>x.k===k);if(!g||g.done)return;g.done=true;if(g.gold)res.gold+=g.gold;if(g.cash)res.cash+=g.cash;renderRes(g.gold?['gold']:['cash']);setTimeout(()=>toast('Daily goal complete: '+g.t+' ('+g.rw+')'),2200);if(!briefEl.hidden)renderBrief();}
 function renderBrief(){const need=secNeeds();const poll=Math.round(cands[0][1]/cands.reduce((a,c)=>a+c[1],0)*100);
- const items=[['inventory_2','Your parcels produced '+fmtN(OFFLINE.oil)+' oil and '+fmtN(OFFLINE.grain)+' grain',''],['real_estate_agent','Lease on Sector 23 paid 186 oil','good'],['trending_up','Oil price up 4% since yesterday (now '+price.toFixed(2)+'): a good time to sell',''],
+ const items=[...(window.NET&&NET.me&&NET.me.ration&&NET.me.ration.ready?[['inventory','A Caretaker drone left your ration crate: +'+NET.me.ration.crate.grain+' grain'+(NET.me.ration.crate.fuel?', +'+NET.me.ration.crate.fuel+' fuel':'')+'. Collect it below','good']]:[]),['inventory_2','Your parcels produced '+fmtN(OFFLINE.oil)+' oil and '+fmtN(OFFLINE.grain)+' grain',''],['real_estate_agent','Lease on Sector 23 paid 186 oil','good'],['trending_up','Oil price up 4% since yesterday (now '+price.toFixed(2)+'): a good time to sell',''],
   need.length?['home_work','Sector 12 needs '+need.join(', ')+': the governor is paying contracts','warn']:['home_work','Sector 12 has everything it needs','good'],['shield','Mara_V raided your convoy overnight: your escort held','good'],['gavel','Customs confiscated a back-road shipment near Sector 8',''],
   ['how_to_vote','Election in 1 day: you are polling '+poll+'%',''],['forum','3 new alliance messages: a convoy needs escorts tonight','']];
  $('brItems').innerHTML=items.map(i=>'<div class="bitem '+i[2]+'"><span class="ms">'+i[0]+'</span><span>'+i[1]+'</span></div>').join('');
@@ -1620,8 +1631,8 @@ function renderBrief(){const need=secNeeds();const poll=Math.round(cands[0][1]/c
 function openBrief(){card.hidden=true;chatEl.hidden=true;polEl.hidden=true;sheet.hidden=true;boardEl.hidden=true;statsEl.hidden=true;hint.hidden=true;briefEl.hidden=false;renderBrief();}
 function closeBrief(){briefEl.hidden=true;hint.hidden=false;}
 $('brx').onclick=closeBrief;
-$('brCollectBtn').onclick=e=>{if(NET.me){if(collected){toast('Nothing to collect yet. Your land keeps producing while you are away');return;}
-  api('/collect',{}).then(r=>{const c=r.collected;applyMe(r.player);collected=true;renderBrief();const rr=screen.getBoundingClientRect();floatText('+'+fmtN(c.oil)+' oil',e.clientX-rr.left-40,e.clientY-rr.top-40);toast('Collected '+fmtN(c.cash)+' cash, '+fmtN(c.oil)+' oil and '+fmtN(c.grain)+' grain');}).catch(er=>toast(er.message));return;}
+$('brCollectBtn').onclick=e=>{if(NET.me){if(collected&&!(NET.me.ration&&NET.me.ration.ready)){toast('Nothing to collect yet. Your land keeps producing while you are away');return;}
+  const ration=NET.me.ration&&NET.me.ration.ready;api('/collect',{}).then(async r=>{const c=r.collected;applyMe(r.player);if(ration){const rr=await NET.conn.invoke('ClaimRation');if(rr.ok){applyMe(rr.player);setTimeout(()=>toast('Caretaker ration crate collected'),2400);}}collected=true;renderBrief();const rr=screen.getBoundingClientRect();floatText('+'+fmtN(c.oil)+' oil',e.clientX-rr.left-40,e.clientY-rr.top-40);toast('Collected '+fmtN(c.cash)+' cash, '+fmtN(c.oil)+' oil and '+fmtN(c.grain)+' grain');}).catch(er=>toast(er.message));return;}
  if(collected){toast('Already collected. Come back later for more');return;}collected=true;res.oil+=OFFLINE.oil;res.grain+=OFFLINE.grain;res.cash+=OFFLINE.cash;res.fuel+=OFFLINE.fuel;renderRes(['oil','grain','cash','fuel']);
  const r=screen.getBoundingClientRect();floatText('+'+fmtN(OFFLINE.oil)+' oil',e.clientX-r.left-40,e.clientY-r.top-40);toast('Collected everything your land made while you were away');renderBrief();};
 $('brGo').onclick=()=>{closeBrief();if(mode!=='county')setMode('county');};
@@ -2066,8 +2077,8 @@ function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);re
 async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
  c.on('chat',m=>{if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
- c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.onreconnected(()=>watchHome());
- try{await c.start();NET.conn=c;watchHome();
+ c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.onreconnected(()=>{watchHome();watchMarket();});
+ try{await c.start();NET.conn=c;watchHome();watchMarket();
   const hist=await api('/chat/global');hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
 async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(a&&r.awaySeconds>60)a.textContent='You were away '+awayText(r.awaySeconds)+' · '+a.textContent;connectLive();return true;}
  catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
@@ -2134,6 +2145,33 @@ function homeAct(a){const h=NET.me.home;
  const c=h.catalog.find(x=>a===x.name+' · '+fmtN(x.cost));
  if(c){NET.conn.invoke('BuildHome',c.type).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(c.name+' built'+(c.perHour?': +'+c.perHour+' '+RESWORD[c.res]+' an hour':''));homeBuildCard();}).catch(er=>toast(er.message));return true;}
  return false;}
+
+
+/* ---------- The live market: a player-run order book per commodity ---------- */
+NET.mk={books:{},res:'oil'};
+const MKNAME={oil:'Crude oil',grain:'Grain',fuel:'Refined fuel'};
+async function watchMarket(){if(!NET.conn)return;try{(await NET.conn.invoke('WatchMarket')).forEach(b=>NET.mk.books[b.res]=b);}catch(e){console.warn('market watch failed',e);}}
+function onMarket(b){const old=NET.mk.books[b.res],mine=old?old.mine:[];b.mine=mine;NET.mk.books[b.res]=b;if(!sheet.hidden&&NET.mk.res===b.res)renderMk();
+ if(mine.length)NET.conn.invoke('MyBook',b.res).then(nb=>{NET.mk.books[b.res]=nb;mine.forEach(o=>{const now=nb.mine.find(x=>x.id===o.id),left=now?now.remaining:0,got=o.remaining-left;if(got>0)toast('Your '+(o.side==='sell'?'sell':'buy')+' order filled: '+fmt(got)+' '+b.res+' at '+o.price.toFixed(2));});if(nb.mine.length!==mine.length||nb.mine.some((x,i)=>x.remaining!==(mine[i]||{}).remaining))api('/me').then(r=>applyMe(r.player));if(!sheet.hidden&&NET.mk.res===b.res)renderMk();}).catch(()=>{});}
+async function refreshMine(res){try{NET.mk.books[res]=await NET.conn.invoke('MyBook',res);}catch(e){}if(!sheet.hidden)renderMk();}
+function mkLvl(x,side){return '<span class="'+side+'">'+x.price.toFixed(2)+' · '+(x.caretaker&&!x.qty?'Caretaker':fmt(x.qty)+(x.caretaker?' + Caretaker':''))+'</span>';}
+function renderMk(){const b=NET.mk.books[NET.mk.res];if(!b)return;const R=NET.mk.res;
+ $('mkTabs').hidden=false;$('mkForm').hidden=false;$('mkTabs').querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.r===R)));
+ $('mkNote').textContent=MKNAME[R]+' · set by players · the Caretaker buys at '+b.caretaker.buy.toFixed(2)+' and sells at '+b.caretaker.sell.toFixed(2);
+ const ps=b.trades.slice().reverse().map(t=>t.price);const series=ps.length>1?ps:[b.last,b.last];
+ const lo=Math.min(...series)-0.3,hi=Math.max(...series)+0.3;$('mLine').setAttribute('points',series.map((v,i)=>(i/(series.length-1)*236+2).toFixed(1)+','+(66-(v-lo)/(hi-lo)*62).toFixed(1)).join(' '));
+ $('mPrice').textContent=b.last.toFixed(2);const first=series[0],ch=first?(b.last-first)/first*100:0,ce=$('mChg');ce.textContent=(ch>=0?'+':'')+ch.toFixed(1)+'%';ce.style.color=ch>=0?'#23864a':'#c0392b';
+ const book=sheet.querySelector('.book'),n=Math.max(b.asks.length,b.bids.length);let h='<span class="h">Sell orders</span><span class="h">Buy orders</span>';
+ for(let i=0;i<Math.max(3,n);i++)h+=(b.asks[i]?mkLvl(b.asks[i],'sell'):'<span></span>')+(b.bids[i]?mkLvl(b.bids[i],'buy'):'<span></span>');book.innerHTML=h;
+ $('recent').innerHTML='<b>Recent trades</b><br>'+(b.trades.slice(0,4).map(t=>esc(t.buyer)+' bought '+fmt(t.qty)+' from '+esc(t.seller)+' at '+t.price.toFixed(2)).join('<br>')||'No trades yet. Be the first.');
+ $('mHold').textContent=fmt(res[R])+' '+R+' · '+fmt(res.cash)+' cash';$('mSell').textContent='Sell 100';$('mBuy').textContent='Buy 100';
+ if(!$('mkPx').value||document.activeElement!==$('mkPx'))$('mkPx').value=b.last.toFixed(2);
+ $('mkMine').innerHTML=(b.mine||[]).length?'<div class="note" style="margin-bottom:.2em">Your open orders</div>'+b.mine.map(o=>'<div class="row"><span>'+(o.side==='sell'?'Selling ':'Buying ')+fmt(o.remaining)+' at '+o.price.toFixed(2)+'</span><span><button data-cancel="'+o.id+'" style="padding:.35em .7em .25em">Cancel</button></span></div>').join(''):'';
+ $('mkMine').querySelectorAll('[data-cancel]').forEach(x=>x.onclick=()=>mkDo(NET.conn.invoke('CancelOrder',+x.dataset.cancel)));}
+function mkDo(p){return p.then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);refreshMine(NET.mk.res);}).catch(er=>toast(er.message));}
+function mkOrder(side,priced){const q=Math.floor(+$('mkQty').value||100),px=priced?+$('mkPx').value:null;if(priced&&!(px>0)){toast('Enter a price');return;}mkDo(NET.conn.invoke('PlaceOrder',NET.mk.res,side,priced?q:100,px));}
+$('mkTabs').querySelectorAll('button').forEach(x=>x.onclick=()=>{NET.mk.res=x.dataset.r;$('mkPx').value='';refreshMine(x.dataset.r);});
+$('mkPostSell').onclick=()=>mkOrder('sell',true);$('mkPostBuy').onclick=()=>mkOrder('buy',true);
 
 function worldToNation(){go('region',V3(-0.9,0,-0.9),V3(-0.9,23,18),'Region 1 · 9 nations');}
 function nationToWorld(){go('world',V3(0,0,0),V3(0,1.2,3.5),'World');}

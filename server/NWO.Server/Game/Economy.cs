@@ -99,10 +99,10 @@ public static class Economy
         return RatesPerHour(p).ToDictionary(kv => kv.Key, kv => Math.Floor(kv.Value * hours));
     }
 
-    public static Dictionary<string, double> Collect(Player p, DateTime now)
+    public static Dictionary<string, double> Collect(GameDb db, Player p, DateTime now, string reason = "Collected production")
     {
         var got = Pending(p, now);
-        p.Cash += got["cash"]; p.Oil += got["oil"]; p.Grain += got["grain"]; p.Fuel += got["fuel"];
+        foreach (var (res, amount) in got) Ledger.Add(db, p, res, amount, reason);
         p.LastCollectAt = now;
         return got;
     }
@@ -111,7 +111,16 @@ public static class Economy
     /// Banks production so far before anything changes the rates (a claim or a building),
     /// so a new rig never pays out retroactively.
     /// </summary>
-    public static void Settle(Player p, DateTime now) => Collect(p, now);
+    public static void Settle(GameDb db, Player p, DateTime now) => Collect(db, p, now, "Production banked before a change");
+
+    /// <summary>The Caretaker's daily ration crate: enough to survive, never enough to grow. Scaled by the player's record.</summary>
+    public static readonly TimeSpan RationEvery = TimeSpan.FromHours(20);
+
+    public static Dictionary<string, double> Ration(Player p)
+    {
+        var tier = Math.Clamp(p.Standing / 20, 0, 4);
+        return new() { ["grain"] = new[] { 20, 40, 60, 80, 110 }[tier], ["fuel"] = new[] { 0, 5, 10, 15, 25 }[tier] };
+    }
 
     /// <summary>Gives a new player a home sector and the single parcel their home base stands on, with free land around it.</summary>
     public static async Task GrantStarterLand(GameDb db, Player p)

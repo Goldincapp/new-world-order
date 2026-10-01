@@ -8,7 +8,7 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world) : Hub
+public class GameHub(GameDb db, World world, Market market) : Hub
 {
     record Conn(Guid Id, string Name, DateTime LastMsg, int Watching);
 
@@ -52,6 +52,30 @@ public class GameHub(GameDb db, World world) : Hub
     public Task<World.Result> BuildHome(string type) => world.BuildHome(Me.Id, type);
 
     public Task<World.Result> UpgradeHq() => world.UpgradeHq(Me.Id);
+
+    /// <summary>Start receiving live order books and trades, and get the current ones.</summary>
+    public async Task<object[]> WatchMarket()
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, Market.Group);
+        var id = Me.Id;
+        return [await market.Book("oil", id), await market.Book("grain", id), await market.Book("fuel", id)];
+    }
+
+    public Task<object> MyBook(string res) => market.Book(res, Me.Id);
+
+    public Task<Market.Result> PlaceOrder(string res, string side, double qty, double? price) => market.Place(Me.Id, res, side, qty, price);
+
+    public Task<Market.Result> CancelOrder(long id) => market.Cancel(Me.Id, id);
+
+    /// <summary>Collect the Caretaker ration crate, once every 20 hours.</summary>
+    public Task<World.Result> ClaimRation() => world.ChangePlayer(Me.Id, (gdb, me) =>
+    {
+        var now = DateTime.UtcNow;
+        if (now - me.LastRationAt < Economy.RationEvery) return "Your next ration crate isn't due yet.";
+        foreach (var (res, amount) in Economy.Ration(me)) Ledger.Add(gdb, me, res, amount, "Caretaker ration crate");
+        me.LastRationAt = now;
+        return null;
+    });
 
     public async Task SendChat(string channel, string text)
     {

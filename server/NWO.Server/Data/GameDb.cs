@@ -25,6 +25,8 @@ public class Player
     /// <summary>Production since this moment is waiting to be collected.</summary>
     public DateTime LastCollectAt { get; set; } = DateTime.UtcNow;
     public DateTime LastSeenAt { get; set; } = DateTime.UtcNow;
+    /// <summary>When the Caretaker last delivered this settler's ration crate.</summary>
+    public DateTime LastRationAt { get; set; } = DateTime.MinValue;
 
     /// <summary>The Caretaker's standing for this player, 0 to 100.</summary>
     public int Standing { get; set; } = 54;
@@ -70,8 +72,49 @@ public class RecordEntry
     public DateTime At { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>Every change to a player's cash or resources, with the reason. Nothing changes a balance without a line here.</summary>
+public class LedgerEntry
+{
+    public long Id { get; set; }
+    public Guid PlayerId { get; set; }
+    public string Resource { get; set; } = "";
+    public double Delta { get; set; }
+    public double Balance { get; set; }
+    public string Reason { get; set; } = "";
+    public DateTime At { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>A standing buy or sell order on a nation's market. Its goods or cash are held in escrow until filled or cancelled.</summary>
+public class Order
+{
+    public long Id { get; set; }
+    /// <summary>Null for the Caretaker's standing orders.</summary>
+    public Guid? PlayerId { get; set; }
+    public Player? Player { get; set; }
+    public string Resource { get; set; } = "";
+    public string Side { get; set; } = "sell";
+    public double Price { get; set; }
+    public double Qty { get; set; }
+    public double Remaining { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+public class Trade
+{
+    public long Id { get; set; }
+    public string Resource { get; set; } = "";
+    public double Price { get; set; }
+    public double Qty { get; set; }
+    public string Buyer { get; set; } = "";
+    public string Seller { get; set; } = "";
+    public DateTime At { get; set; } = DateTime.UtcNow;
+}
+
 public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
 {
+    public DbSet<LedgerEntry> Ledger => Set<LedgerEntry>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<Trade> Trades => Set<Trade>();
     public DbSet<Player> Players => Set<Player>();
     public DbSet<Parcel> Parcels => Set<Parcel>();
     public DbSet<ChatMessage> Chat => Set<ChatMessage>();
@@ -85,5 +128,8 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
         b.Entity<Parcel>().HasOne(p => p.Owner).WithMany(p => p.Parcels).HasForeignKey(p => p.OwnerId);
         b.Entity<ChatMessage>().HasIndex(m => new { m.Channel, m.Id });
         b.Entity<RecordEntry>().HasIndex(r => new { r.PlayerId, r.Id });
+        b.Entity<LedgerEntry>().HasIndex(l => new { l.PlayerId, l.Id });
+        b.Entity<Order>().HasIndex(o => new { o.Resource, o.Side, o.Price });
+        b.Entity<Trade>().HasIndex(t => new { t.Resource, t.Id });
     }
 }

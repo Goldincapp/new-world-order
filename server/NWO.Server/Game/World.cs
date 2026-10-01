@@ -11,6 +11,7 @@ namespace NWO.Server.Game;
 public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
 {
     readonly SemaphoreSlim gate = new(1, 1);
+    public IServiceScopeFactory Scopes => scopes;
 
     public static string Group(int sector) => "s" + sector;
 
@@ -45,8 +46,8 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (!SectorTemplate.Claimable(i, j)) return "Roads, water, the town and the sector hall can't be claimed.";
         if (parcel is not null) return parcel.OwnerId == me.Id ? "You already own this parcel." : $"{parcel.Owner!.Name} already owns this parcel.";
         if (me.Cash < Economy.ClaimCost) return "Not enough cash to claim this parcel.";
-        Economy.Settle(me, now);
-        me.Cash -= Economy.ClaimCost;
+        Economy.Settle(db, me, now);
+        Ledger.Add(db, me, "cash", -Economy.ClaimCost, $"Claimed parcel {sector}:{i},{j}");
         var p = new Parcel { Sector = sector, I = i, J = j, Resource = SectorTemplate.Resource(i, j), Owner = me, ClaimedAt = now };
         db.Parcels.Add(p); // setting Owner already adds it to me.Parcels
         return null;
@@ -59,37 +60,55 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (t.Needs is not null && !t.Needs.Contains(parcel.Resource)) return $"A {t.Name.ToLower()} needs {string.Join(" or ", t.Needs)} under the parcel.";
         if (Economy.SlotsUsed(parcel) + t.Slots > Economy.SlotsPerParcel) return "Not enough free slots on this parcel.";
         if (me.Cash < t.Cost) return $"Not enough cash to build a {t.Name.ToLower()}.";
-        Economy.Settle(me, now);
-        me.Cash -= t.Cost;
+        Economy.Settle(db, me, now);
+        Ledger.Add(db, me, "cash", -t.Cost, $"Built {t.Name} on {sector}:{i},{j}");
         parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? type : parcel.Buildings + "," + type;
         return null;
     });
 
+    /// <summary>
+    /// Runs a change to the game state with nothing else changing at the same time, then saves it.
+    /// Every balance change in the game goes through this one gate, so two actions can never race.
+    /// </summary>
+    public async Task<T> Locked<T>(Func<GameDb, Task<T>> change)
+    {
+        await gate.WaitAsync();
+        try
+        {
+            using var scope = scopes.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<GameDb>();
+            var result = await change(db);
+            await db.SaveChangesAsync();
+            return result;
+        }
+        finally { gate.Release(); }
+    }
+
     /// <summary>Build one of the self-sufficient basics inside the home base walls.</summary>
-    public Task<Result> BuildHome(Guid playerId, string type) => ChangePlayer(playerId, me =>
+    public Task<Result> BuildHome(Guid playerId, string type) => ChangePlayer(playerId, (db, me) =>
     {
         if (!Economy.HomeBuildings.TryGetValue(type, out var t)) return "Unknown building.";
         var have = Economy.HomeBuildingsOf(me).ToList();
         if (have.Count + t.Slots > Economy.HomeSlots(me)) return $"Your HQ has no free space. Upgrade it to level {me.HqLevel + 1} for more room.";
         if (type == "handpump" && me.Parcels.FirstOrDefault(p => p.IsHome)?.Resource != "oil") return "A hand pump needs oil under your home parcel.";
         if (me.Cash < t.Cost) return $"Not enough cash to build a {t.Name.ToLower()}.";
-        Economy.Settle(me, DateTime.UtcNow);
-        me.Cash -= t.Cost;
+        Economy.Settle(db, me, DateTime.UtcNow);
+        Ledger.Add(db, me, "cash", -t.Cost, $"Built {t.Name} at home");
         me.HomeBuildings = string.Join(",", have.Append(type));
         return null;
     });
 
-    public Task<Result> UpgradeHq(Guid playerId) => ChangePlayer(playerId, me =>
+    public Task<Result> UpgradeHq(Guid playerId) => ChangePlayer(playerId, (db, me) =>
     {
         if (me.HqLevel >= 10) return "Your HQ is at the maximum level for this season.";
         var cost = Economy.HqUpgradeCost(me);
         if (me.Cash < cost) return $"Upgrading to level {me.HqLevel + 1} costs {cost:N0} cash.";
-        me.Cash -= cost;
+        Ledger.Add(db, me, "cash", -cost, $"Upgraded HQ to level {me.HqLevel + 1}");
         me.HqLevel++;
         return null;
     });
 
-    async Task<Result> ChangePlayer(Guid playerId, Func<Player, string?> apply)
+    public async Task<Result> ChangePlayer(Guid playerId, Func<GameDb, Player, string?> apply)
     {
         await gate.WaitAsync();
         try
@@ -97,7 +116,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
             using var scope = scopes.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<GameDb>();
             var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
-            var error = apply(me);
+            var error = apply(db, me);
             if (error is not null) return new Result(false, error);
             await db.SaveChangesAsync();
             return new Result(true, Player: Dto.Me(me));
