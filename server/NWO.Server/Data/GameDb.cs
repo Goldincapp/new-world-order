@@ -14,11 +14,13 @@ public class Player
     public int HomeSector { get; set; }
 
     // Settlers start small: everything beyond the home base is earned.
-    public double Cash { get; set; } = 6_000;
+    /// <summary>Test servers can hand out more: NWO_START_CASH, NWO_START_FUEL, NWO_START_GOLD.</summary>
+    static double Start(string env, double normal) => double.TryParse(Environment.GetEnvironmentVariable(env), out var v) ? v : normal;
+    public double Cash { get; set; } = Start("NWO_START_CASH", 6_000);
     public double Oil { get; set; } = 200;
-    public double Fuel { get; set; } = 120;
+    public double Fuel { get; set; } = Start("NWO_START_FUEL", 120);
     public double Grain { get; set; } = 300;
-    public double Gold { get; set; } = 50;
+    public double Gold { get; set; } = Start("NWO_START_GOLD", 50);
 
     public double Power { get; set; }
 

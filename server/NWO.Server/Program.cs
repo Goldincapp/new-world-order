@@ -73,14 +73,22 @@ api.MapPost("/auth/guest", async (GuestRequest req, GameDb db) =>
     return Results.Ok(new { token, player = Dto.Me(p) });
 });
 
-api.MapGet("/me", async (HttpContext ctx, GameDb db) =>
+api.MapGet("/me", async (HttpContext ctx, GameDb db, World world) =>
 {
-    var p = await Auth.PlayerFrom(ctx, db, withParcels: true);
-    if (p is null) return Results.Unauthorized();
-    var away = DateTime.UtcNow - p.LastSeenAt;
-    p.LastSeenAt = DateTime.UtcNow;
-    await db.SaveChangesAsync();
-    return Results.Ok(new { player = Dto.Me(p), awaySeconds = (int)away.TotalSeconds });
+    var who = await Auth.PlayerFrom(ctx, db);
+    if (who is null) return Results.Unauthorized();
+    // Coming back banks everything made while away (up to storage), so the work done offline shows up straight away.
+    return Results.Ok(await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+        var now = DateTime.UtcNow;
+        var away = now - p.LastSeenAt;
+        p.LastSeenAt = now;
+        Dictionary<string, double>? collected = null;
+        if (away.TotalSeconds >= 60 && Economy.Pending(p, now).Values.Sum() >= 1)
+            collected = Economy.Collect(gdb, p, now, "Collected on return");
+        return new { player = Dto.Me(p), awaySeconds = (int)away.TotalSeconds, collected };
+    }));
 });
 
 api.MapPost("/collect", async (HttpContext ctx, GameDb db, World world) =>
