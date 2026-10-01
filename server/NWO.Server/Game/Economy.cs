@@ -23,6 +23,7 @@ public static class Economy
         ["ore"] = ("cash", 45),
         ["stone"] = ("cash", 35),
         ["housing"] = ("cash", 40),
+        ["salvage"] = ("cash", 35),
         ["none"] = ("cash", 10),
     };
 
@@ -32,11 +33,27 @@ public static class Economy
     {
         ["housing"] = new("Housing", 800, 2, "cash", 60),
         ["farm"] = new("Farm", 600, 3, "grain", 24),
-        ["rig"] = new("Oil rig", 1500, 2, "oil", 36, ["oil"]),
-        ["sawmill"] = new("Sawmill", 700, 2, "cash", 30, ["timber"]),
-        ["mine"] = new("Mine", 900, 2, "cash", 40, ["ore", "stone"]),
+        ["rig"] = new("Oil rig", 1500, 2, "oil", 36),
+        ["sawmill"] = new("Sawmill", 700, 2, "cash", 30),
+        ["mine"] = new("Mine", 900, 2, "cash", 40),
         ["warehouse"] = new("Warehouse", 1000, 3, "cash", 10),
     };
+
+    /// <summary>
+    /// Anything can be built on any parcel you own, but geography decides how well it works:
+    /// a rig on oil sands pumps at full rate, on barren ground it barely trickles. Missing entries count as 1.
+    /// </summary>
+    public static readonly Dictionary<string, Dictionary<string, double>> Suitability = new()
+    {
+        ["rig"] = new() { ["oi"] = 1.0, ["ba"] = 0.06, ["sc"] = 0.06, ["gr"] = 0.06, ["fe"] = 0.06, ["ro"] = 0.1, ["ru"] = 0.06 },
+        ["farm"] = new() { ["fe"] = 1.5, ["gr"] = 1.0, ["sc"] = 0.6, ["ba"] = 0.35, ["ru"] = 0.3, ["ro"] = 0.15, ["oi"] = 0.2 },
+        ["mine"] = new() { ["ro"] = 1.0, ["ru"] = 0.35, ["ba"] = 0.15, ["sc"] = 0.1, ["gr"] = 0.1, ["fe"] = 0.1, ["oi"] = 0.2 },
+        ["sawmill"] = new() { ["sc"] = 1.0, ["gr"] = 0.4, ["fe"] = 0.3, ["ba"] = 0.1, ["ro"] = 0.1, ["ru"] = 0.15, ["oi"] = 0.1 },
+        ["housing"] = new() { ["ru"] = 1.2, ["ro"] = 0.8 },
+    };
+
+    public static double Suit(string type, string landCode) =>
+        Suitability.TryGetValue(type, out var t) && t.TryGetValue(landCode, out var f) ? f : 1.0;
 
     /// <summary>
     /// What settlers can build inside their home base walls: small, self-sufficient basics.
@@ -84,10 +101,11 @@ public static class Economy
         {
             var (res, perHour) = Yield[parcel.Resource];
             r[res] += perHour;
+            var land = SectorTemplate.Code(parcel.Sector, parcel.I, parcel.J);
             foreach (var b in BuildingsOn(parcel))
             {
                 var t = Buildings[b];
-                r[t.Res] += t.PerHour;
+                r[t.Res] += t.PerHour * Suit(b, land);
             }
         }
         return r;
@@ -136,16 +154,16 @@ public static class Economy
             // A spot with free claimable land around it, so there is room to grow.
             var spots = (from i in Enumerable.Range(1, SectorTemplate.Size - 2)
                          from j in Enumerable.Range(1, SectorTemplate.Size - 2)
-                         where SectorTemplate.Claimable(i, j) && !taken.Contains((i, j))
+                         where SectorTemplate.Claimable(sector, i, j) && !taken.Contains((i, j))
                          let room = (from di in new[] { -1, 0, 1 } from dj in new[] { -1, 0, 1 }
-                                     where SectorTemplate.Claimable(i + di, j + dj) && !taken.Contains((i + di, j + dj))
+                                     where SectorTemplate.Claimable(sector, i + di, j + dj) && !taken.Contains((i + di, j + dj))
                                      select 1).Count()
                          where room >= 6
                          select (i, j)).OrderBy(_ => rng.Next()).ToList();
             if (spots.Count == 0) continue;
             var (hi, hj) = spots[0];
             p.HomeSector = sector;
-            db.Parcels.Add(new Parcel { Sector = sector, I = hi, J = hj, Resource = SectorTemplate.Resource(hi, hj), Owner = p, ClaimedAt = DateTime.UtcNow, IsHome = true });
+            db.Parcels.Add(new Parcel { Sector = sector, I = hi, J = hj, Resource = SectorTemplate.Resource(sector, hi, hj), Owner = p, ClaimedAt = DateTime.UtcNow, IsHome = true });
             return;
         }
         throw new InvalidOperationException("Region 1 is full.");

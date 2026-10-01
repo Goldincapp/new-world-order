@@ -20,8 +20,9 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
     static object ParcelView(int sector, int i, int j, Parcel? p) => new
     {
         sector, i, j,
-        res = p?.Resource ?? SectorTemplate.Resource(i, j),
+        res = p?.Resource ?? SectorTemplate.Resource(sector, i, j),
         owner = p?.Owner?.Name,
+        home = p?.IsHome ?? false,
         b = p is null ? Array.Empty<string>() : Economy.BuildingsOn(p).ToArray(),
     };
 
@@ -30,25 +31,25 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         using var scope = scopes.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<GameDb>();
         var owned = await db.Parcels.Include(p => p.Owner).Where(p => p.Sector == sector).ToListAsync();
-        var byCell = owned.ToDictionary(p => (p.I, p.J));
-        var parcels = new List<object>();
-        for (var j = 0; j < SectorTemplate.Size; j++)
-            for (var i = 0; i < SectorTemplate.Size; i++)
-                if (byCell.TryGetValue((i, j), out var p) || SectorTemplate.Claimable(i, j))
-                    parcels.Add(ParcelView(sector, i, j, p));
         var settlers = owned.Select(p => p.OwnerId).Distinct().Count();
-        return new { sector, open = !Economy.Closed.Contains(sector), settlers, parcels };
+        return new
+        {
+            sector, open = !Economy.Closed.Contains(sector), settlers, size = SectorTemplate.Size, biome = SectorTemplate.Biome(sector),
+            hall = new { i = SectorTemplate.Hall.i, j = SectorTemplate.Hall.j },
+            rows = SectorTemplate.Rows(sector),
+            parcels = owned.Select(p => ParcelView(sector, p.I, p.J, p)),
+        };
     }
 
     public Task<Result> Claim(Guid playerId, int sector, int i, int j) => Change(playerId, sector, i, j, async (db, me, parcel, now) =>
     {
         if (Economy.Closed.Contains(sector)) return "This sector belongs to the Caretaker or a rival. It can't be settled.";
-        if (!SectorTemplate.Claimable(i, j)) return "Roads, water, the town and the sector hall can't be claimed.";
+        if (!SectorTemplate.Claimable(sector, i, j)) return "Roads, water and the sector hall can't be claimed.";
         if (parcel is not null) return parcel.OwnerId == me.Id ? "You already own this parcel." : $"{parcel.Owner!.Name} already owns this parcel.";
         if (me.Cash < Economy.ClaimCost) return "Not enough cash to claim this parcel.";
         Economy.Settle(db, me, now);
         Ledger.Add(db, me, "cash", -Economy.ClaimCost, $"Claimed parcel {sector}:{i},{j}");
-        var p = new Parcel { Sector = sector, I = i, J = j, Resource = SectorTemplate.Resource(i, j), Owner = me, ClaimedAt = now };
+        var p = new Parcel { Sector = sector, I = i, J = j, Resource = SectorTemplate.Resource(sector, i, j), Owner = me, ClaimedAt = now };
         db.Parcels.Add(p); // setting Owner already adds it to me.Parcels
         return null;
     });
@@ -57,7 +58,6 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
     {
         if (!Economy.Buildings.TryGetValue(type, out var t)) return "Unknown building.";
         if (parcel is null || parcel.OwnerId != me.Id) return "You can only build on your own parcels.";
-        if (t.Needs is not null && !t.Needs.Contains(parcel.Resource)) return $"A {t.Name.ToLower()} needs {string.Join(" or ", t.Needs)} under the parcel.";
         if (Economy.SlotsUsed(parcel) + t.Slots > Economy.SlotsPerParcel) return "Not enough free slots on this parcel.";
         if (me.Cash < t.Cost) return $"Not enough cash to build a {t.Name.ToLower()}.";
         Economy.Settle(db, me, now);

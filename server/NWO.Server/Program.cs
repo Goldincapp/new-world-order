@@ -88,6 +88,9 @@ api.MapPost("/collect", async (HttpContext ctx, GameDb db, World world) =>
     }));
 });
 
+// The terrain of a sector, one row of two-letter codes per line (see SectorTemplate).
+api.MapGet("/sector/{n:int}/map", (int n) => n is < 1 or > 50 ? Results.NotFound() : Results.Ok(new { sector = n, biome = SectorTemplate.Biome(n), size = SectorTemplate.Size, rows = SectorTemplate.Rows(n) }));
+
 api.MapGet("/chat/{channel}", async (string channel, GameDb db) =>
     (await db.Chat.Where(m => m.Channel == channel).OrderByDescending(m => m.Id).Take(50)
         .Select(m => new { m.Channel, m.Name, m.Text, m.At }).ToListAsync()).AsEnumerable().Reverse());
@@ -117,6 +120,8 @@ static class Dto
                 catalog = Economy.HomeBuildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, res = kv.Value.Res, perHour = kv.Value.PerHour }),
             },
             claimCost = Economy.ClaimCost,
+            buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour }),
+            suitability = Economy.Suitability,
             ration = new { ready = now - p.LastRationAt >= Economy.RationEvery, nextAt = p.LastRationAt + Economy.RationEvery, crate = Economy.Ration(p) },
         };
     }

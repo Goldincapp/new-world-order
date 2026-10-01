@@ -955,10 +955,10 @@ function sectorInfo(u){const names={forest:'Forest',hills:'Highlands',lake:'Lake
  const btn={you:['Enter sector','Collect all'],ally:['Enter sector','Trade'],rival:['Scout and attack','Enter sector'],sale:['Enter sector','Buy land here'],care:u.n===30?['Attack militia','Enter sector']:['Enter sector','Send settlers'],none:['Enter sector','Buy land here']};
  lastSector=u.n;showCard('Sector '+u.n,names[u.b],[['Owner',ownName[u.o]],['Produces',prod[u.b]],['Security',u.n===30?(sec30<50?sec30+' (militia active)':sec30+' (cleared)'):(u.o==='care'?'22 (militia active)':(u.o==='rival'?'58':'74'))],['Parcels',u.o==='you'?'196 · 31 yours':'196']],btn[u.o]);}
 
-function toSector(n){if(n!==12){enterVisit(n);return;}go('county',V3(0,0,0),V3(2,33,2),'Entered Sector '+n+' · Vellmoor province');}
+function toSector(n){if(window.NET&&NET.conn&&NET.me&&!OPEN_CLOSED.has(n)){openSectorMap(n);return;}if(n!==12){enterVisit(n);return;}go('county',V3(0,0,0),V3(2,33,2),'Entered Sector '+n+' · Vellmoor province');}
 function sectorToProvince(){const [x,z]=sc(2,1);go('province',V3(x,PT,z),V3(x,2.4,z+1.3),'Vellmoor province');}
 function sectorToHome(){go('hq',V3(0,0,0),V3(3,29,3),'Home base');}
-function homeToSector(){const h=cells['6,12'];go('county',V3(h.x,h.top,h.z),V3(h.x,h.top+2.6,h.z+1.5),'Sector 12');}
+function homeToSector(){const h=(window.NET&&NET.big&&cells[NET.homeKey])||cells['6,12'];go('county',V3(h.x,h.top,h.z),V3(h.x,h.top+2.6,h.z+1.5),'Sector 12');}
 
 /* ---------- Realistic relief for the nation map ---------- */
 {const nh=(x,y)=>{const q=Math.sin(x*127.1+y*311.7)*43758.5453;return q-Math.floor(q);};
@@ -1139,22 +1139,26 @@ function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.
  if(a.startsWith('Buy')){toast(res.gold<1250?'Not enough gold. Earn or buy gold first':'Purchase sent to the seller');return;}
  toast(a+' is not in this demo yet');}
 const claimed=new Set(),surveyed=new Set();
-const RESNAME={oil:'Oil',grain:'Grain',timber:'Timber',ore:'Iron ore',stone:'Stone',housing:'Housing and tax',none:'None'};
-function resOf(c){const sp=window.NET&&NET.sector&&NET.sector[c.i+','+c.j];let t={sand:'Oil',field:'Grain',high:c.lvl===3?'Stone':'Iron ore',grass:hash(c.i*1.7,c.j*0.9)<0.5?'Timber':'Grain',town:'Housing and tax',path:'None (road)'}[c.type]||'None';if(sp)t=RESNAME[sp.res]||t;
+const RESNAME={oil:'Oil',grain:'Grain',timber:'Timber',ore:'Iron ore',stone:'Stone',housing:'Housing and tax',salvage:'Salvage',none:'Nothing yet (barren)'};
+function resOf(c){const sp=window.NET&&NET.sector&&NET.sector[c.i+','+c.j];let t={sand:'Oil',field:'Grain',high:c.lvl===3?'Stone':'Iron ore',grass:hash(c.i*1.7,c.j*0.9)<0.5?'Timber':'Grain',town:'Housing and tax',path:'None (road)'}[c.type]||'None';if(sp)t=RESNAME[sp.res]||t;else if(c.res)t=RESNAME[c.res]||t;
  const rich=1+Math.floor(hash(c.i*1.3,c.j*2.1)*5),seam=['Oil','Grain','Timber','Stone','Iron ore'].includes(t)&&hash(c.j*3.3,c.i*0.7)>0.9;
  const unit={Oil:'oil',Grain:'grain',Timber:'timber',Stone:'stone','Iron ore':'ore','Housing and tax':'cash'}[t]||'';
  return {t,rich,seam,unit,out:rich*6+(t==='Oil'?6:0),days:6+rich*4};}
 const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
-function ownerOf(c){const k=c.i+','+c.j;if(window.NET&&NET.sector){const sp=NET.sector[k];if(!sp)return c.type==='town'?'Aurelian citizens':'Not claimable';return sp.owner?(sp.owner===NET.me.name?'You':sp.owner):'Unclaimed';}if(claimed.has(k))return 'You';if(c.i>=10&&c.j<=6)return 'You';if(c.i<=3&&c.j>=9)return 'Blue Party (rival)';if(c.i>=8&&c.i<=11&&c.j>=10)return 'For sale';if(c.lvl>=2)return 'Crown land';return 'Unclaimed';}
+function ownerOf(c){const k=c.i+','+c.j;if(window.NET&&NET.big){const sp=NET.sector[k];if(sp&&sp.owner)return sp.owner===NET.me.name?'You':sp.owner;return /^(wa|pa|ha)$/.test(c.code)?'Not claimable':'Unclaimed';}if(window.NET&&NET.sector){const sp=NET.sector[k];if(!sp)return c.type==='town'?'Aurelian citizens':'Not claimable';return sp.owner?(sp.owner===NET.me.name?'You':sp.owner):'Unclaimed';}if(claimed.has(k))return 'You';if(c.i>=10&&c.j<=6)return 'You';if(c.i<=3&&c.j>=9)return 'Blue Party (rival)';if(c.i>=8&&c.i<=11&&c.j>=10)return 'For sale';if(c.lvl>=2)return 'Crown land';return 'Unclaimed';}
 function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
- if(c.i===6&&c.j===12){slots.forEach(s=>s.material=slotUsed);showCard('Your HQ parcel','Parcel '+id+' · home base',[['Owner','You'],['Headquarters','Level 12'],['Walls','Level 6'],['Garrison','40 troops']],['Enter home base','Upgrade'],9);return;}
+ if(window.NET&&NET.big){const k0=c.i+','+c.j,sp0=NET.sector[k0];
+  if(c.code==='ha'){showCard('Sector hall','Sector '+NET.big.sector+' · '+NET.big.settlers+' settlers',[['Biome',NET.big.biome],['Land','Mostly barren: build to make it pay'],['Claim cost',fmt(NET.me.claimCost)+' cash a parcel']],['Close']);return;}
+  if(sp0&&sp0.home){if(sp0.owner===NET.me.name){showCard('Your home base','Parcel '+id+' · Sector '+NET.big.sector,[['HQ','Level '+NET.me.home.hqLevel],['Buildings',NET.me.home.buildings.length+' of '+NET.me.home.slots],['Makes',homeRates()]],['Enter home base','Build at home']);return;}
+   showCard(sp0.owner+'\'s base','Parcel '+id+' · home base',[['Owner',sp0.owner],['Land here',RESNAME[sp0.res]||sp0.res]],['Close']);return;}}
+ if(!(window.NET&&NET.big)&&c.i===6&&c.j===12){slots.forEach(s=>s.material=slotUsed);showCard('Your HQ parcel','Parcel '+id+' · home base',[['Owner','You'],['Headquarters','Level 12'],['Walls','Level 6'],['Garrison','40 troops']],['Enter home base','Upgrade'],9);return;}
  const k=c.i+','+c.j,owner=ownerOf(c),R=resOf(c),sv=surveyed.has(k)||owner==='You';
  let btns;if(owner==='You')btns=['Collect','Build'];else if(owner==='Blue Party (rival)')btns=['Scout','Attack'];else if(owner==='For sale')btns=sv?['Buy · 1,250 gold']:['Buy · 1,250 gold','Survey · 50 cash'];else if(owner==='Crown land')btns=sv?['Petition to buy']:['Petition to buy','Survey · 50 cash'];else btns=sv?['Claim · 2,500 cash']:['Claim · 2,500 cash','Survey · 50 cash'];
  const fmap={pump:['Pumpjack Lv 4',2],tanks:['Oil tanks Lv 3',4],tank:['Oil tank Lv 2',2],refinery:['Refinery Lv 5',6],house:['Housing Lv 2',2],capitol:['Capitol Lv 10',6],windmill:['Windmill Lv 2',2],tree:['Forest',0],pine:['Forest',0],rock:['Rock outcrop',0]};
  let f=fmap[c.feat]||['Nothing built',0];if(c.type==='field')f=['Wheat field Lv 3',4];if(c.type==='path')f=['Road Lv 1',1];
  const bl=built[k]||[],used=f[1]+bl.reduce((a,t)=>a+BLD[t].slots,0);if(bl.length)f=[[f[0]==='Nothing built'?'':f[0],...bl.map(t=>BLD[t].name)].filter(Boolean).join(', '),used];
  slots.forEach((s,n)=>s.material=n<used?slotUsed:slotMat);
- const sub=c.type==='sand'?'Desert · oil field':c.type==='high'?'Highland':c.type==='field'?'Farmland':c.type==='town'?'Town':'Grassland';
+ const sub=c.code?({ba:'Barren wasteland',sc:'Scrubland',gr:'Grassland',fe:'Fertile farmland',ro:'Rocky ground',oi:'Oil sands',ru:'Old ruins'}[c.code]||'Land'):c.type==='sand'?'Desert · oil field':c.type==='high'?'Highland':c.type==='field'?'Farmland':c.type==='town'?'Town':'Grassland';
  const est=Math.max(1,Math.min(5,R.rich+(hash(c.i,c.j)>0.5?1:-1)));
  const rows=[['Owner',owner],['Resource',R.t],['Richness',sv?stars(R.rich):'About '+stars(est)],['Output',R.unit?(sv?'':'~')+R.out+' '+R.unit+' / hour':'None'],['Deposit',R.unit==='cash'?'Renews with population':(R.unit?(sv?'About '+R.days+' days of mining':'Unknown until surveyed'):'None')]];
  if(sv&&R.seam)rows.push(['Bonus','Gold seam: +50% output']);
@@ -1163,7 +1167,7 @@ function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
 function markOwned(c){const g=new THREE.Group();g.position.set(c.x,c.top,c.z);county.add(g);
  [[0,-0.48,0.98,0.06],[0,0.48,0.98,0.06],[-0.48,0,0.06,0.98],[0.48,0,0.06,0.98]].forEach(q=>{const m=new THREE.Mesh(boxG,gold);m.position.set(q[0],0.03,q[1]);m.scale.set(q[2],0.05,q[3]);g.add(m);});
  add(new THREE.CylinderGeometry(0.015,0.015,0.5,6),0x333333,0.35,0.25,-0.35,g);flags.push(add(new THREE.BoxGeometry(0.2,0.12,0.01),0xffc933,0.45,0.43,-0.35,g,{emissive:0xffc933,emissiveIntensity:0.3}));}
-function claimParcel(c,e){if(!c)return;if(window.NET&&NET.conn){NET.conn.invoke('Claim',NET.me.homeSector,c.i,c.j).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Parcel claimed: '+resOf(c).t+' now produces for you');setTimeout(()=>{if(current===c)parcelInfo(c);},200);}).catch(er=>toast(er.message));return;}if(res.cash<2500){toast('Not enough cash to claim this parcel');return;}res.cash-=2500;renderRes(['cash']);claimed.add(c.i+','+c.j);markOwned(c);
+function claimParcel(c,e){if(!c)return;if(window.NET&&NET.conn){NET.conn.invoke('Claim',NET.viewSector||NET.me.homeSector,c.i,c.j).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Parcel claimed: '+resOf(c).t+' now produces for you');setTimeout(()=>{if(current===c)parcelInfo(c);},200);}).catch(er=>toast(er.message));return;}if(res.cash<2500){toast('Not enough cash to claim this parcel');return;}res.cash-=2500;renderRes(['cash']);claimed.add(c.i+','+c.j);markOwned(c);
  const R=resOf(c);toast('Parcel claimed: '+R.t+' now produces for you');parcelInfo(c);}
 function surveyParcel(c){if(!c)return;if(res.cash<50){toast('Not enough cash to survey');return;}res.cash-=50;renderRes(['cash']);toast('Surveying the parcel...');
  setTimeout(()=>{surveyed.add(c.i+','+c.j);const R=resOf(c);toast(R.seam?'Gold seam found! This parcel is rich':'Survey done: '+stars(R.rich)+' '+R.t);if(current===c&&!card.hidden)parcelInfo(c);},1400);}
@@ -1177,12 +1181,15 @@ const BLD={housing:{name:'Housing',cost:800,slots:2,jobs:0,eff:'+150 homes, more
 let buildTarget=null;
 function freeSlots(c){const k=c.i+','+c.j,fm={pump:2,tanks:4,tank:2,refinery:6,house:2,capitol:6,windmill:2};let u=(c.type==='field'?4:(fm[c.feat]||0));(built[k]||[]).forEach(t=>u+=BLD[t].slots);return 9-u;}
 function openBuild(c){if(!c)return;buildTarget=c;const R=resOf(c),free=freeSlots(c);
+ if(window.NET&&NET.me&&NET.me.buildings&&c.code){const WORD={cash:'cash',oil:'oil',grain:'grain',fuel:'fuel'},suit=(t)=>((NET.me.suitability[t]||{})[c.code]??1);
+  const rows=NET.me.buildings.map(b=>{const f=suit(b.type),out=Math.round(b.perHour*f);return [b.name+' ('+b.slots+' slots)',(out?'+'+out+' '+WORD[b.res]+'/h here':'storage')+(f>=1.2?' · ideal ground':f<0.5?' · poor ground':'')];});
+  showCard('Build on this parcel','Free slots: '+free+' of 9 · '+(({ba:'barren wasteland',sc:'scrubland',gr:'grassland',fe:'fertile farmland',ro:'rocky ground',oi:'oil sands',ru:'old ruins'})[c.code]||'land')+': geography decides what pays',rows,NET.me.buildings.map(b=>b.name+' · '+fmt(b.cost)+' cash'));return;}
  const opts=Object.entries(BLD).filter(([t,b])=>!b.need||(Array.isArray(b.need)?b.need.includes(R.t):b.need===R.t));
  showCard('Build on Parcel #'+(48000+c.i*14+c.j),'Free slots: '+free+' of 9 · resource: '+R.t,opts.map(([t,b])=>[b.name+' ('+b.slots+' slots)',b.eff]),opts.map(([t,b])=>b.name+' · '+b.cost.toLocaleString('en-US')+' cash'));}
 const sec={pop:1840,cap:1500,jobs:1120,fuel:62};let contractOpen=true,fuelWarned=false;
 const workers=()=>Math.round(sec.pop*0.65),fmtN=n=>Math.round(n).toLocaleString('en-US');
 function secNeeds(){const n=[];if(sec.pop>=sec.cap)n.push('housing');if(workers()>sec.jobs)n.push('jobs');if(sec.fuel<40)n.push('fuel');return n;}
-function renderSec(){const n=secNeeds(),el=$('secChip');el.classList.toggle('need',n.length>0);
+function renderSec(){if(window.NET&&NET.big){$('secText').innerHTML='<span class="ms">landscape</span>Sector '+NET.big.sector+' · '+NET.big.biome+' · '+NET.big.settlers+' settler'+(NET.big.settlers===1?'':'s');$('secChip').classList.remove('need');return;}const n=secNeeds(),el=$('secChip');el.classList.toggle('need',n.length>0);
  const ic=(name,bad)=>'<span class="ms'+(bad?' bad':'')+'">'+name+'</span>';
  $('secText').innerHTML='Sector 12<span class="gap"></span>'+ic('home',n.includes('housing'))+fmtN(sec.cap)+'/'+fmtN(sec.pop)+'<span class="gap"></span>'+ic('work',n.includes('jobs'))+fmtN(sec.jobs)+'/'+fmtN(workers())+'<span class="gap"></span>'+ic('local_gas_station',n.includes('fuel'))+Math.round(sec.fuel)+'%'+(n.length?'<span class="nd">needs '+n.join(', ')+'</span>':'');}
 function scaffold(c){const g=new THREE.Group();g.position.set(c.x,c.top,c.z);county.add(g);const pm=mat(0x8a8f98);
@@ -1198,7 +1205,7 @@ function placeModel(c,t,n){const g=new THREE.Group();const ox=[[-0.25,-0.25],[0.
  if(t==='mine'){add(new RoundedBoxGeometry(0.3,0.16,0.24,1,0.03),0x3a3d44,0,0.08,0,g);add(new THREE.ConeGeometry(0.14,0.16,6),0x6b6f76,0.18,0.08,0.12,g,{flatShading:true});add(boxG,0x1a1a1a,0,0.08,0.121,g).scale.set(0.1,0.1,0.01);}
  if(t==='warehouse'){add(new RoundedBoxGeometry(0.42,0.24,0.3,1,0.03),0x8a6a44,0,0.12,0,g);add(roofGeo(0.46,0.12,0.34),0x5f646c,0,0.24,0,g);}}
 function doBuild(t){const c=buildTarget;if(!c)return;const b=BLD[t];if(freeSlots(c)<b.slots){toast('Not enough free slots on this parcel');return;}if(res.cash<b.cost){toast('Not enough cash to build '+b.name.toLowerCase());return;}
- if(window.NET&&NET.conn&&!NET.buildOk){NET.conn.invoke('Build',NET.me.homeSector,c.i,c.j,t).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);NET.buildOk=true;try{doBuild(t);}finally{NET.buildOk=false;}}).catch(er=>toast(er.message));return;}
+ if(window.NET&&NET.conn&&!NET.buildOk){NET.conn.invoke('Build',NET.viewSector||NET.me.homeSector,c.i,c.j,t).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);NET.buildOk=true;try{doBuild(t);}finally{NET.buildOk=false;}}).catch(er=>toast(er.message));return;}
  if(!NET.buildOk){res.cash-=b.cost;renderRes(['cash']);}const k=c.i+','+c.j,n=(built[k]||[]).length;const sf=scaffold(c);card.hidden=true;hint.hidden=false;toast('Construction started: '+b.name);let left=4;
  const iv=setInterval(()=>{left--;if(left>0)return;clearInterval(iv);county.remove(sf.g);county.remove(sf.l);(built[k]=built[k]||[]).push(t);placeModel(c,t,n);
   if(BLD[t].jobs){const short=workers()>sec.jobs;sec.jobs+=BLD[t].jobs;if(short){res.cash+=900;renderRes(['cash']);setTimeout(()=>toast('Workplace contract paid: +900 cash, +'+BLD[t].jobs+' jobs'),1900);}renderSec();}
@@ -1224,7 +1231,7 @@ renderer.domElement.addEventListener('pointerdown',e=>{dx=e.clientX;dy=e.clientY
 renderer.domElement.addEventListener('pointermove',e=>{if(followShip&&e.buttons&&Math.hypot(e.clientX-dx,e.clientY-dy)>8){followShip=null;toast('Stopped tracking');}});
 renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-dx,e.clientY-dy)>6)return;if(!sheet.hidden)return;const r=renderer.domElement.getBoundingClientRect();
  ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);
- if(mode==='county'){const h=ray.intersectObjects(picks,false)[0];if(!h)return;const c=cells[h.object.userData.key];if(!c||c.type==='water')return;current=c;
+ if(mode==='county'){const h=ray.intersectObjects(picks,false)[0];if(!h)return;const c=cells[h.object.userData.inst?h.object.userData.keys[h.instanceId]:h.object.userData.key];if(!c||c.type==='water')return;current=c;
   sel.position.set(c.x,c.top+0.02,c.z);sel.visible=true;parcelInfo(c);controls.autoRotate=false;controls.minDistance=2.5;
   const tgt=new THREE.Vector3(c.x,c.top+0.15,c.z),o=camera.position.clone().sub(controls.target);o.y=0;o.normalize();flyTo(tgt,tgt.clone().add(o.multiplyScalar(2.6)).add(new THREE.Vector3(0,2.3,0)));}
  else if(mode==='hq'){const h=ray.intersectObjects(pickHQ,true)[0];if(!h)return;let o=h.object;while(o&&!o.userData.info)o=o.parent;if(!o)return;if(o.userData.info==='hq'&&window.NET&&NET.me){hqCard();controls.autoRotate=false;return;}const d=INFO[o.userData.info];current=null;showCard(d[0],d[1],d[2],d[3]);
@@ -1240,7 +1247,7 @@ renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-dx,
   const d=RINFO[u.fk];current=null;showCard(d[0],d[1],d[2],d[3]);controls.autoRotate=false;
   const p=h.point.clone();p.y=0.3;const o3=camera.position.clone().sub(controls.target);o3.y=0;if(o3.length()<0.01)o3.set(0,0,1);o3.normalize();controls.minDistance=2.2;flyTo(p,p.clone().add(o3.multiplyScalar(4.5)).add(new THREE.Vector3(0,6,0)));}});
 function home0(m){const k=mode;mode=m;const h=home();mode=k;return h[1];}
-function home(){if(mode==='visit')return [new THREE.Vector3(0,0,0),new THREE.Vector3(12.5,12,12.5),2.5];if(mode==='county')return [new THREE.Vector3(0,0,0),new THREE.Vector3(15,14,15),2.5];if(mode==='hq')return [new THREE.Vector3(0,0,0),new THREE.Vector3(12.5,11.5,12.5),6];if(mode==='battle')return [new THREE.Vector3(0,0,0.4),new THREE.Vector3(0,11.8,12.8),5];if(mode==='province')return [new THREE.Vector3(0,0,0.6),new THREE.Vector3(0,22,19),2];if(mode==='region')return [new THREE.Vector3(-0.9,0,-0.9),new THREE.Vector3(-0.9,13.2,8.6),2.2];return [new THREE.Vector3(0,0,0),new THREE.Vector3(0,1.4,7.4),2.9];}
+function home(){if(mode==='county'&&window.NET&&NET.big){const c=cells[NET.homeKey]||{x:0,top:0.3,z:0};return [new THREE.Vector3(c.x,c.top,c.z),new THREE.Vector3(c.x+11,c.top+13,c.z+11),3];}if(mode==='visit')return [new THREE.Vector3(0,0,0),new THREE.Vector3(12.5,12,12.5),2.5];if(mode==='county')return [new THREE.Vector3(0,0,0),new THREE.Vector3(15,14,15),2.5];if(mode==='hq')return [new THREE.Vector3(0,0,0),new THREE.Vector3(12.5,11.5,12.5),6];if(mode==='battle')return [new THREE.Vector3(0,0,0.4),new THREE.Vector3(0,11.8,12.8),5];if(mode==='province')return [new THREE.Vector3(0,0,0.6),new THREE.Vector3(0,22,19),2];if(mode==='region')return [new THREE.Vector3(-0.9,0,-0.9),new THREE.Vector3(-0.9,13.2,8.6),2.2];return [new THREE.Vector3(0,0,0),new THREE.Vector3(0,1.4,7.4),2.9];}
 function back(){card.hidden=true;sel.visible=false;hint.hidden=false;const h=home();flyTo(h[0],h[1],()=>{controls.minDistance=h[2];controls.autoRotate=false;});}
 const hints={visit:'Red rings are enemies. Tap bases, patrols and camps. Zoom out to return to the province.',county:'Tap a parcel. Zoom into your HQ to go home, or zoom out to see the province.',hq:'Tap a building. Zoom out to return to your sector.',province:'Tap a sector, or zoom into one to enter it. Zoom out to rise to the nation.',world:'Zoom into the lit region, or tap it, to enter the nation view.',region:'Zoom into Aurelia to reveal its provinces and enter one. Zoom out to see the world.'};
 function setMode(m){mode=m;card.hidden=true;chatEl.hidden=true;polEl.hidden=true;$('board').hidden=true;$('stats').hidden=true;$('brief').hidden=true;$('ctSheet').hidden=true;battle.visible=m==='battle';$('bhud').hidden=m!=='battle';$('hud').classList.toggle('inbattle',m==='battle');controls.enableRotate=m!=='battle';controls.enableZoom=m!=='battle';$('secChip').hidden=m!=='county';if(m==='county')renderSec();sel.visible=false;closeMarket(true);county.visible=m==='county';hq.visible=m==='hq';visit.visible=m==='visit';$('visChip').hidden=m!=='visit';if(m!=='visit')vFollow=null;world.visible=m==='world';region.visible=m==='region';province.visible=m==='province';
@@ -1250,7 +1257,7 @@ function setMode(m){mode=m;card.hidden=true;chatEl.hidden=true;polEl.hidden=true
  else{hemi.color.set(0xdff3ff);hemi.groundColor.set(0xb89a70);hemi.intensity=1.7;sun.color.set(0xfff4e0);sun.intensity=2.4;sun.position.set(8,15,6);}
  window.__lightBase={sun:sun.intensity,hemi:hemi.intensity,col:sun.color.clone()};if(typeof BG_DARK!=='undefined')scene.background=m==='world'?BG_WORLD:BG_DARK;
  controls.autoRotate=false;const flat=m==='hq'||m==='county'||m==='visit'||m==='province'||m==='region';controls.enableRotate=!flat&&m!=='battle';controls.screenSpacePanning=false;controls.mouseButtons={LEFT:flat?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:flat?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN};controls.touches={ONE:flat?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};controls.enablePan=m!=='battle'&&m!=='world';controls.maxPolarAngle=m==='world'?Math.PI:(m==='region'?1.05:1.25);controls.maxDistance=m==='world'?12:(m==='hq'?30:(m==='region'?26:(m==='province'?42:34)));
- controls.minDistance=m==='world'?2.9:2.5;controls.zoomToCursor=m==='region'||m==='province';
+ controls.minDistance=m==='world'?2.9:2.5;if(m==='county'&&window.NET&&NET.big){controls.maxDistance=66;scene.fog=new THREE.Fog(0x0c0f14,48,105);}controls.zoomToCursor=m==='region'||m==='province';
  const h=home();flyTo(h[0],h[1],()=>controls.minDistance=h[2]);
  [['tCounty','county'],['tProvince','province'],['tNation','region'],['tHome','hq'],['tWorld','world']].forEach(p=>$(p[0]).setAttribute('aria-pressed',String(p[1]===m)));
  [['nCounty','county'],['nProvince','province'],['nNation','region'],['nHome','hq'],['nWorld','world']].forEach(p=>$(p[0]).setAttribute('aria-pressed',String(p[1]===m)));
@@ -1324,7 +1331,7 @@ P=county;const rival=makeTruck(county,0x3d7fd6);const rivalL=label('Tidewater co
 const cands=[['You · Gold Party',46],['Mara Vell · Iron Front',38],['Tidewater Guild · Harbour Union',16]];
 const laws=[{t:'Cap fuel at 45 per unit',f:5,a:5,v:null},{t:'Embargo on the Steppe Dominion',f:7,a:4,v:null},{t:'Raise the oil import tariff to 10%',f:3,a:6,v:null}];
 let legit=68;
-function renderPol(){const tot=cands.reduce((a,c)=>a+c[1],0);$('cands').innerHTML=cands.map(c=>'<div class="cand"><span>'+c[0]+'</span><span>'+Math.round(c[1]/tot*100)+'%</span></div><div class="bar"><i style="width:'+(c[1]/tot*100).toFixed(1)+'%"></i></div>').join('');
+function renderPol(){if(!$("cands"))return;const tot=cands.reduce((a,c)=>a+c[1],0);$('cands').innerHTML=cands.map(c=>'<div class="cand"><span>'+c[0]+'</span><span>'+Math.round(c[1]/tot*100)+'%</span></div><div class="bar"><i style="width:'+(c[1]/tot*100).toFixed(1)+'%"></i></div>').join('');
  $('laws').innerHTML=laws.map((l,i)=>'<div class="law"><div class="t">'+l.t+'</div><div class="tally">'+l.f+' for · '+l.a+' against'+(l.v?' · you voted '+l.v:'')+'</div><div class="acts"><button data-i="'+i+'" data-v="for">For</button><button data-i="'+i+'" data-v="against">Against</button></div></div>').join('');
  $('laws').querySelectorAll('button').forEach(b=>b.onclick=()=>{const l=laws[+b.dataset.i];if(l.v){toast('You already voted on this law');return;}l.v=b.dataset.v;if(l.v==='for')l.f++;else l.a++;renderPol();toast('Vote recorded: '+l.v+' "'+l.t+'"');goalDone('vote');ctRemember(1,'Voted in the council','order','vote');});
  $('legV').textContent=Math.round(legit)+' / 100';$('legB').style.width=legit+'%';$('unrest').textContent=legit>60?'Low':(legit>40?'Rising':'High');}
@@ -1637,7 +1644,7 @@ function renderBrief(){const need=secNeeds();const poll=Math.round(cands[0][1]/c
  $('brCollect').innerHTML=collected?'<div style="grid-column:1/-1;color:#23864a;font-weight:500">Collected. Timers are running again.</div>':[['Oil','+'+fmtN(OFFLINE.oil)],['Grain','+'+fmtN(OFFLINE.grain)],['Tax and rent','+'+fmtN(OFFLINE.cash)],['Fuel','+'+fmtN(OFFLINE.fuel)]].map(x=>'<div><span>'+x[0]+'</span><br><b>'+x[1]+'</b></div>').join('');
  $('brCollectBtn').textContent=collected?'Collected':'Collect all';
  $('brGoals').innerHTML=GOALS.map(g=>'<div class="goal'+(g.done?' done':'')+'"><span class="ms">'+(g.done?'check_circle':'radio_button_unchecked')+'</span><span class="t">'+g.t+'</span><span class="rw">'+g.rw+'</span></div>').join('');}
-function openBrief(){card.hidden=true;chatEl.hidden=true;polEl.hidden=true;sheet.hidden=true;boardEl.hidden=true;statsEl.hidden=true;hint.hidden=true;briefEl.hidden=false;renderBrief();}
+function openBrief(){if(/[?&]ov/.test(location.search))return;card.hidden=true;chatEl.hidden=true;polEl.hidden=true;sheet.hidden=true;boardEl.hidden=true;statsEl.hidden=true;hint.hidden=true;briefEl.hidden=false;renderBrief();}
 function closeBrief(){briefEl.hidden=true;hint.hidden=false;}
 $('brx').onclick=closeBrief;
 $('brCollectBtn').onclick=e=>{if(NET.me){if(collected&&!(NET.me.ration&&NET.me.ration.ready)){toast('Nothing to collect yet. Your land keeps producing while you are away');return;}
@@ -2118,11 +2125,11 @@ function markMine(c){const before=county.children.length;markOwned(c);return cou
 function paintParcel(v,animateNew){const k=v.i+','+v.j,c=cells[k];if(!c)return;const prev=NET.sector[k];NET.sector[k]=v;
  if((prev&&prev.owner)!==v.owner){if(NET.marks[k]){county.remove(NET.marks[k]);delete NET.marks[k];}if(v.owner)NET.marks[k]=v.owner===NET.me.name?markMine(c):markOther(c,v.owner);}
  const have=(built[k]||[]).length;if(v.b.length>have&&(animateNew!=='mine')){for(let n=have;n<v.b.length;n++){const before=county.children.length;placeModel(c,v.b[n],n);(NET.models[k]=NET.models[k]||[]).push(...county.children.slice(before));}built[k]=v.b.slice();}}
-function applySnapshot(snap){Object.values(NET.marks).forEach(m=>county.remove(m));Object.values(NET.models).flat().forEach(m=>county.remove(m));NET.marks={};NET.models={};
+function applySnapshot(snap){if(snap.rows)buildBigSector(snap);Object.values(NET.marks).forEach(m=>county.remove(m));Object.values(NET.models).flat().forEach(m=>county.remove(m));NET.marks={};NET.models={};
  Object.keys(built).forEach(k=>delete built[k]);NET.sector={};(window.__staticOwn||[]).forEach(m=>m.visible=false);
  snap.parcels.forEach(v=>paintParcel(v));$('secText').textContent='Sector '+snap.sector;}
-async function watchHome(){if(!NET.conn||!NET.me)return;try{applySnapshot(await NET.conn.invoke('WatchSector',NET.me.homeSector));}catch(e){console.warn('watch failed',e);}}
-function onParcel(v){if(!NET.me||v.sector!==NET.me.homeSector||!NET.sector)return;const k=v.i+','+v.j,prev=NET.sector[k]||{},mine=v.owner===NET.me.name;
+async function watchHome(){if(!NET.conn||!NET.me)return;try{applySnapshot(await NET.conn.invoke('WatchSector',NET.viewSector||NET.me.homeSector));}catch(e){console.warn('watch failed',e);}}
+function onParcel(v){if(!NET.me||v.sector!==(NET.viewSector||NET.me.homeSector)||!NET.sector)return;if(NET.big&&v.home&&!NET.sector[v.i+','+v.j])addBase(v);const k=v.i+','+v.j,prev=NET.sector[k]||{},mine=v.owner===NET.me.name;
  paintParcel(v,mine?'mine':'');if(mine)return;
  if(v.owner&&prev.owner!==v.owner)toast(v.owner+' claimed a '+(RESNAME[v.res]||'').toLowerCase()+' parcel in your sector');
  else if(v.b.length>(prev.b||[]).length)toast(v.owner+' built a '+(BLD[v.b[v.b.length-1]]?.name||'building').toLowerCase()+' nearby');}
@@ -2259,6 +2266,62 @@ function renderPolNet(){const v=NET.pol;if(!v)return;const e=v.election,mineCand
  if($('polSpeak'))$('polSpeak').onclick=()=>polCall(NET.conn.invoke('GiveSpeech',speech()));}
 setInterval(()=>{if(NET.pol&&!polEl.hidden&&document.activeElement!==$('polSpeech'))renderPolNet();},30000);
 
+
+/* ---------- Big sectors: 34 by 34 parcels of mostly barren land, room for hundreds of bases ---------- */
+const OPEN_CLOSED=new Set([3,5,8,18,30,44,46]);
+const LANDCOL={ba:0x7a6648,sc:0x4e5636,gr:0x506638,fe:0x606a32,ro:0x6a675f,oi:0x433d34,ru:0x5c564d,wa:0x1d4d62,pa:0x51473b,ha:0x58534b};
+const LANDH={ba:0.3,sc:0.32,gr:0.31,fe:0.3,ro:0.42,oi:0.29,ru:0.31,wa:0.17,pa:0.29,ha:0.33};
+const TYPEOF={ba:'barren',sc:'grass',gr:'grass',fe:'field',ro:'high',oi:'sand',ru:'town',wa:'water',pa:'path',ha:'path'};
+let bigGroup=null,oldCounty=null,bigBases={};
+function landRes(code,i,j,sector){return {oi:'oil',fe:'grain',gr:'grain',sc:'timber',ru:'salvage',ro:hash(i*1.3+sector,j*0.7)<0.5?'ore':'stone'}[code]||'none';}
+function addBase(v){const c=cells[v.i+','+v.j];if(!c||bigBases[v.i+','+v.j])return;const mine=v.owner===NET.me.name,col=mine?0xffc933:new THREE.Color(ownerHue(v.owner)).getHex();
+ const g=new THREE.Group();g.position.set(c.x,c.top,c.z);bigGroup.add(g);const P0=P;P=g;
+ add(new RoundedBoxGeometry(0.5,0.32,0.5,1,0.04),0x4a4640,0,0.16,0);add(new THREE.ConeGeometry(0.42,0.26,4),col,0,0.45,0).rotation.y=Math.PI/4;
+ add(boxG,0xffc46b,0,0.18,0.255,null,{emissive:0xffa53a,emissiveIntensity:1.5},true).scale.set(0.12,0.08,0.01);
+ add(new THREE.CylinderGeometry(0.012,0.012,0.5,6),0x444444,0.3,0.25,-0.3);const fl=add(boxG,col,0.4,0.42,-0.3,null,{emissive:col,emissiveIntensity:0.3});fl.scale.set(0.2,0.12,0.01);flags.push(fl);
+ P=P0;if(mine)label('Your base','#ffc933',c.x,c.top+1.2,c.z,0.9,bigGroup,true);bigBases[v.i+','+v.j]=g;}
+function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:snap.sector,size:S,biome:snap.biome,settlers:snap.settlers};setTimeout(renderSec,0);
+ if(bigGroup){county.remove(bigGroup);bigGroup.traverse(o=>{if(o.geometry&&o.isInstancedMesh)o.geometry.dispose();});}
+ if(!oldCounty){oldCounty=county.children.filter(o=>o!==sel);oldCounty.forEach(o=>o.visible=false);}
+ bigGroup=new THREE.Group();county.add(bigGroup);bigBases={};
+ Object.keys(cells).forEach(k=>delete cells[k]);picks.length=0;
+ const n=S*S,tile=new THREE.BoxGeometry(1.002,1,1.002),tm=new THREE.MeshStandardMaterial({roughness:0.95}),ground=new THREE.InstancedMesh(tile,tm,n);ground.receiveShadow=true;
+ const keys=[],m4=new THREE.Matrix4(),col=new THREE.Color(),trees=[],rocks=[],ruins=[],rigs=[],dead=[],bush=[],crop=[],reed=[];
+ for(let j=0;j<S;j++)for(let i=0;i<S;i++){const code=snap.rows[j].substr(i*2,2),idx=j*S+i,x=i-half,z=j-half,h=LANDH[code]+(code==='ro'?hash(i,j)*0.25:code==='wa'?0:hash(i*3.1,j*1.7)*0.04);
+  m4.makeScale(1,h,1).setPosition(x,h/2-0.05,z);ground.setMatrixAt(idx,m4);col.setHex(LANDCOL[code]).multiplyScalar(0.92+hash(i*0.7,j*1.3)*0.14);ground.setColorAt(idx,col);
+  const k=i+','+j;keys[idx]=k;cells[k]={x,z,top:h-0.05,type:TYPEOF[code],code,res:landRes(code,i,j,snap.sector),i,j,lvl:code==='ro'?2:1};
+  if(code==='sc'){const nT=1+Math.floor(hash(i,j*2)*3);for(let q=0;q<nT;q++)trees.push([x+(hash(i+q,j)-0.5)*0.7,h-0.05,z+(hash(i,j+q)-0.5)*0.7,0.25+hash(q,i+j)*0.15]);}
+  else if(code==='gr'&&hash(i*2,j)<0.25)trees.push([x+(hash(i,j)-0.5)*0.5,h-0.05,z+(hash(j,i)-0.5)*0.5,0.3]);
+  else if(code==='ro'&&hash(i,j*3)<0.6)rocks.push([x+(hash(i,j)-0.5)*0.4,h-0.05,z+(hash(j,i)-0.5)*0.4,0.18+hash(i+1,j)*0.18]);
+  else if(code==='ru'){ruins.push([x-0.18,h-0.05,z+0.1,0.5,0.25+hash(i,j)*0.3,0.08]);ruins.push([x+0.15,h-0.05,z-0.15,0.08,0.18+hash(j,i)*0.25,0.45]);}
+  else if(code==='oi'&&hash(i*5,j)<0.18)rigs.push([x,h-0.05,z]);
+  else if(code==='ba'&&hash(i*1.9,j*2.3)<0.05)rocks.push([x+(hash(i,j)-0.5)*0.5,h-0.05,z+(hash(j,i)-0.5)*0.5,0.1]);
+  if(code==='ba'&&hash(i*2.7,j*0.9)<0.06)dead.push([x+(hash(j,i*2)-0.5)*0.5,h-0.05,z+(hash(i*2,j)-0.5)*0.5,0.35+hash(i,j*5)*0.3]);
+  if((code==='gr'||code==='sc')&&hash(i*4.1,j*3.3)<0.45)for(let q=0;q<2;q++)bush.push([x+(hash(i*q+1,j)-0.5)*0.8,h-0.05,z+(hash(i,j*q+2)-0.5)*0.8,0.12+hash(q,j)*0.1]);
+  if(code==='fe')for(let q=0;q<3;q++)crop.push([x,h-0.05,z-0.3+q*0.3]);
+  if(code==='wa'&&hash(i*1.1,j*6.1)<0.3)reed.push([x+(hash(i,j)-0.5)*0.7,h-0.05,z+(hash(j,i)-0.5)*0.7]);}
+ ground.instanceMatrix.needsUpdate=true;ground.instanceColor.needsUpdate=true;ground.userData={inst:true,keys};bigGroup.add(ground);picks.push(ground);
+ const inst=(geo,color,list,place,opts)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial(Object.assign({color,roughness:0.9},opts||{})),list.length);im.castShadow=true;list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);});im.instanceMatrix.needsUpdate=true;bigGroup.add(im);};
+ inst(new THREE.ConeGeometry(0.5,1.2,6),0x2a4a2a,trees,(m,p)=>m.makeScale(p[3],p[3],p[3]).setPosition(p[0],p[1]+p[3]*0.6,p[2]));
+ inst(new THREE.DodecahedronGeometry(0.5,0),0x7a776e,rocks,(m,p)=>m.makeScale(p[3],p[3]*0.7,p[3]).setPosition(p[0],p[1]+p[3]*0.25,p[2]),{flatShading:true});
+ inst(new THREE.BoxGeometry(1,1,1),0x6a645a,ruins,(m,p)=>m.makeScale(p[3],p[4],p[5]).setPosition(p[0],p[1]+p[4]/2,p[2]));
+ inst(new THREE.CylinderGeometry(0.02,0.04,1,5),0x3a2e24,dead,(m,p)=>m.makeScale(1,p[3],1).setPosition(p[0],p[1]+p[3]/2,p[2]));
+ inst(new THREE.IcosahedronGeometry(1,0),0x3d5a2c,bush,(m,p)=>m.makeScale(p[3],p[3]*0.7,p[3]).setPosition(p[0],p[1]+p[3]*0.4,p[2]),{flatShading:true});
+ inst(new THREE.BoxGeometry(0.86,0.07,0.12),0x7a7a30,crop,(m,p)=>m.makeTranslation(p[0],p[1]+0.035,p[2]));
+ inst(new THREE.CylinderGeometry(0.012,0.012,0.35,4),0x5a6a3a,reed,(m,p)=>m.makeTranslation(p[0],p[1]+0.17,p[2]));
+ inst(new THREE.CylinderGeometry(0.05,0.08,1,6),0x2b2b30,rigs,(m,p)=>m.makeScale(1,0.7,1).setPosition(p[0],p[1]+0.35,p[2]));
+ // water shimmer and the sector hall
+ const hall=cells[snap.hall.i+','+snap.hall.j];if(hall){const P0=P;P=bigGroup;add(new RoundedBoxGeometry(1.6,0.7,1.6,2,0.06),0x5a5e66,hall.x,hall.top+0.35,hall.z);add(new THREE.ConeGeometry(1.25,0.6,4),0x2b2f36,hall.x,hall.top+1.0,hall.z).rotation.y=Math.PI/4;
+  add(new THREE.CylinderGeometry(0.02,0.02,1.2,6),0x444444,hall.x+0.6,hall.top+1.1,hall.z+0.6);const hf=add(boxG,0xe7c46a,hall.x+0.85,hall.top+1.55,hall.z+0.6,null,{emissive:0xe7c46a,emissiveIntensity:0.3});hf.scale.set(0.36,0.22,0.01);flags.push(hf);P=P0;
+  label('Sector '+snap.sector+' hall','#e7c46a',hall.x,hall.top+2.2,hall.z,1.1,bigGroup,true);}
+ skirt(bigGroup,S/2+0.02,S/2+0.02,0.3,0.6,snap.sector);
+ snap.parcels.filter(p=>p.home).forEach(addBase);
+ const mineHome=snap.parcels.find(p=>p.home&&p.owner===NET.me.name);NET.homeKey=mineHome?mineHome.i+','+mineHome.j:snap.hall.i+','+snap.hall.j;
+ sun.shadow.camera.left=sun.shadow.camera.bottom=-20;sun.shadow.camera.right=sun.shadow.camera.top=20;sun.shadow.camera.updateProjectionMatrix();
+ if(mode==='county'){scene.fog=new THREE.Fog(0x0c0f14,48,105);controls.maxDistance=66;if(!diving){const hm=home();flyTo(hm[0],hm[1]);}}
+ if(/[?&]ov/.test(location.search)){setTimeout(()=>{briefEl.hidden=true;anim=null;controls.target.set(0,0,0);camera.position.set(20,30,24);controls.update();},3000);}}
+function openSectorMap(n){NET.viewSector=n;go('county',V3(0,0,0),V3(2,40,2),'Sector '+n);setTimeout(watchHome,700);}
+
 function worldToNation(){go('region',V3(-0.9,0,-0.9),V3(-0.9,23,18),'Region 1 · 9 nations');}
 function nationToWorld(){go('world',V3(0,0,0),V3(0,1.2,3.5),'World');}
 
@@ -2293,7 +2356,7 @@ const clock=new THREE.Clock(),tmp=new THREE.Vector3();
 renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),0.05),t=clock.elapsedTime;
  screen.style.background=mode==='world'?'#0e1a2b':((mode!=='world')?'radial-gradient(ellipse at 50% 35%,#232a33 0%,#0c0f14 75%)':'#bfe6f5');shadowCatch.visible=mode!=='world';
  const dNow=camera.position.distanceTo(controls.target);
- if(mode==='county'){aimSpot(t);if(!anim&&!diving){if(dNow>31.5)sectorToProvince();else{const h=cells['6,12'];if(dNow<3.1&&Math.hypot(controls.target.x-h.x,controls.target.z-h.z)<1.3)sectorToHome();}}}
+ if(mode==='county'){aimSpot(t);if(NET.big){const L=NET.big.size/2;controls.target.x=Math.max(-L,Math.min(L,controls.target.x));controls.target.z=Math.max(-L,Math.min(L,controls.target.z));}if(!anim&&!diving){if(dNow>(NET.big?62:31.5))sectorToProvince();else{const h=(NET.big&&cells[NET.homeKey])||cells['6,12'];if(dNow<3.1&&Math.hypot(controls.target.x-h.x,controls.target.z-h.z)<1.3)sectorToHome();}}}
  if(mode==='visit'){visitTick(dt,t);if(!anim&&!diving&&dNow>31.5)visitToProvince();}
  if(mode==='battle')battleTick(dt);
  if(mode==='province'||followShip)updShips();
