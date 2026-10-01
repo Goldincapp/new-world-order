@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NWO.Server.Data;
 
@@ -10,9 +11,11 @@ using NWO.Server.Data;
 namespace NWO.Server.Data.Migrations
 {
     [DbContext(typeof(GameDb))]
-    partial class GameDbModelSnapshot : ModelSnapshot
+    [Migration("20261001023046_ParcelBuildings")]
+    partial class ParcelBuildings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.10");
@@ -63,9 +66,6 @@ namespace NWO.Server.Data.Migrations
                     b.Property<int>("I")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsHome")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("J")
                         .HasColumnType("INTEGER");
 
@@ -110,13 +110,7 @@ namespace NWO.Server.Data.Migrations
                     b.Property<double>("Grain")
                         .HasColumnType("REAL");
 
-                    b.Property<string>("HomeBuildings")
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("HomeSector")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("HqLevel")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("LastCollectAt")

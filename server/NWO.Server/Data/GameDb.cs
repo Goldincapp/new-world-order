@@ -11,11 +11,16 @@ public class Player
     public string Nation { get; set; } = "Aurelia";
     public int HomeSector { get; set; }
 
-    public double Cash { get; set; } = 48_200;
-    public double Oil { get; set; } = 1_240;
-    public double Fuel { get; set; } = 380;
-    public double Grain { get; set; } = 900;
-    public double Gold { get; set; } = 120;
+    // Settlers start small: everything beyond the home base is earned.
+    public double Cash { get; set; } = 6_000;
+    public double Oil { get; set; } = 200;
+    public double Fuel { get; set; } = 120;
+    public double Grain { get; set; } = 300;
+    public double Gold { get; set; } = 50;
+
+    public int HqLevel { get; set; } = 1;
+    /// <summary>Comma-separated buildings inside the home base walls, e.g. "garden,workshop".</summary>
+    public string? HomeBuildings { get; set; }
 
     /// <summary>Production since this moment is waiting to be collected.</summary>
     public DateTime LastCollectAt { get; set; } = DateTime.UtcNow;
@@ -33,12 +38,15 @@ public class Parcel
     public int Sector { get; set; }
     public int I { get; set; }
     public int J { get; set; }
-    /// <summary>oil, grain, timber, ore, fish or none.</summary>
+    /// <summary>oil, grain, timber, ore, stone, housing or none.</summary>
     public string Resource { get; set; } = "none";
-    public string? Building { get; set; }
+    /// <summary>Comma-separated building types on this parcel, e.g. "rig,warehouse".</summary>
+    public string? Buildings { get; set; }
     public Guid? OwnerId { get; set; }
     public Player? Owner { get; set; }
     public DateTime? ClaimedAt { get; set; }
+    /// <summary>The parcel the player's home base stands on. It can never be taken.</summary>
+    public bool IsHome { get; set; }
 }
 
 public class ChatMessage

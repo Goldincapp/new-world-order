@@ -625,7 +625,7 @@ aimSpot(0);
 const curve=new THREE.CatmullRomCurve3(path.map(p=>{const c=cells[p[0]+','+p[1]];return new THREE.Vector3(c.x,c.type==='water'?0.5:c.top,c.z);}),false,'catmullrom',0.1);
 const gold=mat(0xffc933,{emissive:0x7a5200,roughness:0.4});
 const x0=10-off-0.5,x1=13-off+0.5,z0=0-off-0.5,z1=3-off+0.5,gy=LH+0.02;
-[[(x0+x1)/2,z0,x1-x0,0.07],[(x0+x1)/2,z1,x1-x0,0.07],[x0,(z0+z1)/2,0.07,z1-z0],[x1,(z0+z1)/2,0.07,z1-z0]].forEach(b=>{const m=new THREE.Mesh(boxG,gold);m.position.set(b[0],gy,b[1]);m.scale.set(b[2],0.05,b[3]);county.add(m);});
+[[(x0+x1)/2,z0,x1-x0,0.07],[(x0+x1)/2,z1,x1-x0,0.07],[x0,(z0+z1)/2,0.07,z1-z0],[x1,(z0+z1)/2,0.07,z1-z0]].forEach(b=>{const m=new THREE.Mesh(boxG,gold);m.position.set(b[0],gy,b[1]);m.scale.set(b[2],0.05,b[3]);county.add(m);(window.__staticOwn=window.__staticOwn||[]).push(m);});
 function label(txt,dot,x,y,z,sc,p,dark){const cv=document.createElement('canvas');cv.width=512;cv.height=112;const ctx=cv.getContext('2d');
  ctx.font='700 44px "Baloo 2", "Trebuchet MS", sans-serif';const tw=Math.min(390,ctx.measureText(txt).width);const w=tw+130;
  ctx.fillStyle=dark?'rgba(14,16,20,0.9)':'rgba(255,255,255,0.96)';ctx.beginPath();ctx.roundRect((512-w)/2,6,w,100,50);ctx.fill();
@@ -637,7 +637,7 @@ function label(txt,dot,x,y,z,sc,p,dark){const cv=document.createElement('canvas'
 const labels=[];const pj=cells['12,1'],fm=cells['9,11'];
 labels.push(label('Oil +24','#ffc933',pj.x,pj.top+1.45,pj.z,1,county,true));labels.push(label('Fuel +10','#ff7a5a',rf.x,rf.top+2.0,rf.z,1,county,true));
 labels.push(label('Grain +12','#e8b923',fm.x,fm.top+1.0,fm.z,1,county,true));labels.push(label('Tax +8','#7fb0ff',cap.x,cap.top+2.2,cap.z,1,county,true));
-labels.push(label('Your HQ','#ffc933',cells['6,12'].x,cells['6,12'].top+1.1,cells['6,12'].z,0.9,county,true));labels.push(label('Your parcels','#ffc933',(x0+x1)/2,2.6,(z0+z1)/2,1.15,county,true));
+labels.push(label('Your HQ','#ffc933',cells['6,12'].x,cells['6,12'].top+1.1,cells['6,12'].z,0.9,county,true));labels.push(label('Your parcels','#ffc933',(x0+x1)/2,2.6,(z0+z1)/2,1.15,county,true));window.__staticOwn.push(labels[labels.length-1]);
 const clouds=[];const cG=new THREE.SphereGeometry(0.5,16,12);
 for(let n=0;n<3;n++){const g=new THREE.Group();[[0,0,0,1],[0.55,-0.08,0.1,0.75],[-0.55,-0.1,-0.05,0.7],[0.2,0.25,0,0.7]].forEach(p=>{const m=add(cG,0x30343b,p[0],p[1],p[2],g,{roughness:1,transparent:true,opacity:0.85});m.scale.setScalar(p[3]);m.receiveShadow=false;});
  g.position.set(-9+n*7,4.2+n*0.4,-4+n*4);county.add(g);clouds.push(g);}
@@ -1080,7 +1080,9 @@ function showCard(title,sub,rows,btns,slotsUsed){
  card.querySelectorAll('[data-a]').forEach(b=>b.onclick=e=>act(b.dataset.a,e));}
 let current=null;
 function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+ if(window.NET&&NET.me&&homeAct(a))return;
  if(mode==='visit'&&visitAct(a))return;
+ if(a==='Collect'&&window.NET&&NET.me){api('/collect',{}).then(r=>{applyMe(r.player);const c2=r.collected;floatText('+'+fmtN(c2.oil)+' oil',x-10,y-30);toast('Collected '+fmtN(c2.cash)+' cash, '+fmtN(c2.oil)+' oil, '+fmtN(c2.grain)+' grain');}).catch(er=>toast(er.message));return;}
  if(a==='Collect'){const c=current;let k='oil',n=24;if(c&&c.feat==='refinery'){k='fuel';n=10;}else if(c&&c.feat!=='pump'){n=6;}
   res[k]+=n;renderRes([k]);floatText('+'+n+' '+k,x-10,y-30);toast('Collected '+n+' '+k);return;}
  if(a==='Open market'){openMarket();return;}
@@ -1117,12 +1119,13 @@ function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.
  if(a.startsWith('Buy')){toast(res.gold<1250?'Not enough gold. Earn or buy gold first':'Purchase sent to the seller');return;}
  toast(a+' is not in this demo yet');}
 const claimed=new Set(),surveyed=new Set();
-function resOf(c){const t={sand:'Oil',field:'Grain',high:c.lvl===3?'Stone':'Iron ore',grass:hash(c.i*1.7,c.j*0.9)<0.5?'Timber':'Grain',town:'Housing and tax',path:'None (road)'}[c.type]||'None';
+const RESNAME={oil:'Oil',grain:'Grain',timber:'Timber',ore:'Iron ore',stone:'Stone',housing:'Housing and tax',none:'None'};
+function resOf(c){const sp=window.NET&&NET.sector&&NET.sector[c.i+','+c.j];let t={sand:'Oil',field:'Grain',high:c.lvl===3?'Stone':'Iron ore',grass:hash(c.i*1.7,c.j*0.9)<0.5?'Timber':'Grain',town:'Housing and tax',path:'None (road)'}[c.type]||'None';if(sp)t=RESNAME[sp.res]||t;
  const rich=1+Math.floor(hash(c.i*1.3,c.j*2.1)*5),seam=['Oil','Grain','Timber','Stone','Iron ore'].includes(t)&&hash(c.j*3.3,c.i*0.7)>0.9;
  const unit={Oil:'oil',Grain:'grain',Timber:'timber',Stone:'stone','Iron ore':'ore','Housing and tax':'cash'}[t]||'';
  return {t,rich,seam,unit,out:rich*6+(t==='Oil'?6:0),days:6+rich*4};}
 const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
-function ownerOf(c){const k=c.i+','+c.j;if(claimed.has(k))return 'You';if(c.i>=10&&c.j<=6)return 'You';if(c.i<=3&&c.j>=9)return 'Blue Party (rival)';if(c.i>=8&&c.i<=11&&c.j>=10)return 'For sale';if(c.lvl>=2)return 'Crown land';return 'Unclaimed';}
+function ownerOf(c){const k=c.i+','+c.j;if(window.NET&&NET.sector){const sp=NET.sector[k];if(!sp)return c.type==='town'?'Aurelian citizens':'Not claimable';return sp.owner?(sp.owner===NET.me.name?'You':sp.owner):'Unclaimed';}if(claimed.has(k))return 'You';if(c.i>=10&&c.j<=6)return 'You';if(c.i<=3&&c.j>=9)return 'Blue Party (rival)';if(c.i>=8&&c.i<=11&&c.j>=10)return 'For sale';if(c.lvl>=2)return 'Crown land';return 'Unclaimed';}
 function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
  if(c.i===6&&c.j===12){slots.forEach(s=>s.material=slotUsed);showCard('Your HQ parcel','Parcel '+id+' · home base',[['Owner','You'],['Headquarters','Level 12'],['Walls','Level 6'],['Garrison','40 troops']],['Enter home base','Upgrade'],9);return;}
  const k=c.i+','+c.j,owner=ownerOf(c),R=resOf(c),sv=surveyed.has(k)||owner==='You';
@@ -1140,10 +1143,11 @@ function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
 function markOwned(c){const g=new THREE.Group();g.position.set(c.x,c.top,c.z);county.add(g);
  [[0,-0.48,0.98,0.06],[0,0.48,0.98,0.06],[-0.48,0,0.06,0.98],[0.48,0,0.06,0.98]].forEach(q=>{const m=new THREE.Mesh(boxG,gold);m.position.set(q[0],0.03,q[1]);m.scale.set(q[2],0.05,q[3]);g.add(m);});
  add(new THREE.CylinderGeometry(0.015,0.015,0.5,6),0x333333,0.35,0.25,-0.35,g);flags.push(add(new THREE.BoxGeometry(0.2,0.12,0.01),0xffc933,0.45,0.43,-0.35,g,{emissive:0xffc933,emissiveIntensity:0.3}));}
-function claimParcel(c,e){if(!c)return;if(res.cash<2500){toast('Not enough cash to claim this parcel');return;}res.cash-=2500;renderRes(['cash']);claimed.add(c.i+','+c.j);markOwned(c);
+function claimParcel(c,e){if(!c)return;if(window.NET&&NET.conn){NET.conn.invoke('Claim',NET.me.homeSector,c.i,c.j).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Parcel claimed: '+resOf(c).t+' now produces for you');setTimeout(()=>{if(current===c)parcelInfo(c);},200);}).catch(er=>toast(er.message));return;}if(res.cash<2500){toast('Not enough cash to claim this parcel');return;}res.cash-=2500;renderRes(['cash']);claimed.add(c.i+','+c.j);markOwned(c);
  const R=resOf(c);toast('Parcel claimed: '+R.t+' now produces for you');parcelInfo(c);}
 function surveyParcel(c){if(!c)return;if(res.cash<50){toast('Not enough cash to survey');return;}res.cash-=50;renderRes(['cash']);toast('Surveying the parcel...');
  setTimeout(()=>{surveyed.add(c.i+','+c.j);const R=resOf(c);toast(R.seam?'Gold seam found! This parcel is rich':'Survey done: '+stars(R.rich)+' '+R.t);if(current===c&&!card.hidden)parcelInfo(c);},1400);}
+window.NWO_CELLS=cells;
 const resLayer=new THREE.Group();resLayer.visible=false;county.add(resLayer);
 {const RC={Oil:0xff8a2a,Grain:0xf2cd4b,Timber:0x5cc04c,'Iron ore':0x9aa3b0,Stone:0xd9dde3,'Housing and tax':0x7fb0ff};const dG=new THREE.CircleGeometry(0.3,24);
  Object.values(cells).forEach(c=>{if(c.type==='water')return;const R=resOf(c),col=RC[R.t];if(!col)return;const m=new THREE.Mesh(dG,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.3+R.rich*0.12,depthWrite:false}));m.rotation.x=-Math.PI/2;m.position.set(c.x,c.top+0.03,c.z);m.renderOrder=6;resLayer.add(m);});}
@@ -1174,7 +1178,8 @@ function placeModel(c,t,n){const g=new THREE.Group();const ox=[[-0.25,-0.25],[0.
  if(t==='mine'){add(new RoundedBoxGeometry(0.3,0.16,0.24,1,0.03),0x3a3d44,0,0.08,0,g);add(new THREE.ConeGeometry(0.14,0.16,6),0x6b6f76,0.18,0.08,0.12,g,{flatShading:true});add(boxG,0x1a1a1a,0,0.08,0.121,g).scale.set(0.1,0.1,0.01);}
  if(t==='warehouse'){add(new RoundedBoxGeometry(0.42,0.24,0.3,1,0.03),0x8a6a44,0,0.12,0,g);add(roofGeo(0.46,0.12,0.34),0x5f646c,0,0.24,0,g);}}
 function doBuild(t){const c=buildTarget;if(!c)return;const b=BLD[t];if(freeSlots(c)<b.slots){toast('Not enough free slots on this parcel');return;}if(res.cash<b.cost){toast('Not enough cash to build '+b.name.toLowerCase());return;}
- res.cash-=b.cost;renderRes(['cash']);const k=c.i+','+c.j,n=(built[k]||[]).length;const sf=scaffold(c);card.hidden=true;hint.hidden=false;toast('Construction started: '+b.name);let left=4;
+ if(window.NET&&NET.conn&&!NET.buildOk){NET.conn.invoke('Build',NET.me.homeSector,c.i,c.j,t).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);NET.buildOk=true;try{doBuild(t);}finally{NET.buildOk=false;}}).catch(er=>toast(er.message));return;}
+ if(!NET.buildOk){res.cash-=b.cost;renderRes(['cash']);}const k=c.i+','+c.j,n=(built[k]||[]).length;const sf=scaffold(c);card.hidden=true;hint.hidden=false;toast('Construction started: '+b.name);let left=4;
  const iv=setInterval(()=>{left--;if(left>0)return;clearInterval(iv);county.remove(sf.g);county.remove(sf.l);(built[k]=built[k]||[]).push(t);placeModel(c,t,n);
   if(BLD[t].jobs){const short=workers()>sec.jobs;sec.jobs+=BLD[t].jobs;if(short){res.cash+=900;renderRes(['cash']);setTimeout(()=>toast('Workplace contract paid: +900 cash, +'+BLD[t].jobs+' jobs'),1900);}renderSec();}
   if(t==='housing'){sec.cap+=150;goalDone('housing');ctRemember(3,'Built housing in Sector 12','build');if(contractOpen&&sec.pop>=sec.cap-150){res.cash+=1200;renderRes(['cash']);toast('Housing built. State contract paid: +1,200 cash');pushMsg('nation','Coldharbor_Gov','Governor','Thank you. New homes in Sector 12 are filling up.');}else toast('Housing built: +150 homes');renderSec();}
@@ -1202,7 +1207,7 @@ renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-dx,
  if(mode==='county'){const h=ray.intersectObjects(picks,false)[0];if(!h)return;const c=cells[h.object.userData.key];if(!c||c.type==='water')return;current=c;
   sel.position.set(c.x,c.top+0.02,c.z);sel.visible=true;parcelInfo(c);controls.autoRotate=false;controls.minDistance=2.5;
   const tgt=new THREE.Vector3(c.x,c.top+0.15,c.z),o=camera.position.clone().sub(controls.target);o.y=0;o.normalize();flyTo(tgt,tgt.clone().add(o.multiplyScalar(2.6)).add(new THREE.Vector3(0,2.3,0)));}
- else if(mode==='hq'){const h=ray.intersectObjects(pickHQ,true)[0];if(!h)return;let o=h.object;while(o&&!o.userData.info)o=o.parent;if(!o)return;const d=INFO[o.userData.info];current=null;showCard(d[0],d[1],d[2],d[3]);
+ else if(mode==='hq'){const h=ray.intersectObjects(pickHQ,true)[0];if(!h)return;let o=h.object;while(o&&!o.userData.info)o=o.parent;if(!o)return;if(o.userData.info==='hq'&&window.NET&&NET.me){hqCard();controls.autoRotate=false;return;}const d=INFO[o.userData.info];current=null;showCard(d[0],d[1],d[2],d[3]);
   controls.autoRotate=false;const tgt=o.position.clone().add(new THREE.Vector3(0,0.5,0)),o2=camera.position.clone().sub(controls.target);o2.y=0;o2.normalize();controls.minDistance=3;flyTo(tgt,tgt.clone().add(o2.multiplyScalar(3.8)).add(new THREE.Vector3(0,3.2,0)));}
  else if(mode==='battle'){const h=ray.intersectObject(bground,false)[0];if(h)battleTap(h.point);}
  else if(mode==='world'){const h=ray.intersectObject(gm,false)[0];if(!h)return;const p=world.worldToLocal(h.point.clone()).normalize();const lat=Math.asin(p.y)*180/Math.PI,lon=Math.atan2(-p.z,p.x)*180/Math.PI;
@@ -2052,7 +2057,7 @@ window.NET=NET;
 try{NET.token=localStorage.getItem('nwo.token');}catch(e){}
 async function api(path,body){const r=await fetch(API_BASE+'/api'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(NET.token?{Authorization:'Bearer '+NET.token}:{})},body:body?JSON.stringify(body):undefined});
  const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||('Server error '+r.status)),{status:r.status});return j;}
-function applyMe(p){NET.me=p;Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
+function applyMe(p){NET.me=p;setTimeout(renderHome,0);Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
  $('meName').textContent=p.name;$('meSub').textContent=p.nation+' · Sector '+p.homeSector;$('meAv').textContent=p.homeSector;
  OFFLINE.oil=p.pending.oil;OFFLINE.grain=p.pending.grain;OFFLINE.cash=p.pending.cash;OFFLINE.fuel=p.pending.fuel;collected=!(p.pending.oil||p.pending.grain||p.pending.cash||p.pending.fuel);
  const h=briefEl.querySelector('.bh h3');if(h)h.textContent=(NET.fresh?'Welcome, ':'Welcome back, ')+p.name;
@@ -2061,8 +2066,8 @@ function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);re
 async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
  c.on('chat',m=>{if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
- c.on('presence',n=>{NET.online=n;});
- try{await c.start();NET.conn=c;
+ c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.onreconnected(()=>watchHome());
+ try{await c.start();NET.conn=c;watchHome();
   const hist=await api('/chat/global');hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
 async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(a&&r.awaySeconds>60)a.textContent='You were away '+awayText(r.awaySeconds)+' · '+a.textContent;connectLive();return true;}
  catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
@@ -2075,6 +2080,60 @@ async function signup(){const name=$('suName').value.trim();$('suErr').textConte
 $('suGo').onclick=signup;$('suName').addEventListener('keydown',e=>{if(e.key==='Enter')signup();});
 $('suOffline').onclick=()=>{NET.offline=true;$('signup').hidden=true;openBrief();};
 function afterIntro(){if(NET.me||NET.offline||location.search.includes('shot'))openBrief();else openSignup();}
+
+
+/* ---------- The live sector: owners and buildings from the server ---------- */
+NET.sector=null;NET.marks={};NET.models={};
+const OWNCOL=['#7fb0ff','#ff8a70','#8fe3a0','#c9a2ff','#ffd27f','#6fe3ff','#ff9ad5','#b8e07a'];
+const ownerHue=name=>{let h=0;for(const ch of name)h=(h*31+ch.charCodeAt(0))|0;return OWNCOL[Math.abs(h)%OWNCOL.length];};
+function markOther(c,name){const g=new THREE.Group();g.position.set(c.x,c.top,c.z);county.add(g);const col=new THREE.Color(ownerHue(name)),m0=mat(col.getHex(),{emissive:col.getHex(),emissiveIntensity:0.25});
+ [[0,-0.48,0.98,0.05],[0,0.48,0.98,0.05],[-0.48,0,0.05,0.98],[0.48,0,0.05,0.98]].forEach(q=>{const m=new THREE.Mesh(boxG,m0);m.position.set(q[0],0.03,q[1]);m.scale.set(q[2],0.04,q[3]);g.add(m);});
+ add(new THREE.CylinderGeometry(0.015,0.015,0.45,6),0x333333,0.35,0.22,-0.35,g);flags.push(add(new THREE.BoxGeometry(0.2,0.12,0.01),col.getHex(),0.45,0.38,-0.35,g,{emissive:col.getHex(),emissiveIntensity:0.3}));return g;}
+function markMine(c){const before=county.children.length;markOwned(c);return county.children[county.children.length-1];}
+function paintParcel(v,animateNew){const k=v.i+','+v.j,c=cells[k];if(!c)return;const prev=NET.sector[k];NET.sector[k]=v;
+ if((prev&&prev.owner)!==v.owner){if(NET.marks[k]){county.remove(NET.marks[k]);delete NET.marks[k];}if(v.owner)NET.marks[k]=v.owner===NET.me.name?markMine(c):markOther(c,v.owner);}
+ const have=(built[k]||[]).length;if(v.b.length>have&&(animateNew!=='mine')){for(let n=have;n<v.b.length;n++){const before=county.children.length;placeModel(c,v.b[n],n);(NET.models[k]=NET.models[k]||[]).push(...county.children.slice(before));}built[k]=v.b.slice();}}
+function applySnapshot(snap){Object.values(NET.marks).forEach(m=>county.remove(m));Object.values(NET.models).flat().forEach(m=>county.remove(m));NET.marks={};NET.models={};
+ Object.keys(built).forEach(k=>delete built[k]);NET.sector={};(window.__staticOwn||[]).forEach(m=>m.visible=false);
+ snap.parcels.forEach(v=>paintParcel(v));$('secText').textContent='Sector '+snap.sector;}
+async function watchHome(){if(!NET.conn||!NET.me)return;try{applySnapshot(await NET.conn.invoke('WatchSector',NET.me.homeSector));}catch(e){console.warn('watch failed',e);}}
+function onParcel(v){if(!NET.me||v.sector!==NET.me.homeSector||!NET.sector)return;const k=v.i+','+v.j,prev=NET.sector[k]||{},mine=v.owner===NET.me.name;
+ paintParcel(v,mine?'mine':'');if(mine)return;
+ if(v.owner&&prev.owner!==v.owner)toast(v.owner+' claimed a '+(RESNAME[v.res]||'').toLowerCase()+' parcel in your sector');
+ else if(v.b.length>(prev.b||[]).length)toast(v.owner+' built a '+(BLD[v.b[v.b.length-1]]?.name||'building').toLowerCase()+' nearby');}
+
+
+/* ---------- Home base: the self-sufficient basics every settler starts with ---------- */
+const RESWORD={cash:'cash',oil:'oil',grain:'grain',fuel:'fuel'};
+const HOME_SPOTS=[[-1.7,5.3],[1.7,5.3],[-5.3,4.8],[5.3,4.8],[-1.7,-5.3],[1.7,-5.3],[-5.3,4.8],[5.3,4.8],[-5.3,-4.8],[5.3,-4.8],[-5.6,1.4],[5.6,1.4],[-5.6,-1.6],[5.6,-1.6],[0,-6.1],[0,6.1],[-3.2,6.1],[3.2,6.1],[-3.2,-6.1],[3.2,-6.1],[-6.2,6.2],[6.2,6.2],[-6.2,-6.2],[6.2,-6.2]];
+let homeGroup=null,homeShown='';
+function homeModel(t,x,z,n){const g=new THREE.Group();g.position.set(x,T,z);homeGroup.add(g);const P0=P;P=g;
+ if(t==='garden'){for(let i=0;i<4;i++)add(new RoundedBoxGeometry(1.3,0.06,0.22,1,0.02),i%2?0x5a7a2a:0x6a4a2a,0,0.03,-0.36+i*0.24);tree(0.75,0,0.35,0.3);}
+ if(t==='workshop'){add(new RoundedBoxGeometry(1,0.5,0.75,2,0.04),0x6b5a46,0,0.25,0);add(roofGeo(1.15,0.32,0.85),0x3a3d44,0,0.5,0);add(boxG,0xffc46b,0,0.22,0.38,null,{emissive:0xffa53a,emissiveIntensity:1.4},true).scale.set(0.3,0.2,0.01);}
+ if(t==='generator'){add(new RoundedBoxGeometry(0.8,0.45,0.55,2,0.05),0x4a5058,0,0.22,0);add(new THREE.CylinderGeometry(0.06,0.07,0.55,10),0x2b2d33,0.25,0.7,0);add(boxG,0x6fe3ff,-0.2,0.3,0.28,null,{emissive:0x6fe3ff,emissiveIntensity:1.6},true).scale.set(0.12,0.06,0.01);}
+ if(t==='handpump'){add(new RoundedBoxGeometry(0.5,0.08,0.3,1,0.02),0x3a3a40,0,0.04,0);add(boxG,0x2b2b30,0,0.3,0).scale.set(0.06,0.5,0.06);const pv=new THREE.Group();pv.position.set(0,0.5,0);g.add(pv);add(new RoundedBoxGeometry(0.7,0.06,0.08,1,0.02),0xc98a2a,0,0,0,pv);beams.push(pv);}
+ if(t==='storehouse'){add(new RoundedBoxGeometry(1.1,0.55,0.8,2,0.04),0x7a6a54,0,0.27,0);add(roofGeo(1.25,0.3,0.9),0x5a3a2a,0,0.55,0);add(boxG,0x3a2a1a,0,0.2,0.41).scale.set(0.4,0.36,0.02);}
+ P=P0;return g;}
+function renderHome(){if(!NET.me)return;const h=NET.me.home,key=h.hqLevel+'|'+h.buildings.join(',');if(key===homeShown)return;homeShown=key;
+ if(homeGroup)hq.remove(homeGroup);homeGroup=new THREE.Group();hq.add(homeGroup);
+ h.buildings.forEach((t,n)=>{const sp=HOME_SPOTS[n%HOME_SPOTS.length];homeModel(t,sp[0],sp[1],n);});
+ const old=hqLabels[0];hq.remove(old);hqLabels[0]=label('HQ Lv '+h.hqLevel,'#ffc933',0,T+3.4,0.45,1,hq,true);}
+function homeRates(){const h=NET.me.home,out={};h.buildings.forEach(t=>{const c=h.catalog.find(x=>x.type===t);if(c&&c.perHour)out[c.res]=(out[c.res]||0)+c.perHour;});
+ return Object.entries(out).map(([k,v])=>'+'+v+' '+RESWORD[k]+'/h').join(', ')||'Nothing yet';}
+function hqCard(){current=null;const h=NET.me.home,names=h.buildings.map(t=>h.catalog.find(c=>c.type===t)?.name).filter(Boolean);
+ const counts={};names.forEach(n=>counts[n]=(counts[n]||0)+1);
+ showCard('Headquarters','Level '+h.hqLevel+' · '+NET.me.name+'\'s home base',[['Space',h.buildings.length+' of '+h.slots+' used'],['Built',Object.entries(counts).map(([n,c])=>c>1?n+' x'+c:n).join(', ')||'Nothing yet'],['Makes',homeRates()],['Next level','+2 spaces · '+fmtN(h.upgradeCost)+' cash'],['Grow','Claim more land in your sector to earn more']],
+  ['Build at home','Upgrade HQ']);}
+function homeBuildCard(){const h=NET.me.home,free=h.slots-h.buildings.length,home=NET.me.parcels.find(p=>p.home);
+ showCard('Build at home',free+' free space'+(free===1?'':'s')+' · self-sufficient basics',h.catalog.map(c=>[c.name,(c.perHour?'+'+c.perHour+' '+RESWORD[c.res]+'/h':'+2h storage')+' · '+fmtN(c.cost)+' cash'+(c.type==='handpump'&&home&&home.resource!=='oil'?' (needs oil)':'')]),
+  h.catalog.map(c=>c.name+' · '+fmtN(c.cost)).concat(['Back']));}
+function homeAct(a){const h=NET.me.home;
+ if(a==='Build at home'){homeBuildCard();return true;}
+ if(a==='Back'&&mode==='hq'){hqCard();return true;}
+ if(a==='Upgrade HQ'){NET.conn.invoke('UpgradeHq').then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('HQ upgraded to level '+r.player.home.hqLevel+': +2 building spaces');hqCard();}).catch(er=>toast(er.message));return true;}
+ const c=h.catalog.find(x=>a===x.name+' · '+fmtN(x.cost));
+ if(c){NET.conn.invoke('BuildHome',c.type).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(c.name+' built'+(c.perHour?': +'+c.perHour+' '+RESWORD[c.res]+' an hour':''));homeBuildCard();}).catch(er=>toast(er.message));return true;}
+ return false;}
 
 function worldToNation(){go('region',V3(-0.9,0,-0.9),V3(-0.9,23,18),'Region 1 · 9 nations');}
 function nationToWorld(){go('world',V3(0,0,0),V3(0,1.2,3.5),'World');}

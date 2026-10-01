@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 var dbPath = Environment.GetEnvironmentVariable("NWO_DB") ?? "nwo.db";
 builder.Services.AddDbContext<GameDb>(o => o.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<World>();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .SetIsOriginAllowed(origin => origin.StartsWith("http://localhost") || origin.EndsWith(".vercel.app")
         || (Environment.GetEnvironmentVariable("NWO_ORIGINS") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(origin))
@@ -107,7 +108,16 @@ static class Dto
             resources = new { cash = Math.Floor(p.Cash), oil = Math.Floor(p.Oil), fuel = Math.Floor(p.Fuel), grain = Math.Floor(p.Grain), gold = Math.Floor(p.Gold) },
             pending = Economy.Pending(p, now),
             ratesPerHour = Economy.RatesPerHour(p),
-            parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, x.Building }),
+            parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x) }),
+            home = new
+            {
+                hqLevel = p.HqLevel,
+                slots = Economy.HomeSlots(p),
+                buildings = Economy.HomeBuildingsOf(p),
+                upgradeCost = Economy.HqUpgradeCost(p),
+                catalog = Economy.HomeBuildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, res = kv.Value.Res, perHour = kv.Value.PerHour }),
+            },
+            claimCost = Economy.ClaimCost,
         };
     }
 }
