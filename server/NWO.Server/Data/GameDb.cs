@@ -7,6 +7,8 @@ public class Player
     public Guid Id { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "";
     public string TokenHash { get; set; } = "";
+    /// <summary>Hash of the player's recovery code, which signs them in on another device.</summary>
+    public string? RecoveryHash { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string Nation { get; set; } = "Aurelia";
     public int HomeSector { get; set; }

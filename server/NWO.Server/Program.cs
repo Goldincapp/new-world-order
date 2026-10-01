@@ -94,6 +94,29 @@ api.MapPost("/collect", async (HttpContext ctx, GameDb db, World world) =>
     }));
 });
 
+api.MapPost("/me/recovery", async (HttpContext ctx, GameDb db) =>
+{
+    var p = await Auth.PlayerFrom(ctx, db);
+    if (p is null) return Results.Unauthorized();
+    var code = Auth.NewRecoveryCode();
+    p.RecoveryHash = Auth.Hash(Auth.NormalizeCode(code)!);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { code });
+});
+
+api.MapPost("/auth/recover", async (RecoverRequest req, GameDb db) =>
+{
+    var norm = Auth.NormalizeCode(req.Code);
+    if (norm is null) return Results.BadRequest(new { error = "Recovery codes are 12 letters and numbers, like ABCD-EFGH-JKLM." });
+    var hash = Auth.Hash(norm);
+    var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstOrDefaultAsync(x => x.RecoveryHash == hash);
+    if (p is null) return Results.NotFound(new { error = "No commander has that recovery code." });
+    var token = Auth.NewToken();
+    p.TokenHash = Auth.Hash(token);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { token, player = Dto.Me(p) });
+});
+
 api.MapPost("/me/restart", async (HttpContext ctx, GameDb db, World world) =>
 {
     var who = await Auth.PlayerFrom(ctx, db);
@@ -107,6 +130,30 @@ api.MapPost("/me/restart", async (HttpContext ctx, GameDb db, World world) =>
 });
 
 api.MapGet("/sentinel", (Siege siege) => siege.Status());
+
+// Admin: wipe the world back to a fresh season. Needs ?confirm=WIPE so it can't happen by accident.
+api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    if (confirm != "WIPE") return Results.BadRequest(new { error = "Add ?confirm=WIPE to wipe every player and start a fresh season." });
+    var players = await world.Locked(async db =>
+    {
+        var n = await db.Players.CountAsync();
+        await db.LawVotes.ExecuteDeleteAsync(); await db.Laws.ExecuteDeleteAsync();
+        await db.Ballots.ExecuteDeleteAsync(); await db.Candidates.ExecuteDeleteAsync(); await db.Nations.ExecuteDeleteAsync();
+        await db.Shipments.ExecuteDeleteAsync(); await db.Contracts.ExecuteDeleteAsync();
+        await db.Trades.ExecuteDeleteAsync(); await db.Orders.ExecuteDeleteAsync(); await db.Ledger.ExecuteDeleteAsync();
+        await db.Records.ExecuteDeleteAsync(); await db.Chat.ExecuteDeleteAsync(); await db.HomeTiles.ExecuteDeleteAsync();
+        await db.Parcels.ExecuteDeleteAsync(); await db.Drones.ExecuteDeleteAsync(); await db.Camps.ExecuteDeleteAsync();
+        await db.Players.ExecuteDeleteAsync(); await db.Server.ExecuteDeleteAsync();
+        await Market.EnsureCaretakerOrders(db);
+        await Caretaker.EnsureLand(db);
+        await Politics.EnsureNations(db);
+        await Siege.EnsureState(db);
+        return n;
+    });
+    return Results.Ok(new { wiped = players });
+});
 
 api.MapPost("/admin/sentinel/start", async (HttpContext ctx, Siege siege) =>
 {
@@ -142,6 +189,7 @@ api.MapGet("/chat/{channel}", async (string channel, GameDb db) =>
 app.Run();
 
 record GuestRequest(string? Name);
+record RecoverRequest(string? Code);
 
 static class Dto
 {

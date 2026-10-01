@@ -450,7 +450,7 @@ html.app .screen{border-radius:0}
           <div><h4 style="font:700 1.02em/1.2 'Baloo 2','Trebuchet MS',sans-serif;margin:.1em 0 .3em">Ready to collect</h4><div class="collect" id="brCollect"></div><button class="primary bigbtn" id="brCollectBtn">Collect all</button>
             <h4 style="font:700 1.02em/1.2 'Baloo 2','Trebuchet MS',sans-serif;margin:.9em 0 .3em">Today's goals</h4><div id="brGoals"></div>
             <div class="note" style="margin-top:.6em">Login streak: day 6 of 7 · tomorrow: gold crate</div><div class="streak"><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
-            <div class="acts" style="margin-top:.8em"><button id="brGo">Go to Sector 12</button><button id="brBoard">Open the Board</button></div></div>
+            <div class="acts" style="margin-top:.8em"><button id="brGo">Go to Sector 12</button><button id="brBoard">Open the Board</button><button id="brSave" hidden>Save my account</button></div></div>
         </div>
         <div class="toast" id="toast"></div>
         <div class="tutbar" id="tutBar" hidden></div>
@@ -466,6 +466,8 @@ html.app .screen{border-radius:0}
           <input id="suName" maxlength="16" autocomplete="off" placeholder="3 to 16 letters or numbers" style="width:100%;font:600 1.1em/1 'Baloo 2',sans-serif;padding:.7em .9em;border-radius:calc(1.4*var(--u));border:1px solid #d9d1bf;background:#fff;color:#2a2a2a">
           <p id="suErr" class="note" style="color:#c0392b;min-height:1.4em;margin:.5em 0"></p>
           <div class="acts"><button class="primary bigbtn" id="suGo">Claim your land</button></div>
+          <button id="suHave" style="margin-top:.6em;background:none;border:0;color:#8a7440;text-decoration:underline;cursor:pointer;font:inherit;display:block">I already have a commander (recovery code)</button>
+          <div id="suRec" hidden style="margin-top:.6em"><input id="suCode" maxlength="16" autocomplete="off" placeholder="ABCD-EFGH-JKLM" style="width:100%;font:600 1.1em/1 'Baloo 2',sans-serif;letter-spacing:.08em;text-transform:uppercase;padding:.7em .9em;border-radius:calc(1.4*var(--u));border:1px solid #d9d1bf;background:#fff;color:#2a2a2a"><div class="acts" style="margin-top:.5em"><button class="bigbtn" id="suRecGo">Sign in with code</button></div></div>
           <button id="suOffline" hidden style="margin-top:.6em;background:none;border:0;color:#8a8272;text-decoration:underline;cursor:pointer;font:inherit">Play the offline demo instead</button>
         </div>
         <div class="ctmsg off" id="ctMsg" aria-live="polite"><b>CARETAKER //</b><span id="ctMsgT"></span></div>
@@ -1339,9 +1341,9 @@ $('chatForm').addEventListener('submit',e=>{e.preventDefault();const v=$('chatIn
  pushMsg(chan,'You','Aurelia · President',v,true);$('chatIn').value='';renderChat();
  setTimeout(()=>pushMsg(chan,chan==='alliance'?'Kess':'Kestrel',chan==='alliance'?'Member':'Northern Union','Copy that.'),1800);});
 const NEWS=['Sector 12 needs housing: growth has stalled','Unemployment rising in Sector 12','Fuel shortages reported in Vellmoor province','Crimson Pact captured Sector 9 from the Steppe Dominion','Election in Aurelia in 2 days','Crude oil up 6% after the strait toll rise','Blue Republic raised tariffs on Aurelian steel to 12%','Militia raids reported in Sector 30','Region 2 opens next season: new land for sale','Tidewater Refining signed a 30-day supply deal','Northern Union and Isle Compact sign a naval pact'];
-let ni=0;setInterval(()=>{const el=$('tickText');el.style.opacity=0;setTimeout(()=>{ni=(ni+1)%NEWS.length;el.textContent=NEWS[ni];el.style.opacity=1;},380);},5200);
+let ni=0;setInterval(()=>{const el=$('tickText');const L=window.NET&&NET.me?(NET.news&&NET.news.length?NET.news:['Welcome to '+NET.me.nation+'. Build your base, claim land, trade on the market']):NEWS;el.style.opacity=0;setTimeout(()=>{ni=(ni+1)%L.length;el.textContent=L[ni];el.style.opacity=1;},380);},5200);
 const EVENTS=[['Militia spotted near Sector 30. Attack it from the Province view',null],['Lease paid: +186 oil from Sector 23',()=>{res.oil+=186;renderRes(['oil']);}],['Raid warning: Desert Wolves near your convoy',null],['Tidewater Refining accepted your contract: +1,200 cash',()=>{res.cash+=1200;renderRes(['cash']);}],['Kestrel sent you a trade offer',null],['Your alliance started a rally on Sector 18',null]];
-let ei=0;setInterval(()=>{if(diving)return;const e=EVENTS[ei++%EVENTS.length];toast(e[0]);if(e[1])e[1]();},17000);
+let ei=0;setInterval(()=>{if(diving||(window.NET&&NET.me))return;const e=EVENTS[ei++%EVENTS.length];toast(e[0]);if(e[1])e[1]();},17000);
 /* other players on the province map */
 P=province;
 const flagG=new THREE.BoxGeometry(0.34,0.2,0.01);
@@ -1664,7 +1666,25 @@ $('secChip').onclick=()=>{if(statsEl.hidden)openStats('sector');else{statsEl.hid
 const briefEl=$('brief');let collected=false;const OFFLINE={oil:1420,grain:380,cash:2140,fuel:60};
 const GOALS=[{k:'fuel',t:'Deliver fuel to a sector in need',rw:'+20 gold',gold:20,done:false},{k:'vote',t:'Vote on a law in the council',rw:'+10 gold',gold:10,done:false},{k:'housing',t:'Build one housing block',rw:'+600 cash',cash:600,done:false}];
 function goalDone(k){const g=GOALS.find(x=>x.k===k);if(!g||g.done)return;g.done=true;if(g.gold)res.gold+=g.gold;if(g.cash)res.cash+=g.cash;renderRes(g.gold?['gold']:['cash']);setTimeout(()=>toast('Daily goal complete: '+g.t+' ('+g.rw+')'),2200);if(!briefEl.hidden)renderBrief();}
-function renderBrief(){const need=secNeeds();const poll=Math.round(cands[0][1]/cands.reduce((a,c)=>a+c[1],0)*100);
+/* The real briefing for signed-in players: what happened, what's ready, what to do next */
+function renderBriefNet(){const me=NET.me,h=me.home||{},pend=me.pending||{},rate=me.ratesPerHour||{};
+ briefEl.querySelector('.bh h3').textContent='Welcome back, '+me.name;
+ briefEl.querySelector('.bh .note').textContent=(NET.away?'You were away '+NET.away+' · ':'')+me.nation+' · Sector '+me.homeSector;
+ const items=[];const t=h.tutorial;
+ if(t)items.push(['school','Tutorial step '+t.step+' of '+t.of+': '+t.text,'warn']);
+ if(me.ration&&me.ration.ready)items.push(['inventory_2','The Caretaker left your ration crate: collect it below','good']);
+ items.push(['factory','Your land makes '+fmtN(rate.cash||0)+' cash, '+fmtN(rate.oil||0)+' oil, '+fmtN(rate.grain||0)+' grain and '+fmtN(rate.power||0)+' power an hour','']);
+ const sv=NET.sentinel;if(sv){if(sv.active)items.push(['swords','The Sentinel is attacking now: tap the red bar to join','warn']);else if(!sv.region2Open&&sv.nextAt){const ms=new Date(sv.nextAt)-Date.now();items.push(['skull','The Sentinel arrives in '+(ms>864e5?Math.floor(ms/864e5)+' days':Math.max(1,Math.round(ms/36e5))+' hours')+'. It takes 10 to 15 players to beat','']);}else if(sv.region2Open)items.push(['flag','Region 2 is open','good']);}
+ (NET.news||[]).slice(-3).reverse().forEach(n=>items.push(['campaign',n,'']));
+ $('brItems').innerHTML=items.map(i=>'<div class="bitem '+i[2]+'"><span class="ms">'+i[0]+'</span><span>'+esc(i[1])+'</span></div>').join('');
+ const anyPend=(pend.cash||0)+(pend.oil||0)+(pend.grain||0)+(pend.fuel||0)+(pend.power||0)>=1;
+ $('brCollect').innerHTML=[['Cash',pend.cash],['Oil',pend.oil],['Grain',pend.grain],['Power',pend.power]].map(x=>'<div><span>'+x[0]+'</span><br><b>+'+fmtN(x[1]||0)+'</b></div>').join('');
+ $('brCollectBtn').textContent=anyPend||(me.ration&&me.ration.ready)?'Collect all':'Nothing to collect yet';
+ const steps=['Barracks','Warehouse','Research lab','Crop plot','Oil pump','Solar panel','Collect','Expand your base'];const done=t?t.step-1:steps.length;
+ $('brGoals').innerHTML=steps.map((g,i)=>'<div class="goal'+(i<done?' done':'')+'"><span class="ms">'+(i<done?'check_circle':'radio_button_unchecked')+'</span><span class="t">'+g+'</span><span class="rw"></span></div>').join('');
+ const st=briefEl.querySelector('.streak');if(st){st.style.display='none';if(st.previousElementSibling)st.previousElementSibling.style.display='none';}
+ $('brGo').textContent='Go to my base';$('brSave').hidden=false;const gh=$('brGoals').previousElementSibling;if(gh)gh.textContent='Getting started';}
+function renderBrief(){if(window.NET&&NET.me){renderBriefNet();return;}const need=secNeeds();const poll=Math.round(cands[0][1]/cands.reduce((a,c)=>a+c[1],0)*100);
  const items=[...(window.NET&&NET.me&&NET.me.ration&&NET.me.ration.ready?[['inventory','A Caretaker drone left your ration crate: +'+NET.me.ration.crate.grain+' grain'+(NET.me.ration.crate.fuel?', +'+NET.me.ration.crate.fuel+' fuel':'')+'. Collect it below','good']]:[]),['inventory_2','Your parcels produced '+fmtN(OFFLINE.oil)+' oil and '+fmtN(OFFLINE.grain)+' grain',''],['real_estate_agent','Lease on Sector 23 paid 186 oil','good'],['trending_up','Oil price up 4% since yesterday (now '+price.toFixed(2)+'): a good time to sell',''],
   need.length?['home_work','Sector 12 needs '+need.join(', ')+': the governor is paying contracts','warn']:['home_work','Sector 12 has everything it needs','good'],['shield','Mara_V raided your convoy overnight: your escort held','good'],['gavel','Customs confiscated a back-road shipment near Sector 8',''],
   ['how_to_vote','Election in 1 day: you are polling '+poll+'%',''],['forum','3 new alliance messages: a convoy needs escorts tonight','']];
@@ -1672,14 +1692,14 @@ function renderBrief(){const need=secNeeds();const poll=Math.round(cands[0][1]/c
  $('brCollect').innerHTML=collected?'<div style="grid-column:1/-1;color:#23864a;font-weight:500">Collected. Timers are running again.</div>':[['Oil','+'+fmtN(OFFLINE.oil)],['Grain','+'+fmtN(OFFLINE.grain)],['Tax and rent','+'+fmtN(OFFLINE.cash)],['Fuel','+'+fmtN(OFFLINE.fuel)]].map(x=>'<div><span>'+x[0]+'</span><br><b>'+x[1]+'</b></div>').join('');
  $('brCollectBtn').textContent=collected?'Collected':'Collect all';
  $('brGoals').innerHTML=GOALS.map(g=>'<div class="goal'+(g.done?' done':'')+'"><span class="ms">'+(g.done?'check_circle':'radio_button_unchecked')+'</span><span class="t">'+g.t+'</span><span class="rw">'+g.rw+'</span></div>').join('');}
-function openBrief(){if(/[?&](ov|sv)/.test(location.search))return;card.hidden=true;chatEl.hidden=true;polEl.hidden=true;sheet.hidden=true;boardEl.hidden=true;statsEl.hidden=true;hint.hidden=true;briefEl.hidden=false;renderBrief();}
-function closeBrief(){briefEl.hidden=true;hint.hidden=false;}
+function openBrief(){if(/[?&](ov|sv)/.test(location.search))return;card.hidden=true;chatEl.hidden=true;polEl.hidden=true;sheet.hidden=true;boardEl.hidden=true;statsEl.hidden=true;hint.hidden=true;briefEl.hidden=false;$('tutBar').hidden=true;renderBrief();}
+function closeBrief(){briefEl.hidden=true;hint.hidden=false;if(window.NET&&NET.me&&NET.me.home)renderTutorial();}
 $('brx').onclick=closeBrief;
 $('brCollectBtn').onclick=e=>{if(NET.me){if(collected&&!(NET.me.ration&&NET.me.ration.ready)){toast('Nothing to collect yet. Your land keeps producing while you are away');return;}
   const ration=NET.me.ration&&NET.me.ration.ready;api('/collect',{}).then(async r=>{const c=r.collected;applyMe(r.player);if(ration){const rr=await NET.conn.invoke('ClaimRation');if(rr.ok){applyMe(rr.player);setTimeout(()=>toast('Caretaker ration crate collected'),2400);}}collected=true;renderBrief();const rr=screen.getBoundingClientRect();floatText('+'+fmtN(c.oil)+' oil',e.clientX-rr.left-40,e.clientY-rr.top-40);toast('Collected '+fmtN(c.cash)+' cash, '+fmtN(c.oil)+' oil and '+fmtN(c.grain)+' grain');}).catch(er=>toast(er.message));return;}
  if(collected){toast('Already collected. Come back later for more');return;}collected=true;res.oil+=OFFLINE.oil;res.grain+=OFFLINE.grain;res.cash+=OFFLINE.cash;res.fuel+=OFFLINE.fuel;renderRes(['oil','grain','cash','fuel']);
  const r=screen.getBoundingClientRect();floatText('+'+fmtN(OFFLINE.oil)+' oil',e.clientX-r.left-40,e.clientY-r.top-40);toast('Collected everything your land made while you were away');renderBrief();};
-$('brGo').onclick=()=>{closeBrief();if(mode!=='county')setMode('county');};
+$('brGo').onclick=()=>{closeBrief();if(window.NET&&NET.me){sectorToHome();return;}if(mode!=='county')setMode('county');};
 $('brBoard').onclick=()=>{briefEl.hidden=true;openBoard('needs');};
 document.querySelector('.me').onclick=()=>{if(briefEl.hidden)openBrief();else closeBrief();};
 
@@ -2125,11 +2145,11 @@ function applyMe(p){NET.me=p;setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBas
 function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?h+'h '+m+'m':m+'m';}
 async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
- c.on('chat',m=>{if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
+ c.on('chat',m=>{if(m.channel==='global'&&(m.name==='News'||m.name==='Caretaker')){NET.news=(NET.news||[]).concat([m.text]).slice(-8);}if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
  c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.on('record',onRecord);c.on('drone',onDrone);c.on('camp',onCamp);c.on('battle',onBattleState);c.on('siege',onSiege);c.on('siegeMe',onSiegeMe);c.on('siegeEnd',onSiegeEnd);c.on('siegeStart',e=>{NET.practice=!!(e&&e.practice);showSiegeBar(null);});c.on('battleEnd',onBattleEnd);c.on('politics',()=>{if(!polEl.hidden&&document.activeElement!==$('polSpeech'))refreshPol();else NET.pol=null;});c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
  try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
-  const hist=await api('/chat/global');hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
-async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(a&&r.awaySeconds>60)a.textContent='You were away '+awayText(r.awaySeconds)+' · '+a.textContent;connectLive();return true;}
+  const hist=await api('/chat/global');NET.news=hist.filter(m=>m.name==='News'||m.name==='Caretaker').map(m=>m.text).slice(-8);hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
+async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(r.awaySeconds>60)NET.away=awayText(r.awaySeconds);api('/sentinel').then(s=>{NET.sentinel=s;}).catch(()=>{});connectLive();return true;}
  catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
 function openSignup(){card.hidden=true;chatEl.hidden=true;hint.hidden=true;$('signup').hidden=false;$('suErr').textContent='';setTimeout(()=>$('suName').focus(),100);}
 async function signup(){const name=$('suName').value.trim();$('suErr').textContent='';$('suGo').disabled=true;
@@ -2137,7 +2157,14 @@ async function signup(){const name=$('suName').value.trim();$('suErr').textConte
   toast('Welcome, '+r.player.name+'. This is your home base in Sector '+r.player.homeSector+'. Everything else, you build');connectLive();setTimeout(()=>go('hq',V3(0,0,0),V3(12,12,12),null),900);}
  catch(e){$('suErr').textContent=e.status?e.message:'Cannot reach the game server. Try again, or play the offline demo.';}
  $('suGo').disabled=false;}
-$('suGo').onclick=signup;$('suName').addEventListener('keydown',e=>{if(e.key==='Enter')signup();});
+$('suGo').onclick=signup;
+$('suHave').onclick=()=>{$('suRec').hidden=false;$('suHave').hidden=true;setTimeout(()=>$('suCode').focus(),50);};
+async function recoverSignIn(){const code=$('suCode').value;$('suErr').textContent='';$('suRecGo').disabled=true;
+ try{const r=await api('/auth/recover',{code});NET.token=r.token;try{localStorage.setItem('nwo.token',r.token);}catch(_){}applyMe(r.player);$('signup').hidden=true;toast('Welcome back, '+r.player.name+'. Your account now lives on this device');connectLive();setTimeout(sectorToHome,900);}
+ catch(e){$('suErr').textContent=e.status?e.message:'Cannot reach the game server. Try again.';}
+ $('suRecGo').disabled=false;}
+$('suRecGo').onclick=recoverSignIn;$('suCode').addEventListener('keydown',e=>{if(e.key==='Enter')recoverSignIn();});
+$('brSave').onclick=()=>{api('/me/recovery',{}).then(r=>{closeBrief();current=null;showCard('Your recovery code',NET.me.name+' · write it down or screenshot it',[['Code',r.code],['Use it','On a new phone or browser, tap "I already have a commander" and enter this code'],['Keep it secret','Anyone with this code can play as you'],['New code','Getting a new code makes this one stop working']],['Close']);}).catch(er=>toast(er.message));};$('suName').addEventListener('keydown',e=>{if(e.key==='Enter')signup();});
 $('suOffline').onclick=()=>{NET.offline=true;$('signup').hidden=true;openBrief();};
 function afterIntro(){if(NET.me||NET.offline||location.search.includes('shot'))openBrief();else openSignup();}
 
@@ -2504,7 +2531,7 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  label('HQ Lv '+h.hqLevel,'#ffc933',0,3.3,0.4,1,HB.group,true);
  h.tiles.forEach(t=>{const k=homeKindOf(t.type);const [w,d]=homeFootprint(k,t.rotated);const [x,z]=HG(t.x+w/2,t.y+d/2);const m=homeModel2(t.type,w,d);m.position.set(x,0.04,z);if(t.rotated)m.rotation.y=Math.PI/2;m.userData.tile=t;HB.group.add(m);HB.meshes.set(t.id,m);});
  P=P0;renderTutorial();}
-function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');if(!t||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
+function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
  b.hidden=false;const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>startPlacing(k.type),900);}else startPlacing(k.type);}else{openBrief();}};}
 function startPlacing(type,moveId){const k=homeKindOf(type);if(!k)return;card.hidden=true;const t0=moveId?NET.me.home.tiles.find(t=>t.id===moveId):null;

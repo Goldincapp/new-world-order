@@ -81,7 +81,9 @@ public static class HomeBase
         var home = p.Parcels.FirstOrDefault(x => x.IsHome);
         if (home is null) return 1;
         var land = SectorTemplate.Code(home.Sector, home.I, home.J);
-        return Economy.Suit(k.SuitAs, land);
+        var suit = Economy.Suit(k.SuitAs, land);
+        // Home pumps tap a shallow well, so the tutorial pump always makes something; real oil still means oil sands.
+        return k.SuitAs == "rig" ? Math.Max(0.5, suit) : suit;
     }
 
     public static string? Place(GameDb db, Player p, List<HomeTile> tiles, string type, int x, int y, bool rotate)
