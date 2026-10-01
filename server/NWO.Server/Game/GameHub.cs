@@ -108,6 +108,17 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<object> SiegeStatus() => siege.Status();
 
+    /// <summary>Dev tools: start a practice siege, optionally with bot allies.</summary>
+    public async Task<Siege.Result> StartPracticeSiege(int bots)
+    {
+        if (!Admin.DevTools) return new(false, "Practice sieges are off on this server.");
+        var me = Me;
+        var r = await siege.StartPractice(me.Name, bots);
+        return r.Ok ? await JoinSiege() : r;
+    }
+
+    public string? StopPracticeSiege() => Admin.DevTools ? siege.StopPractice() : "Practice sieges are off on this server.";
+
     /// <summary>Join the Sentinel siege: everyone fights in the same battle.</summary>
     public async Task<Siege.Result> JoinSiege()
     {

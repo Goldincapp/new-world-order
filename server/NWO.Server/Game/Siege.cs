@@ -15,6 +15,10 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
 
     SentinelSim? sim;
     int attempt;
+    /// <summary>A practice siege (dev tools): no rewards, no Region 2, the real schedule is untouched.</summary>
+    bool practice;
+    readonly List<Guid> bots = new();
+    readonly Random botRng = new();
     readonly object gate = new();
 
     public bool Active => sim is { Done: false };
@@ -40,7 +44,7 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
         lock (gate)
             return new
             {
-                active = Active, fighters = sim?.ActiveFighters ?? 0, phase = sim?.Phase ?? 0,
+                active = Active, practice = Active && practice, bots = Active ? bots.Count : 0, fighters = sim?.ActiveFighters ?? 0, phase = sim?.Phase ?? 0,
                 hp = sim is null ? 0 : Math.Round(sim.Hp / sim.MaxHp, 3),
                 nextAt = st?.SentinelNextAt, attempts = st?.SentinelAttempts ?? 0,
                 region2Open = st?.Region2Open ?? false, gatebreakers = st?.Gatebreakers,
@@ -49,6 +53,33 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
 
     /// <summary>Admin: summon the Sentinel now.</summary>
     public async Task SummonNow() => await world.Locked(async db => { var st = await db.Server.FindAsync(1); st!.SentinelNextAt = DateTime.UtcNow; return true; });
+
+    /// <summary>Dev tools: start a practice siege now, with optional bot allies who fight like coordinated players.</summary>
+    public async Task<Result> StartPractice(string by, int botCount)
+    {
+        lock (gate)
+        {
+            if (Active) return new(false, "A siege is already running. Join it from the red bar.");
+            sim = new SentinelSim(Random.Shared.Next());
+            practice = true;
+            bots.Clear();
+            for (var i = 0; i < Math.Clamp(botCount, 0, 30); i++) { var id = Guid.NewGuid(); sim.Join(id, $"Ally bot {i + 1}"); bots.Add(id); }
+        }
+        await hub.Clients.All.SendAsync("siegeStart", new { attempt = 0, practice = true });
+        await hub.Clients.All.SendAsync("chat", new { channel = "global", name = "Caretaker", text = $"{by} started a practice siege against the Sentinel" + (botCount > 0 ? $" with {Math.Clamp(botCount, 0, 30)} bot allies" : "") + ". No rewards, no consequences. Join from the red bar.", at = DateTime.UtcNow });
+        return new(true);
+    }
+
+    /// <summary>Dev tools: end a practice siege early.</summary>
+    public string? StopPractice()
+    {
+        lock (gate)
+        {
+            if (!Active || !practice) return "No practice siege is running.";
+            sim!.Done = true; sim.Why = "Practice ended";
+        }
+        return null;
+    }
 
     public Result Join(Guid playerId, string name)
     {
@@ -82,6 +113,7 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
                     object? common = null; List<(Guid id, object me)>? mine = null; var done = false;
                     lock (gate)
                     {
+                        foreach (var b in bots) { sim.Fighters[b].LastActive = sim.T; if (botRng.NextDouble() < 0.2) sim.BotAct(b); }
                         sim.Step(0.1);
                         done = sim.Done;
                         if (frame % 2 == 0 || done)
@@ -115,7 +147,7 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
             return true;
         });
         if (!spawn) return;
-        lock (gate) sim = new SentinelSim(Random.Shared.Next());
+        lock (gate) { sim = new SentinelSim(Random.Shared.Next()); practice = false; bots.Clear(); }
         await hub.Clients.All.SendAsync("siegeStart", new { attempt });
         await hub.Clients.All.SendAsync("chat", new { channel = "global", name = "Caretaker", text = "A Warden stands at the Region 2 fog wall: the Sentinel. Humanity has fifteen minutes. Join the siege.", at = DateTime.UtcNow });
     }
@@ -124,6 +156,18 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
     {
         SentinelSim s;
         lock (gate) s = sim!;
+        if (practice)
+        {
+            await hub.Clients.All.SendAsync("siegeEnd", new
+            {
+                won = s.Won, why = s.Why, practice = true, minutes = Math.Round(s.T / 60, 1), fighters = s.Fighters.Count, gatebreakers = new List<string>(),
+                ranking = s.Fighters.Values.OrderByDescending(f => f.Damage + f.RelayDamage).Take(10).Select((f, i) => new { rank = i + 1, f.Name, damage = Math.Round(f.Damage + f.RelayDamage), f.Drones, f.Relays }),
+                retryMinutes = 0,
+            });
+            await hub.Clients.All.SendAsync("chat", new { channel = "global", name = "Caretaker", text = $"Practice siege over after {Math.Round(s.T / 60, 1)} minutes: {s.Why}.", at = DateTime.UtcNow });
+            lock (gate) { practice = false; bots.Clear(); }
+            return;
+        }
         var fighters = s.Fighters.Values.Where(f => f.Damage > 0 || f.Drones > 0 || f.Relays > 0 || f.Deployed >= 3).ToList();
         var ranked = fighters.OrderByDescending(f => f.Damage + f.RelayDamage * 0.5 + f.Drones * 150).ToList();
         var top = ranked.Take(3).Select(f => f.Name).ToList();
