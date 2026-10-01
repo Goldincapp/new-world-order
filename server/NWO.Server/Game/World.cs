@@ -70,7 +70,8 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         parcel.Buildings = string.Join(",", kept);
         loser.Parcels.Remove(parcel);
         parcel.Owner = me; parcel.OwnerId = me.Id; parcel.ClaimedAt = now;
-        me.WarScore += Region2.CaptureScore; me.Captures++;
+        var atWar = await Politics.WarBetween(db, me.Nation, loser.Nation) is not null;
+        me.WarScore += Region2.CaptureScore * (atWar ? 2 : 1); me.Captures++;
         Caretaker.Remember(db, me, -3, "war", $"Seized Ashlands land in Sector {sector} from {loser.Name}");
         Caretaker.Remember(db, loser, 0, "war", $"Lost Ashlands land in Sector {sector} to {me.Name}");
         return null;

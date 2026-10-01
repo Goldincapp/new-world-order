@@ -93,6 +93,12 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public Task<Politics.Result> ProposeLaw(string kind, double value, bool decree) => politics.Propose(Me.Id, kind, value, decree);
 
     public Task<Politics.Result> VoteLaw(long lawId, bool yes) => politics.VoteLaw(Me.Id, lawId, yes);
+    public Task<Politics.Result> FoundNation(string name) => politics.Found(Me.Id, name);
+    public Task<Politics.Result> JoinNation(string name) => politics.Join(Me.Id, name);
+    public Task<Politics.Result> DeclareWar(string nation) => politics.DeclareWar(Me.Id, nation);
+    public Task<Politics.Result> MakePeace(long warId) => politics.MakePeace(Me.Id, warId);
+    public Task<Politics.Result> StartCoup() => politics.StartCoup(Me.Id);
+    public Task<Politics.Result> BackCoup() => politics.BackCoup(Me.Id);
 
     public Task<Caretaker.Result> StartDroneHunt(int sector, int idx) => caretaker.StartDroneHunt(Me.Id, sector, idx);
 

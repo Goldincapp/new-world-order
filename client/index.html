@@ -2148,7 +2148,7 @@ async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
  c.on('chat',m=>{if(m.channel==='global'&&(m.name==='News'||m.name==='Caretaker')){NET.news=(NET.news||[]).concat([m.text]).slice(-8);}if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
  c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.on('record',onRecord);c.on('drone',onDrone);c.on('camp',onCamp);c.on('battle',onBattleState);c.on('siege',onSiege);c.on('siegeMe',onSiegeMe);c.on('siegeEnd',onSiegeEnd);c.on('siegeStart',e=>{NET.practice=!!(e&&e.practice);showSiegeBar(null);});c.on('battleEnd',onBattleEnd);c.on('politics',()=>{if(!polEl.hidden&&document.activeElement!==$('polSpeech'))refreshPol();else NET.pol=null;});c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
- try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
+ try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({pol:()=>$('nPolitics').click(),province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
   const hist=await api('/chat/global');NET.news=hist.filter(m=>m.name==='News'||m.name==='Caretaker').map(m=>m.text).slice(-8);hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
 async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(r.awaySeconds>60)NET.away=awayText(r.awaySeconds);api('/sentinel').then(s=>{NET.sentinel=s;}).catch(()=>{});connectLive();return true;}
  catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
@@ -2276,6 +2276,21 @@ function renderPolNet(){const v=NET.pol;if(!v)return;const e=v.election,mineCand
  L+='<p style="margin:.9em 0 .1em;font-weight:600;color:#2a2a2a">Propose a law'+(v.isPresident?'':' · '+fmt(v.fees.proposal)+' cash')+'</p><div class="chips">'+Object.keys(kinds).map(k=>'<button data-kind="'+k+'" style="'+(d.kind===k?'background:#2a2a2a;color:#fff':'')+'">'+kinds[k]+' · now '+pct(cur[k])+'</button>').join('')+'</div>';
  L+='<div class="chips">'+lawPresets[d.kind].filter(x=>Math.abs(x-cur[d.kind])>0.0005).map(x=>'<button data-set="'+x+'">'+pct(x)+'</button>').join('')+'</div>';
  if(v.isPresident)L+='<label class="note" style="display:flex;gap:.4em;align-items:center"><input type="checkbox" id="polDecree"'+(d.decree?' checked':'')+'> Rule by decree: skip the vote, costs 10 to 15 legitimacy</label>';
+ // Nations, wars and coups
+ const H=t=>'<p style="margin:.9em 0 .2em;font-weight:600;color:#2a2a2a">'+t+'</p>';
+ if(v.coup){const c=v.coup;L+='<div class="law2" style="border-color:#c0392b"><div class="t" style="color:#c0392b">COUP under way · led by '+esc(c.leader)+'</div><div class="m">'+c.backers+' of '+c.needed+' backers · ends in '+timeLeft(c.endsAt)+'</div>'+(!c.backing&&!v.isPresident?'<div class="acts" style="margin-top:0"><button id="polBack">Back the coup</button></div>':(c.backing?'<div class="m">You are backing it</div>':''))+'</div>';}
+ const wars=(v.wars||[]);
+ if(wars.length){L+=H('Wars');L+=wars.map(w=>{const ours=w.ours,offerMine=w.peaceOfferedBy===v.nation,offerTheirs=w.peaceOfferedBy&&!offerMine;
+   return '<div class="row"><span>'+esc(w.a)+' vs '+esc(w.b)+(w.peaceOfferedBy?' · '+esc(w.peaceOfferedBy)+' offered peace':'')+'</span>'+(ours&&v.isPresident&&!offerMine?'<button data-peace="'+w.id+'">'+(offerTheirs?'Accept peace':'Offer peace')+'</button>':'<span class="note">since '+new Date(w.startedAt).toLocaleDateString()+'</span>')+'</div>';}).join('');}
+ L+=H('Nations');
+ L+=(v.nations||[]).map(n=>{const atWar=wars.some(w=>w.ours&&(w.a===n.name||w.b===n.name));
+   const btn=n.mine?'<span class="note">Yours</span>':(v.isPresident&&!atWar?'<button data-war="'+esc(n.name)+'">Declare war</button>':'')+'<button data-join="'+esc(n.name)+'">Join</button>';
+   return '<div class="row"><span><b>'+esc(n.name)+'</b> · '+n.citizens+' citizens · '+(n.president?'President '+esc(n.president):'no President')+(atWar?' · <span style="color:#c0392b">at war</span>':'')+'</span><span>'+btn+'</span></div>';}).join('');
+ const cf=v.canFound||{};
+ L+=H('Found a nation');
+ L+='<p class="note" style="margin:0">Needs '+cf.needParcels+' parcels in the Ashlands (you have '+(cf.parcels||0)+'), '+fmt(cf.cash||0)+' cash and '+(cf.gold||0)+' gold. You become its first President. Citizens of different nations can seize each other\'s Ashlands land.</p>';
+ L+='<div class="acts"><input id="polNation" maxlength="20" placeholder="Name your nation" style="flex:1;min-width:8em;font:inherit;padding:.5em .7em;border-radius:.6em;border:1px solid #d9d1bf"><button id="polFound"'+(cf.ok?'':' disabled')+'>Found it</button></div>';
+ if(v.president&&!v.isPresident&&!v.coup)L+=H('Overthrow the President')+'<p class="note" style="margin:0">Costs '+fmt(v.coupCost.cash)+' cash and '+v.coupCost.gold+' gold. '+v.coupCost.needed+' citizens, you included, must back it within an hour or it fails and the Caretaker remembers.</p><div class="acts"><button id="polCoup">Stage a coup</button></div>';
  L+='</div>';
  polEl.classList.add('pol2');polEl.innerHTML=L;
  $('px2').onclick=()=>{polEl.hidden=true;hint.hidden=false;};
@@ -2284,6 +2299,12 @@ function renderPolNet(){const v=NET.pol;if(!v)return;const e=v.election,mineCand
  polEl.querySelectorAll('[data-kind]').forEach(b=>b.onclick=()=>{NET.polDraft.kind=b.dataset.kind;renderPolNet();});
  polEl.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>polCall(NET.conn.invoke('ProposeLaw',NET.polDraft.kind,+b.dataset.set,!!($('polDecree')&&$('polDecree').checked))));
  if($('polDecree'))$('polDecree').onchange=e=>{NET.polDraft.decree=e.target.checked;};
+ polEl.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>polCall(NET.conn.invoke('JoinNation',b.dataset.join)));
+ polEl.querySelectorAll('[data-war]').forEach(b=>b.onclick=()=>polCall(NET.conn.invoke('DeclareWar',b.dataset.war)));
+ polEl.querySelectorAll('[data-peace]').forEach(b=>b.onclick=()=>polCall(NET.conn.invoke('MakePeace',+b.dataset.peace)));
+ if($('polFound'))$('polFound').onclick=()=>polCall(NET.conn.invoke('FoundNation',$('polNation').value.trim()));
+ if($('polCoup'))$('polCoup').onclick=()=>polCall(NET.conn.invoke('StartCoup'));
+ if($('polBack'))$('polBack').onclick=()=>polCall(NET.conn.invoke('BackCoup'));
  const speech=()=>$('polSpeech').value.trim();
  if($('polRun'))$('polRun').onclick=()=>polCall(NET.conn.invoke('RunForOffice',speech()));
  if($('polSpeak'))$('polSpeak').onclick=()=>polCall(NET.conn.invoke('GiveSpeech',speech()));}
@@ -2532,6 +2553,8 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  label('HQ Lv '+h.hqLevel,'#ffc933',0,3.3,0.4,1,HB.group,true);
  h.tiles.forEach(t=>{const k=homeKindOf(t.type);const [w,d]=homeFootprint(k,t.rotated);const [x,z]=HG(t.x+w/2,t.y+d/2);const m=homeModel2(t.type,w,d);m.position.set(x,0.04,z);if(t.rotated)m.rotation.y=Math.PI/2;m.userData.tile=t;HB.group.add(m);HB.meshes.set(t.id,m);});
  P=P0;renderTutorial();}
+/* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
+setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden)?'':'hidden';},400);
 function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
  b.hidden=false;const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>startPlacing(k.type),900);}else startPlacing(k.type);}else{openBrief();}};}

@@ -50,6 +50,8 @@ public class Player
     public DateTime LastCampClearAt { get; set; }
     /// <summary>Banked Ashlands war score from claims and captures (holding land adds more live).</summary>
     public int WarScore { get; set; }
+    /// <summary>When this player last changed nation; they can only switch once a day.</summary>
+    public DateTime NationChangedAt { get; set; }
     public int Captures { get; set; }
 
     /// <summary>A drone hunt that has been paid for (flak shells loaded) and not yet finished.</summary>
@@ -235,6 +237,35 @@ public class Nation
     public int ElectionNo { get; set; } = 1;
     public DateTime ElectionAt { get; set; }
     public DateTime LastSpeechAt { get; set; }
+    /// <summary>Null for Aurelia, the nation every settler starts in.</summary>
+    public Guid? FounderId { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>A war between two nations. Ends when one side offers peace and the other accepts.</summary>
+public class War
+{
+    public long Id { get; set; }
+    public int A { get; set; }
+    public int B { get; set; }
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? EndedAt { get; set; }
+    public int? PeaceOfferedBy { get; set; }
+}
+
+/// <summary>A coup against a nation's President: it succeeds if enough citizens back it before time runs out.</summary>
+public class Coup
+{
+    public long Id { get; set; }
+    public int NationId { get; set; }
+    public Guid LeaderId { get; set; }
+    public string LeaderName { get; set; } = "";
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    public DateTime EndsAt { get; set; }
+    public int Needed { get; set; }
+    /// <summary>Comma-separated player ids of everyone backing it, the leader included.</summary>
+    public string Backers { get; set; } = "";
+    public string Status { get; set; } = "open";
 }
 
 public class Candidate
@@ -299,6 +330,8 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
     public DbSet<ServerState> Server => Set<ServerState>();
     public DbSet<HomeTile> HomeTiles => Set<HomeTile>();
     public DbSet<Nation> Nations => Set<Nation>();
+    public DbSet<War> Wars => Set<War>();
+    public DbSet<Coup> Coups => Set<Coup>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Ballot> Ballots => Set<Ballot>();
     public DbSet<Law> Laws => Set<Law>();

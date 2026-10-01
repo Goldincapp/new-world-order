@@ -76,8 +76,10 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     var parcel = await db.Parcels.Include(x => x.Owner).ThenInclude(o => o!.HomeTiles).FirstOrDefaultAsync(x => x.Sector == sector && x.I == pi && x.J == pj);
                     if (parcel?.Owner is null) return new Result(false, "Nobody holds that parcel. Claim it instead.");
                     if (parcel.OwnerId == playerId) return new Result(false, "That land is already yours.");
+                    if (parcel.Owner.Nation == me.Nation) return new Result(false, $"{parcel.Owner.Name} is a fellow citizen of {me.Nation}. Found or join another nation to fight them for it.");
+                    var atWar = await Politics.WarBetween(db, me.Nation, parcel.Owner.Nation) is not null;
                     if (Region2.Protected(parcel, now)) return new Result(false, $"{parcel.Owner.Name} only just took this land. It's protected for {(int)Math.Ceiling(((parcel.ClaimedAt ?? now) + Region2.Protection - now).TotalMinutes)} more minutes.");
-                    fuel = Region2.SeizeFuel;
+                    fuel = atWar ? Region2.SeizeFuel / 2 : Region2.SeizeFuel;
                     var g = Region2.Garrison(parcel.Owner, parcel);
                     sim = new BattleSim($"Seizing {parcel.Owner.Name}'s land · Sector {sector}", g.Name, g, deck, Random.Shared.Next());
                     target = (pi, pj, parcel.Owner.Id);
