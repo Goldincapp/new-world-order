@@ -607,7 +607,14 @@ function pine(x,y,z,s){add(trunkG,0x7a4f28,x,y+0.14*s,z).scale.setScalar(s);[[0.
 const NEWGFX=(()=>{try{return localStorage.getItem('nwo.gfx')!=='classic';}catch(_){return true;}})();
 const DECOR=[];
 function tagDecor(kind,fn){return function(x,y,z,s0,a,b){const par=(kind==='house'?b:null)||P,before=par.children.length;const ret=fn(x,y,z,s0,a,b);DECOR.push({kind,x,y,z,s:s0,rot:kind==='house'?s0:0,ret,par,objs:par.children.slice(before)});return ret;};}
-tree=tagDecor('tree',tree);pine=tagDecor('pine',pine);
+tree=tagDecor('tree',tree);pine=tagDecor('pine',pine);rocks=tagDecor('rocks',rocks);
+{const t0=tank;tank=function(x,y,z,p){const par=p||P,before=par.children.length;t0(x,y,z,p);DECOR.push({kind:'tank',x,y,z,s:1,par,objs:par.children.slice(before)});};}
+/* Convoy trucks: the procedural truck stays as the container (it carries the click data); the car-kit model is drawn inside it */
+const TRUCKS=[];
+function modelTruck(t){if(!NEWGFX||t.userData.modeled||!MODELS.truckFlat)return;let o=t;while(o){if(o===region)return;o=o.parent;}
+ t.userData.modeled=true;t.children.forEach(c=>{if(c.isMesh){c.material=c.material.clone();c.material.transparent=true;c.material.opacity=0;c.material.depthWrite=false;c.castShadow=false;}});
+ const m=model(t.userData.col===0xffc933||t.userData.col===0xe0533d?'truckBox':'truckFlat',0.26,0.5);if(!m)return;
+ m.userData.truckModel=true;t.add(m);}
 const rockG=new THREE.DodecahedronGeometry(0.35,0);
 function rocks(x,y,z,s){for(let n=0;n<3;n++){const a=n*2.1+hash(x,n)*1.5,d=n?0.25*s:0;const r=add(rockG,n%2?0xa9aab0:0x93949b,x+Math.cos(a)*d,y+0.2*s*(n?0.7:1.2),z+Math.sin(a)*d,null,{flatShading:true});r.scale.setScalar(s*(n?0.65:1.1));r.rotation.set(hash(n,x)*3,hash(z,n)*3,0);}}
 const busy=['10,1','12,1','12,3','10,3','12,5','13,5','10,5','12,0','13,0'];
@@ -653,7 +660,7 @@ add(new RoundedBoxGeometry(0.5,0.3,0.4,2,0.04),0xc9ccd2,rf.x-0.25,rf.top+0.15,rf
 add(new THREE.CylinderGeometry(0.035,0.035,1,8),0x9aa0a8,rf.x+0.5,rf.top+0.3,rf.z-0.1).rotation.z=Math.PI/2;
 const puffG=new THREE.SphereGeometry(0.1,10,8),smoke=[];
 for(let n=0;n<6;n++){const s=add(puffG,0xf0f0f0,rf.x,rf.top+1.3,rf.z,null,{transparent:true,opacity:0.85},true);s.userData={o:n/6,bx:rf.x,by:rf.top+1.3,bz:rf.z,dx:0.35,dy:1.3};smoke.push(s);}
-function makeTruck(p,col){const t=new THREE.Group();p.add(t);
+function makeTruck(p,col){const t=new THREE.Group();p.add(t);t.userData.col=col;TRUCKS.push(t);setTimeout(()=>{try{modelTruck(t);}catch(_){}},0);
  add(new RoundedBoxGeometry(0.2,0.07,0.44,1,0.02),0x3b3b40,0,0.08,0,t);add(new RoundedBoxGeometry(0.2,0.17,0.13,2,0.03),col,0,0.2,0.14,t);
  add(new THREE.CylinderGeometry(0.09,0.09,0.26,14),0xf5f5f5,0,0.2,-0.07,t).rotation.x=Math.PI/2;
  [[-0.11,0.14],[0.11,0.14],[-0.11,-0.13],[0.11,-0.13]].forEach(q=>add(new THREE.CylinderGeometry(0.05,0.05,0.04,12),0x1e1e22,q[0],0.05,q[1],t).rotation.z=Math.PI/2);return t;}
@@ -953,7 +960,7 @@ function decor(b,x,z,n){
  if(b==='town'){for(let i=0;i<7;i++)house(x+rnd(n,i)*2.2,PT,z+rnd(i,n)*2.2,hash(i,n)*6,i+n,province).scale.setScalar(0.62);tree(x+1.1,PT,z-1.1,0.5);}
  if(b==='grass'){for(let i=0;i<4;i++)tree(x+rnd(n,i)*2.3,PT,z+rnd(i,n)*2.3,0.5);rocks(x-0.5,PT,z+0.6,0.4);}
  if(b==='oil'){ppump(x-0.8,z-0.6,0.4);ppump(x+0.7,z-0.9,1.9);ppump(x+0.3,z+0.8,-0.7);const tg=new THREE.Group();tg.position.set(x-0.9,PT,z+0.8);tg.scale.setScalar(0.6);province.add(tg);tank(0,0,0,tg);tank(0.55,0,0.1,tg);}
- if(b==='city'){[[-0.8,-0.7,1.2],[0.1,-0.9,0.8],[0.9,-0.4,1.5],[-0.9,0.5,0.7],[0.8,0.8,1.0],[-0.1,0.9,0.6]].forEach((t,i)=>{add(new RoundedBoxGeometry(0.5,t[2],0.5,1,0.03),0x3a3d44,x+t[0],PT+t[2]/2,z+t[1]);add(boxG,0xffc46b,x+t[0],PT+t[2]*0.6,z+t[1]+0.255,null,{emissive:0xffa53a,emissiveIntensity:0.6},true).scale.set(0.3,t[2]*0.5,0.01);});
+ if(b==='city'){const cBefore=province.children.length;setTimeout(()=>DECOR.push({kind:'city',x,z,par:province,objs:province.children.slice(cBefore,cBefore+13)}),0);[[-0.8,-0.7,1.2],[0.1,-0.9,0.8],[0.9,-0.4,1.5],[-0.9,0.5,0.7],[0.8,0.8,1.0],[-0.1,0.9,0.6]].forEach((t,i)=>{add(new RoundedBoxGeometry(0.5,t[2],0.5,1,0.03),0x3a3d44,x+t[0],PT+t[2]/2,z+t[1]);add(boxG,0xffc46b,x+t[0],PT+t[2]*0.6,z+t[1]+0.255,null,{emissive:0xffa53a,emissiveIntensity:0.6},true).scale.set(0.3,t[2]*0.5,0.01);});
   add(new THREE.SphereGeometry(0.42,20,12,0,Math.PI*2,0,Math.PI/2),0x5a6070,x,PT,z,null,{metalness:0.3,roughness:0.4});
   const bm=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,3,8,1,true),new THREE.MeshBasicMaterial({color:0xffc933,transparent:true,opacity:0.3,depthWrite:false}));bm.position.set(x,PT+1.9,z);bm.visible=false;province.add(bm);pBeacons.push(bm);}
  if(b==='yours'){ppump(x+0.9,z-0.9,0.3);ppump(x+1.2,z-0.2,2.1);for(let i=0;i<3;i++)house(x-1+i*0.45,PT,z+1+rnd(n,i)*0.3,i,i,province).scale.setScalar(0.6);
@@ -1085,7 +1092,8 @@ function densePath(pts,step){const out=[];for(let i=1;i<pts.length;i++){const a=
   const ex=Math.abs((fc+0.5)-Math.round(fc+0.5)),ez=Math.abs((fr+0.5)-Math.round(fr+0.5));
   cc.multiplyScalar((0.85+0.25*NZ.fbm(x*1.3,z*1.3))*1.35);col[i*3]=cc.r;col[i*3+1]=cc.g;col[i*3+2]=cc.b;}
  g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();
- const pterr=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95}));pterr.receiveShadow=true;pterr.castShadow=true;province.add(pterr);
+ const pterr=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95}));
+ window.__pterr=pterr;pterr.receiveShadow=true;pterr.castShadow=true;province.add(pterr);
  secCaps.forEach(m=>m.visible=false);
  const pfSet=new Set(pfogs.map(o=>o.s));
  province.children.slice().forEach(o=>{if(o===pterr||o===rv||o===pT1||o===pT2||secCaps.includes(o))return;
@@ -2546,27 +2554,34 @@ function homeFootprint(k,rot){return rot?[k.h,k.w]:[k.w,k.h];}
 /* ---------- 3D models (Kenney packs, CC0 placeholders): loaded once, swapped in for the procedural boxes ---------- */
 const MODEL_FILES={hq:'commercial/building-n',barracks:'industrial/building-t',warehouse:'industrial/building-s',research:'industrial/building-q',workshop:'industrial/building-h',
  generator:'industrial/detail-tank',solar:'industrial/solar-panel-landscape',chimney:'industrial/chimney-small',house1:'suburban/building-type-a',house2:'suburban/building-type-c',
- pine:'nature/tree_pineDefaultA',pine2:'nature/tree_pineRoundC',tree:'nature/tree_default',oak:'nature/tree_oak',rock:'nature/rock_largeA',rock2:'nature/rock_smallC',bush:'nature/plant_bushLarge',wheat:'nature/crops_wheatStageB',corn:'nature/crops_cornStageD'};
+ pine:'nature/tree_pineDefaultA',pine2:'nature/tree_pineRoundC',tree:'nature/tree_default',oak:'nature/tree_oak',rock:'nature/rock_largeA',rock2:'nature/rock_smallC',bush:'nature/plant_bushLarge',wheat:'nature/crops_wheatStageB',corn:'nature/crops_cornStageD',
+ truckBox:'car/delivery',truckFlat:'car/truck-flat',tankL:'industrial/detail-tank-large',
+ cityA:'commercial/building-a',cityC:'commercial/building-c',cityE:'commercial/building-e',cityH:'commercial/building-h',cityJ:'commercial/building-j',tower:'commercial/building-skyscraper-a'};
 const MODELS={};
 (async()=>{const L=new GLTFLoader();await Promise.all(Object.entries(MODEL_FILES).map(async([k,p])=>{try{const g=await L.loadAsync('models/'+p+'.glb');g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});g.scene.updateMatrixWorld(true);MODELS[k]=g.scene;}catch(e){console.warn('model failed',k,e);}}));
  window.__modelsReady=true;
- if(NEWGFX)swapMapDecor();
+ if(NEWGFX){swapMapDecor();TRUCKS.forEach(modelTruck);const pt=window.__pterr;if(pt){const mp=DT.grass.clone();mp.wrapS=mp.wrapT=THREE.RepeatWrapping;mp.repeat.set(24,12);mp.needsUpdate=true;pt.material.map=mp;pt.material.color.setScalar(1.2);pt.material.needsUpdate=true;}}
  // Rebuild whatever is on screen so it picks the models up
  if(window.NET&&NET.me&&NET.me.home&&HB.built){HB.key=null;buildHomeBase();}
  if(window.NET&&NET.lastSnap&&mode==='county'){NET.noFly=true;try{applySnapshot(NET.lastSnap);}finally{NET.noFly=false;}}})();
+function underProvince(o){while(o){if(o===province)return true;o=o.parent;}return false;}
 function underMaps(o){while(o){if(o===province||o===region)return true;o=o.parent;}return false;}
 if(/[?&]dbg2/.test(location.search))setInterval(()=>{if(mode==='province'||mode==='region'){anim=null;const h=home();controls.target.copy(h[0]);camera.position.copy(h[1]);controls.update();window.__composer.render();}const sc=window.__composer.passes[0].scene;console.log('DBG2',JSON.stringify({mode,cam:camera.position.toArray().map(v=>+v.toFixed(1)),tgt:controls.target.toArray().map(v=>+v.toFixed(1)),vis:sc.children.map(g=>g.visible?1:0).join(''),calls:renderer.info.render.calls,tris:renderer.info.render.triangles,anim:!!anim,models:!!window.__modelsReady}));},2000);
 function swapMapDecor(){const groups=new Map();
- DECOR.forEach(d=>{if(!underMaps(d.par)||d.kind==='house')return;/* houses stay the classic coloured ones: they read better at map zoom */const key=d.par.uuid;if(!groups.has(key))groups.set(key,{par:d.par,pine:[],pine2:[],tree:[],oak:[],house1:[],house2:[]});const g=groups.get(key);
+ DECOR.forEach(d=>{if(!underMaps(d.par)||d.kind==='house')return;if((d.kind==='rocks'||d.kind==='tank'||d.kind==='city')&&!underProvince(d.par))return;/* houses stay the classic coloured ones: they read better at map zoom */const key=d.par.uuid;if(!groups.has(key))groups.set(key,{par:d.par,pine:[],pine2:[],tree:[],oak:[],house1:[],house2:[],rock:[],rock2:[]});const g=groups.get(key);
   /* use where the original ended up: the maps raise objects onto their hills after building */
   const y=d.kind==='house'?(d.ret?d.ret.position.y:d.y):(d.objs[0]?d.objs[0].position.y-(d.kind==='pine'?0.14:0.16)*d.s:d.y);
   if(d.kind==='house'){const r=d.ret,sc=r?r.scale.x:1;(hash(d.x*2.3,d.z)<0.5?g.house1:g.house2).push([d.x,y,d.z,0.55*sc,r?r.rotation.y:d.rot]);}
+  else if(d.kind==='rocks'){if(d.par!==province)return;const ry=d.objs[0]?d.objs[0].position.y-0.24*d.s:d.y;g.rock.push([d.x,ry,d.z,0.32*d.s,hash(d.x,d.z)*6.28]);g.rock2.push([d.x+0.22*d.s,ry,d.z-0.15*d.s,0.2*d.s,hash(d.z,d.x)*6.28]);}
+  else if(d.kind==='tank'){const m=model('tankL',0.42,0.42);if(!m)return;m.position.set(d.x,d.y,d.z);d.par.add(m);}
+  else if(d.kind==='city'){const lift=d.objs[0]?d.objs[0].position.y-(PT+0.6):0;const spots=[[-0.8,-0.7,1.2],[0.1,-0.9,0.8],[0.9,-0.4,1.5],[-0.9,0.5,0.7],[0.8,0.8,1.0],[-0.1,0.9,0.6]],ks=['cityJ','cityA','tower','cityC','cityE','cityH'];
+   spots.forEach((t,i)=>{const m=model(ks[i],0.62,0.62,t[2]*1.5);if(!m)return;m.position.set(d.x+t[0],PT+lift,d.z+t[1]);m.rotation.y=(i%4)*Math.PI/2;d.par.add(m);});}
   else if(d.kind==='pine')(hash(d.x,d.z*1.7)<0.6?g.pine:g.pine2).push([d.x,y,d.z,1.05*d.s,hash(d.z,d.x)*6.28]);
   else (hash(d.x,d.z)<0.5?g.tree:g.oak).push([d.x,y,d.z,0.95*d.s,hash(d.z,d.x)*6.28]);
   d.objs.forEach(o=>o.visible=false);if(d.ret&&d.ret.isObject3D)d.ret.visible=false;});
  const place=(m,p)=>m.makeRotationY(p[4]||0).premultiply(new THREE.Matrix4().makeScale(p[3],p[3],p[3])).setPosition(p[0],p[1],p[2]);
  const HT=[0xffffff,0xf2d9bf,0xe6c9a8,0xd9dde6,0xf0e0c0,0xc9b8a0];
- groups.forEach(g=>['pine','pine2','tree','oak','house1','house2'].forEach(k=>instModel(k,g.par,g[k],place,k.startsWith('house')?(p=>HT[Math.floor(hash(p[0]*1.3,p[2]*2.1)*HT.length)]):null)));}
+ groups.forEach(g=>['pine','pine2','tree','oak','house1','house2','rock','rock2'].forEach(k=>instModel(k,g.par,g[k],place,k.startsWith('house')?(p=>HT[Math.floor(hash(p[0]*1.3,p[2]*2.1)*HT.length)]):null)));}
 /** A clone of a model, scaled to fit a w x d footprint (and no taller than h, if given), centred, sitting on y=0. */
 function model(k,w,d,h){const src=MODELS[k];if(!src)return null;const g=src.clone(true);const box=new THREE.Box3().setFromObject(g),sz=box.getSize(new THREE.Vector3());
  const sc=Math.min(w/sz.x,d/sz.z,h?h/sz.y:1e9);g.scale.setScalar(sc);box.setFromObject(g);const c=box.getCenter(new THREE.Vector3());g.position.set(-c.x,-box.min.y,-c.z);const wrap=new THREE.Group();wrap.add(g);return wrap;}
