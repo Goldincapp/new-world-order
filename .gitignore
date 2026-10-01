@@ -1,0 +1,8 @@
+bin/
+obj/
+*.db
+*.db-shm
+*.db-wal
+.vercel/
+node_modules/
+prototype/shots/

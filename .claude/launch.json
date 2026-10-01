@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nwo",
+      "runtimeExecutable": "C:\Users\goldi\AppData\Local\Microsoft\dotnet\dotnet.exe",
+      "runtimeArgs": ["run", "--project", "server/NWO.Server", "--urls", "http://localhost:5080"],
+      "port": 5080
+    }
+  ]
+}
