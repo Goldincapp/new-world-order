@@ -2,10 +2,15 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#030304">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
 <title>New World Order</title>
 <script>
 /* phones (or ?app) get the game full screen, with no desktop page around it */
 document.documentElement.classList.add('app');
+/* size the game to what the phone actually shows: in landscape the browser's bars eat into 100vh, which made the page scroll */
+(function(){var de=document.documentElement,last=0;function fit(){var h=Math.round(window.visualViewport?visualViewport.height:innerHeight);if(h===last)return;last=h;de.style.setProperty('--appH',h+'px');if(window.scrollY)scrollTo(0,0);setTimeout(function(){dispatchEvent(new Event('resize'));},0);}fit();addEventListener('resize',fit);addEventListener('orientationchange',function(){setTimeout(fit,250);});if(window.visualViewport)visualViewport.addEventListener('resize',fit);addEventListener('scroll',function(){if(window.scrollY)scrollTo(0,0);});})();
 if(window.CanvasRenderingContext2D&&!CanvasRenderingContext2D.prototype.roundRect)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){r=Math.min(r,w/2,h/2);this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
 /* show any startup error on screen so it can be reported */
 window.__bootErr=function(m){var t=document.getElementById('bootT');if(t){t.textContent='Error: '+m;t.style.letterSpacing='0';t.style.textTransform='none';t.style.maxWidth='80vw';t.style.lineHeight='1.4';}};
@@ -105,7 +110,7 @@ html.app,html.app body{height:100%;overflow:hidden;overscroll-behavior:none}
 html.app body{padding:0;background:#030304}
 html.app header,html.app .tabs,html.app .rotate,html.app .tries,html.app .foot{display:none!important}
 html.app .wrap{max-width:none;gap:0;height:100%}
-html.app .phone{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;aspect-ratio:auto;border-radius:0;padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left);box-shadow:none;background:#030304}
+html.app .phone{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;height:var(--appH,100dvh);aspect-ratio:auto;border-radius:0;padding:0 env(safe-area-inset-right) 0 env(safe-area-inset-left);box-shadow:none;background:#030304}
 html.app .screen{border-radius:0}
 #turn{display:none}
 @media (orientation:portrait){

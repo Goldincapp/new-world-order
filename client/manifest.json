@@ -1,0 +1,9 @@
+{
+  "name": "New World Order",
+  "short_name": "NWO",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#030304",
+  "theme_color": "#030304"
+}
