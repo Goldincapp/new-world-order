@@ -1130,7 +1130,7 @@ function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.
  if(a==='Launch attack'){if(!chosen.length){toast('Pick at least one unit type');return;}const R=RIVALS[pendingRival];card.hidden=true;startBattle({title:R.title,rival:pendingRival,deck:[...chosen,'strike'],sector:R.sector});return;}
  if(a==='Take command'){card.hidden=true;startBattle({title:'Defending Sector 12 against Mara_V',rival:'blue',defend:true});return;}
  if(a==='Let garrison defend'){card.hidden=true;hint.hidden=false;const held=Math.random()<0.6;if(held){toast('Your garrison held. Lost 4 gunners and 1 tank');pushMsg('global','Mara_V','Blue Party','Their walls held... this time.');}else{res.oil=Math.max(0,res.oil-1200);renderRes(['oil']);toast('Your garrison fell back. Raiders took 1,200 oil');}return;}
- if(a==='Leave battle'){card.hidden=true;const back=(BT&&BT.prev&&BT.prev!=='battle')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);return;}
+ if(a==='Leave battle'){card.hidden=true;if(NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);return;}
  {const hit=Object.entries(BLD).find(([t,b])=>a.startsWith(b.name+' · '));if(hit){doBuild(hit[0]);return;}}
  if(a.startsWith('Deliver 100 fuel')){if(res.fuel<100){toast('You need 100 fuel. Refine crude or buy it on the market');return;}res.fuel-=100;res.cash+=5200;sec.fuel=Math.min(100,sec.fuel+30);renderRes(['fuel','cash']);renderSec();toast('Fuel delivered: +5,200 cash');goalDone('fuel');ctRemember(3,'Delivered fuel to a sector in need','trade');needsCard();return;}
  if(a==='How to help'){const n=secNeeds();toast(n.includes('housing')?'Build Housing on one of your parcels':(n.includes('jobs')?'Build a farm, rig, sawmill, mine or warehouse to add jobs':'Deliver fuel from the needs card'));card.hidden=true;hint.hidden=false;return;}
@@ -1418,6 +1418,7 @@ let selUnit=null;
 function renderCards(){const el=$('ucards');el.innerHTML=((BT&&BT.deck)||['gunner','launcher','tank','heli','militia','strike']).map(t=>{const u=UT[t],low=BT&&(BT.cp<u.cost||troopsLeft[t]<=0);return '<button class="ucard'+(low?' low':'')+'" data-t="'+t+'" aria-pressed="'+(selUnit===t)+'"><span class="ms">'+u.ic+'</span><b>'+u.n+'</b><small>'+u.cost+' cmd · '+troopsLeft[t]+' left</small></button>';}).join('');
  el.querySelectorAll('.ucard').forEach(b=>b.onclick=()=>{const t=b.dataset.t;selUnit=selUnit===t?null:t;$('btip').textContent=selUnit?(selUnit==='strike'?'Tap the battlefield to call the strike':'Tap a lane to deploy '+UT[selUnit].n.toLowerCase()+'s'):'Pick a unit, then tap a lane to deploy it';renderCards();});}
 function startBattle(o){const prev=mode;troopsLeft={...troops0};
+ if(window.NET&&NET.conn&&!o.local&&!o.defend){netStartBattle(o,prev);return;}
  go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>initBattle(o,prev),700);}
 function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={prev,campAssault:o.campAssault,title:o.title,enemy:o.enemy||'Militia camp',t:120,cp:5,you:1600,youMax:1600,en:2600,enMax:2600,wave:3,waveN:0,done:false,lost:{},elost:{},sector:o.sector};setupRival(o);
   $('bEnemyN').textContent=BT.enemy;selUnit=null;renderCards();toast(o.title);}}
@@ -1433,10 +1434,10 @@ function endBattle(win,why){if(!BT||BT.done)return;BT.done=true;const lost=lossT
  else{if(win){if(BT.campAssault&&window.NET&&NET.conn){const sec=BT.sector;NET.conn.invoke('ClearCamp',sec).then(r=>{if(r.ok)applyMe(r.player);toast(r.ok?r.summary:r.error);}).catch(er=>toast(er.message));}else{res.cash+=2400;res.fuel+=120;renderRes(['cash','fuel']);}if(BT.sector===30)sec30=55;if(BT.sector)cleared.add(BT.sector);if(win)ctRemember(4,'Brought order to Sector '+BT.sector,'order');}
   rows=win?[['Result',why],['Loot','+2,400 cash, +120 fuel'],['Security',BT.sector===30?'Sector 30: 22 → 55':'Improved'],['Troops lost',lost]]:[['Result',why],['Troops lost',lost],['Tip','Launchers break camps; gunners stop helis']];}
  showCard(title,sub,rows,['Leave battle']);}
-$('bRetreat').onclick=()=>{if(BT&&!BT.done)endBattle(false,'You retreated');};
+$('bRetreat').onclick=()=>{if(BT&&BT.server&&!BT.done){NET.conn.invoke('Retreat');return;}if(BT&&!BT.done)endBattle(false,'You retreated');};
 let sec30=22;
 function nearestEnemy(u){let best=null,bd=1e9;units.forEach(v=>{if(v.side===u.side||v.hp<=0)return;const m=u.u.m[v.u.type];if(!m)return;const dx=v.g.position.x-u.g.position.x,dz=v.g.position.z-u.g.position.z,d=Math.hypot(dx,dz*1.4);if(d<bd){bd=d;best=v;}});return [best,bd];}
-function battleTick(dt){if(!BT||BT.done)return;BT.t-=dt;BT.cp=Math.min(10,BT.cp+dt/1.15);
+function battleTick(dt){if(BT&&BT.server){serverBattleFrame(dt);return;}if(!BT||BT.done)return;BT.t-=dt;BT.cp=Math.min(10,BT.cp+dt/1.15);
  if(BT.rival)rivalAI(dt);else BT.wave-=dt;if(!BT.rival&&BT.wave<=0){BT.waveN++;const pool=BT.waveN<3?['raider','raider','technical']:['raider','technical','mortar','raider','technical'];const k=Math.min(3,1+Math.floor(BT.waveN/3));for(let i=0;i<k;i++)spawn(pool[Math.floor(Math.random()*pool.length)],1,LANES[Math.floor(Math.random()*3)],7.2+i*0.7);BT.wave=Math.max(4.4,6.8-BT.waveN*0.15);}
  units.forEach(u=>{if(u.hp<=0)return;u.cd-=dt;const dir=u.side?-1:1;const [e,d]=nearestEnemy(u);const structX=u.side?-8.1:8.1,sd=Math.abs(structX-u.g.position.x);
   if(e&&d<=u.u.rng){if(u.cd<=0){u.cd=0.35;const m=u.u.m[e.u.type];e.hp-=u.u.dps*m*0.35;tracer(muzzleOf(u),e.g.position.clone().add(V3(0,0.15,0)),u.side);if(e.hp<=0){boom(e.g.position.x,e.g.position.y+0.1,e.g.position.z);}}}
@@ -1454,7 +1455,7 @@ function battleTick(dt){if(!BT||BT.done)return;BT.t-=dt;BT.cp=Math.min(10,BT.cp+
  $('cpN').textContent=Math.floor(BT.cp);$('cpB').style.width=(BT.cp*10)+'%';if(Math.random()<dt*2)renderCards();
  if(BT.defend)BT.en=Object.values(BT.eg).reduce((a,b)=>a+b,0)+units.filter(u=>u.side&&u.hp>0).length;
  if(BT.en<=0)endBattle(true,BT.defend?'Attack repelled':BT.enemy+' destroyed');else if(BT.you<=0)endBattle(false,'Your barricade fell');else if(BT.t<=0)endBattle(BT.en/BT.enMax<BT.you/BT.youMax,BT.en/BT.enMax<BT.you/BT.youMax?'Held the field when time ran out':'Time ran out');}
-function battleTap(pt){if(!BT||BT.done||!selUnit)return;const u=UT[selUnit];if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
+function battleTap(pt){if(BT&&BT.server&&!BT.done&&selUnit){netBattleTap(pt);return;}if(!BT||BT.done||!selUnit)return;const u=UT[selUnit];if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
  BT.cp-=u.cost;BT.lastPlayer=selUnit;troopsLeft[selUnit]-=u.spell?1:(u.squad||1);
  if(u.spell){boom(pt.x,0.3,pt.z,true);units.forEach(v=>{if(v.side===1&&Math.hypot(v.g.position.x-pt.x,v.g.position.z-pt.z)<1.6)v.hp-=130;});if(Math.abs(pt.x-8.1)<2)BT.en-=90;toast('Artillery strike');}
  else{const lane=LANES.reduce((a,z)=>Math.abs(z-pt.z)<Math.abs(a-pt.z)?z:a,LANES[0]);spawn(selUnit,0,lane,-7.2);}
@@ -1883,7 +1884,7 @@ function vCard(v,o){vCur=v;chatEl.hidden=true;const wp=o.getWorldPosition(new TH
   showCard(P0.F.name+(P0.kind==='scouts'?' scouts':' patrol'),'Sector '+vSec.n+' · '+(P0.hostile?'hostile':'friendly'),[['Strength',str],['Moving',P0.kind==='tank'?'Along the road':'Circling the area'],['Threat',P0.hostile?'Raids convoys and parcels':'Escorts allied convoys']],P0.hostile?['Ambush patrol','Track']:['Track','Close']);}}
 function visitAct(a){if(!vCur)return false;const v=vCur;
  if(a==='Attack camp'){card.hidden=true;const n=vSec.n,go2=()=>startBattle({title:'Assault on the militia camp: Sector '+n,enemy:'Militia camp',sector:n,campAssault:!!(window.NET&&NET.conn)});
-  if(window.NET&&NET.conn){NET.conn.invoke('StartCampAssault',n).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);go2();}).catch(er=>toast(er.message));return true;}go2();return true;}
+  go2();return true;}
  if(a==='Ambush patrol'&&v.kind==='patrol'){card.hidden=true;startBattle({title:'Ambush: '+v.P.F.name+' patrol · Sector '+vSec.n,enemy:v.P.F.name+' patrol',sector:vSec.n});return true;}
  if(a==='Track'&&v.kind==='patrol'){card.hidden=true;hint.hidden=false;vFollow=v.P.units[0];controls.autoRotate=false;toast('Tracking the patrol. Drag to stop');return true;}
  if(a==='Shoot down'&&v.kind==='drone'&&window.NET&&NET.conn){card.hidden=true;hint.hidden=false;vFollow=null;const sec=vSec.n,D=v.D;
@@ -1965,7 +1966,7 @@ const TOUR=[
  {t:'Enemy territory',x:'You can enter any sector. This one belongs to the Blue Party: a walled garrison, patrols marked in red, and a gunship overhead. Tap anything to scout, ambush or track it.',go:()=>enterVisit(18)},
  {t:'Scout before you strike',x:'A scout report shows their garrison, walls and tactics. Then you choose up to four unit types to counter them.',m:'visit18',after:()=>scoutCard('blue')},
  {t:'Real-time battles',x:'Send units down three lanes using command points. Launchers break walls and tanks, gunners stop helicopters, and tanks crush infantry. Raids take loot, never land.',min:15000,
-  go:()=>{startBattle({title:RIVALS.blue.title,rival:'blue',deck:['gunner','launcher','tank','heli','strike'],sector:18});setTimeout(()=>{autoDeploy();autoDeploy();tour.bat=setInterval(autoDeploy,1500);},1100);}},
+  go:()=>{startBattle({title:RIVALS.blue.title,rival:'blue',deck:['gunner','launcher','tank','heli','strike'],sector:18,local:true});setTimeout(()=>{autoDeploy();autoDeploy();tour.bat=setInterval(autoDeploy,1500);},1100);}},
  {t:'The Caretaker is watching',x:'Land no one has claimed still belongs to the Caretaker. Its drones sweep the sectors, scanning for smugglers and armed players, while its militia holds the camps. Shoot one down, and it remembers.',go:()=>enterVisit(30)},
  {t:'The Caretaker remembers',x:'Everything you do goes on your record: taxes paid, goods smuggled, drones shot down, camps cleared. Build and keep order, and doors open. Cause chaos, and its drones start following you.',m:'county',after:()=>{openRecord();setTimeout(()=>ctSay('I see you. I have always seen you.'),600);}},
  {t:'A player-run market',x:'Prices move with supply and demand. Sell oil when it spikes, buy fuel when it dips, and watch what everyone else is trading.',m:'county',after:()=>openMarket()},
@@ -2098,7 +2099,7 @@ function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);re
 async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
  c.on('chat',m=>{if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
- c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.on('record',onRecord);c.on('drone',onDrone);c.on('camp',onCamp);c.on('politics',()=>{if(!polEl.hidden&&document.activeElement!==$('polSpeech'))refreshPol();else NET.pol=null;});c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
+ c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.on('record',onRecord);c.on('drone',onDrone);c.on('camp',onCamp);c.on('battle',onBattleState);c.on('battleEnd',onBattleEnd);c.on('politics',()=>{if(!polEl.hidden&&document.activeElement!==$('polSpeech'))refreshPol();else NET.pol=null;});c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
  try{await c.start();NET.conn=c;watchHome();watchMarket();watchShipping();c.invoke('MyRecord').then(syncRecord).catch(()=>{});
   const hist=await api('/chat/global');hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
 async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(a&&r.awaySeconds>60)a.textContent='You were away '+awayText(r.awaySeconds)+' · '+a.textContent;connectLive();return true;}
@@ -2321,6 +2322,42 @@ function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:sna
  if(mode==='county'){scene.fog=new THREE.Fog(0x0c0f14,48,105);controls.maxDistance=66;if(!diving){const hm=home();flyTo(hm[0],hm[1]);}}
  if(/[?&]ov/.test(location.search)){setTimeout(()=>{briefEl.hidden=true;anim=null;controls.target.set(0,0,0);camera.position.set(20,30,24);controls.update();},3000);}}
 function openSectorMap(n){NET.viewSector=n;go('county',V3(0,0,0),V3(2,40,2),'Sector '+n);setTimeout(watchHome,700);}
+
+
+/* ---------- Server-run battles: the client sends commands and draws what the server decides ---------- */
+NET.bUnits=new Map();
+function netStartBattle(o,prev){const kind=o.rival?'raid':(o.campAssault||/militia camp/i.test(o.enemy||'')?'camp':'ambush');
+ NET.conn.invoke('StartBattle',kind,o.sector||0,o.rival||null,o.deck||null).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);
+  go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>{initBattle({...o,deck:r.battle.deck},prev);BT.server=r.battle.id;BT.title=r.battle.title;BT.enemy=r.battle.enemy;$('bEnemyN').textContent=BT.enemy;
+   NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();applyBattleState(r.battle.state);renderCards();},700);}).catch(er=>toast(er.message));}
+function applyBattleState(st){if(!BT||!BT.server)return;BT.t=st.t;BT.cp=st.cp;BT.you=st.you;BT.youMax=st.youMax;BT.en=st.en;BT.enMax=st.enMax;Object.assign(troopsLeft,st.troops);
+ const seen=new Set();
+ st.units.forEach(([id,t,side,x,z,hp])=>{seen.add(id);let u=NET.bUnits.get(id);
+  if(!u){const g=unitMesh(t,side);g.position.set(x,UT[t].type==='air'?1.3:0.07,z);if(side)g.rotation.y=Math.PI;u={g,t,side,tx:x,tz:z,hp};NET.bUnits.set(id,u);}
+  u.tx=x;u.tz=z;u.hp=hp;});
+ NET.bUnits.forEach((u,id)=>{if(!seen.has(id)){boom(u.g.position.x,u.g.position.y+0.1,u.g.position.z);battle.remove(u.g);NET.bUnits.delete(id);if(!u.side)BT.lost[u.t]=(BT.lost[u.t]||0)+1;}});
+ st.shots.forEach(sh=>{if(sh[0]===-2){boom(sh[1],0.3,sh[2],true);return;}
+  const to=NET.bUnits.get(sh[1]),from=NET.bUnits.get(sh[0]);
+  if(sh[0]===-10||sh[0]===-11){if(to)tracer(V3(sh[0]===-10?-8.1:8.1,0.5,to.g.position.z*0.6),to.g.position.clone().add(V3(0,0.15,0)),sh[0]===-11?1:0);return;}
+  if(!from)return;if(sh[1]===-1){tracer(muzzleOf({g:from.g,u:UT[from.t]}),V3(from.side?-8.1:8.1,0.4,from.g.position.z),from.side);if(Math.random()<0.25)boom(from.side?-8.1:8.1,0.3,from.g.position.z);return;}
+  if(to)tracer(muzzleOf({g:from.g,u:UT[from.t]}),to.g.position.clone().add(V3(0,0.15,0)),from.side);});}
+function serverBattleFrame(dt){const now=performance.now();
+ NET.bUnits.forEach(u=>{const g=u.g,k=Math.min(1,dt*8);g.position.x+=(u.tx-g.position.x)*k;g.position.z+=(u.tz-g.position.z)*k;
+  if(UT[u.t].type==='air')g.position.y=1.3+Math.sin(now/400+g.id)*0.05;else if(Math.abs(u.tx-g.position.x)>0.01)g.position.y=0.07+Math.abs(Math.sin(now/95+g.id))*0.03;
+  if(g.userData.rotor)g.userData.rotor.rotation.y+=dt*28;if(g.userData.trotor)g.userData.trotor.rotation.x+=dt*40;
+  if(g.userData.bar){g.userData.bar.scale.x=Math.max(0.02,u.hp);g.userData.bar.quaternion.copy(camera.quaternion);}});
+ for(let i=fx.length-1;i>=0;i--){const q=fx[i];q.life-=dt;if(q.line){if(q.life<=0){battle.remove(q.m);fx.splice(i,1);}continue;}const k=1-q.life/q.max;q.m.scale.setScalar(1+k*q.grow);q.m.material.opacity=0.9*(1-k);if(q.life<=0){battle.remove(q.m);fx.splice(i,1);}}
+ bFire.scale.setScalar(0.8+0.4*Math.sin(now/90));
+ $('bYou').style.width=Math.max(0,BT.you/BT.youMax*100)+'%';$('bYouT').textContent=Math.max(0,Math.round(BT.you)).toLocaleString('en-US');$('bEnemy').style.width=Math.max(0,BT.en/BT.enMax*100)+'%';
+ const mm=Math.floor(BT.t/60),ss=Math.floor(BT.t%60);$('bTitle').textContent=BT.title.split(':')[0].split(' · ')[0]+' · '+mm+':'+String(ss).padStart(2,'0');
+ $('cpN').textContent=Math.floor(BT.cp);$('cpB').style.width=(BT.cp*10)+'%';if(Math.random()<dt*2)renderCards();}
+function netBattleTap(pt){if(selUnit==='strike'){if(BT.cp<6){toast('Not enough command points yet');return;}NET.conn.invoke('Strike',pt.x,pt.z).then(e=>{if(e)toast(e);else toast('Artillery strike');});return;}
+ const u=UT[selUnit];if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
+ const lane=LANES.reduce((a,z,i)=>Math.abs(z-pt.z)<Math.abs(LANES[a]-pt.z)?i:a,0);NET.conn.invoke('Deploy',selUnit,lane).then(e=>{if(e)toast(e);});}
+function onBattleState(m){if(BT&&BT.server===m.id)applyBattleState(m.state);}
+function onBattleEnd(m){if(!BT||BT.server!==m.id)return;BT.done=true;if(m.player)applyMe(m.player);
+ if(m.won&&BT.sector===30)sec30=55;if(m.won&&BT.campAssault)cleared.add(BT.sector);
+ showCard(m.won?'Victory':'Defeat',m.why,m.rows,['Leave battle']);}
 
 function worldToNation(){go('region',V3(-0.9,0,-0.9),V3(-0.9,23,18),'Region 1 · 9 nations');}
 function nationToWorld(){go('world',V3(0,0,0),V3(0,1.2,3.5),'World');}

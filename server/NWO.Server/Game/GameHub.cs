@@ -8,7 +8,7 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics) : Hub
+public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles) : Hub
 {
     record Conn(Guid Id, string Name, DateTime LastMsg, int Watching, int Visiting = 0);
 
@@ -94,9 +94,13 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<Caretaker.Result> ShootDrone(int sector, int idx) => caretaker.ShootDrone(Me.Id, sector, idx);
 
-    public Task<Caretaker.Result> StartCampAssault(int sector) => caretaker.StartCampAssault(Me.Id, sector);
+    public Task<Battles.Result> StartBattle(string kind, int sector, string? rival, string[]? deck) => battles.Start(Me.Id, kind, sector, rival, deck);
 
-    public Task<Caretaker.Result> ClearCamp(int sector) => caretaker.ClearCamp(Me.Id, sector);
+    public string? Deploy(string type, int lane) => battles.Deploy(Me.Id, type, lane);
+
+    public string? Strike(double x, double z) => battles.Strike(Me.Id, x, z);
+
+    public string? Retreat() => battles.Retreat(Me.Id);
 
     /// <summary>Start receiving every truck on the map and the posted contracts, and get the current ones.</summary>
     public async Task<object> WatchShipping()

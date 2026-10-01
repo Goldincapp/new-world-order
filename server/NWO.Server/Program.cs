@@ -12,6 +12,8 @@ builder.Services.AddSingleton<World>();
 builder.Services.AddSingleton<Market>();
 builder.Services.AddSingleton<Caretaker>();
 builder.Services.AddSingleton<Politics>();
+builder.Services.AddSingleton<Battles>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Battles>());
 builder.Services.AddSingleton<Logistics>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Logistics>());
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p

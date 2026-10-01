@@ -174,7 +174,8 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
         return new Result(true, Player: Dto.Me(me), Summary: "Assault launched. Win the battle to clear the camp.");
     });
 
-    public async Task<Result> ClearCamp(Guid playerId, int sector)
+    /// <summary>Clears a camp for the player who won the server-run battle for it.</summary>
+    public async Task<Result> AwardCamp(Guid playerId, int sector)
     {
         object? ev = null;
         string? clearer = null;
@@ -183,9 +184,7 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
             var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
             var camp = await db.Camps.FindAsync(sector);
             var now = DateTime.UtcNow;
-            if (camp is null || me.CampAssaultSector != sector || now - me.CampAssaultAt > CampAssaultWindow)
-                return new Result(false, "That assault isn't on record.");
-            me.CampAssaultSector = 0;
+            if (camp is null) return new Result(false, "There's no militia camp here.");
             if (camp.ClearedUntil > now) return new Result(false, $"{camp.ClearedBy} cleared it first.");
             camp.ClearedUntil = now + CampReturns;
             camp.ClearedBy = me.Name;
