@@ -2591,7 +2591,7 @@ renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),0.05),t=clock.
  if(mode==='battle')battleTick(dt);
  if(mode==='siege')siegeFrame(dt,t);
  if(mode==='province'||followShip)updShips();
- if(mode==='hq'&&!anim&&!diving&&dNow>28.5)homeToSector();
+ if(mode==='hq'&&!anim&&!diving&&dNow>Math.max(28.5,home()[1].distanceTo(home()[0])*1.3))homeToSector();
  if(mode==='world'&&!anim&&!diving&&dNow<3.3)worldToNation();
  if(mode==='region'&&!anim&&!diving&&dNow>25)nationToWorld();
  if(mode==='province'){const q3=(t*0.035)%1,ap=pRoadX.getPointAt(0.05+q3*0.65);army.position.set(ap.x,(window.__HP?window.__HP(ap.x,ap.z-0.2):0.09)+0.02,ap.z-0.2);army.rotation.y=Math.PI/2;armyL.position.set(ap.x+0.3,1.05,ap.z);}
