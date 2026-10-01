@@ -8,7 +8,7 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world, Market market) : Hub
+public class GameHub(GameDb db, World world, Market market, Logistics logistics) : Hub
 {
     record Conn(Guid Id, string Name, DateTime LastMsg, int Watching);
 
@@ -32,6 +32,9 @@ public class GameHub(GameDb db, World world, Market market) : Hub
     }
 
     public static int OnlineCount() => Online.Values.Select(v => v.Id).Distinct().Count();
+
+    public static IReadOnlyList<string> ConnectionsOf(Guid playerId) =>
+        Online.Where(kv => kv.Value.Id == playerId).Select(kv => kv.Key).ToList();
 
     Conn Me => Online.TryGetValue(Context.ConnectionId, out var c) ? c : throw new HubException("Not signed in.");
 
@@ -62,6 +65,23 @@ public class GameHub(GameDb db, World world, Market market) : Hub
     }
 
     public Task<object> MyBook(string res) => market.Book(res, Me.Id);
+
+    /// <summary>Start receiving every truck on the map and the posted contracts, and get the current ones.</summary>
+    public async Task<object> WatchShipping()
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, Logistics.Group);
+        return await logistics.Snapshot(Me.Id);
+    }
+
+    public Task<object> MyShipping() => logistics.Snapshot(Me.Id);
+
+    public Task<Logistics.Result> Ship(long contractId, bool legal, double envelope) => logistics.Ship(Me.Id, contractId, legal, envelope);
+
+    public Task<Logistics.Result> Inspect(long shipmentId) => logistics.Inspect(Me.Id, shipmentId);
+
+    public Task<Logistics.Result> ResolveEnvelope(long shipmentId, bool take) => logistics.ResolveEnvelope(Me.Id, shipmentId, take);
+
+    public Task<Logistics.Result> RaiseBribe(long shipmentId, double add) => logistics.RaiseBribe(Me.Id, shipmentId, add);
 
     public Task<Market.Result> PlaceOrder(string res, string side, double qty, double? price) => market.Place(Me.Id, res, side, qty, price);
 

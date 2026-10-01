@@ -28,6 +28,14 @@ public class Player
     /// <summary>When the Caretaker last delivered this settler's ration crate.</summary>
     public DateTime LastRationAt { get; set; } = DateTime.MinValue;
 
+    // Inspector record: wrong searches in a row get more expensive, and fade over time.
+    public int InspectStreak { get; set; }
+    public DateTime InspectFadeAt { get; set; } = DateTime.UtcNow;
+    public int Catches { get; set; }
+    public int Misses { get; set; }
+    public int InspectsToday { get; set; }
+    public DateOnly InspectDay { get; set; }
+
     /// <summary>The Caretaker's standing for this player, 0 to 100.</summary>
     public int Standing { get; set; } = 54;
 
@@ -110,8 +118,59 @@ public class Trade
     public DateTime At { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>A sector's posted need: deliver goods there to earn the reward.</summary>
+public class Contract
+{
+    public long Id { get; set; }
+    public int Sector { get; set; }
+    public string Resource { get; set; } = "";
+    public double Qty { get; set; }
+    public double Reward { get; set; }
+    public string Issuer { get; set; } = "";
+    /// <summary>open, taken (a truck is on the way), done or expired.</summary>
+    public string Status { get; set; } = "open";
+    public Guid? TakenById { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime ExpiresAt { get; set; }
+}
+
+/// <summary>A truck on the road. Its timeline is stored, so it keeps moving while the server is off and nobody is watching.</summary>
+public class Shipment
+{
+    public long Id { get; set; }
+    public Guid PlayerId { get; set; }
+    public string PlayerName { get; set; } = "";
+    public long? ContractId { get; set; }
+    public string Resource { get; set; } = "";
+    public double Qty { get; set; }
+    public int From { get; set; }
+    public int To { get; set; }
+    /// <summary>Main road: taxed and fee'd. Back road: smuggled.</summary>
+    public bool Legal { get; set; }
+    /// <summary>Cash hidden in the cargo for whoever inspects it.</summary>
+    public double Envelope { get; set; }
+    public double Reward { get; set; }
+    public DateTime DepartAt { get; set; }
+    public DateTime ArriveAt { get; set; }
+    /// <summary>When a smuggled truck reaches the Caretaker checkpoint.</summary>
+    public DateTime CheckAt { get; set; }
+    public bool Checked { get; set; }
+    /// <summary>moving, stopped (at a checkpoint, bribe being weighed), arrived or seized.</summary>
+    public string Status { get; set; } = "moving";
+    public DateTime? StopResolveAt { get; set; }
+    public string? StoppedBy { get; set; }
+    /// <summary>A player inspector who found an envelope and is deciding what to do with it.</summary>
+    public Guid? HeldById { get; set; }
+    public DateTime? HeldUntil { get; set; }
+    public Guid? AuditPlayerId { get; set; }
+    public DateTime? AuditAt { get; set; }
+    public string InspectedBy { get; set; } = "";
+}
+
 public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
 {
+    public DbSet<Contract> Contracts => Set<Contract>();
+    public DbSet<Shipment> Shipments => Set<Shipment>();
     public DbSet<LedgerEntry> Ledger => Set<LedgerEntry>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Trade> Trades => Set<Trade>();
@@ -122,6 +181,16 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        // SQLite forgets that stored times are UTC; mark them on the way back out so clients get "...Z" timestamps.
+        var utc = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(v => v, v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+        var utcNullable = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(v => v, v => v == null ? null : DateTime.SpecifyKind(v.Value, DateTimeKind.Utc));
+        foreach (var e in b.Model.GetEntityTypes())
+            foreach (var prop in e.GetProperties())
+            {
+                if (prop.ClrType == typeof(DateTime)) prop.SetValueConverter(utc);
+                else if (prop.ClrType == typeof(DateTime?)) prop.SetValueConverter(utcNullable);
+            }
+
         b.Entity<Player>().HasIndex(p => p.Name).IsUnique();
         b.Entity<Player>().HasIndex(p => p.TokenHash).IsUnique();
         b.Entity<Parcel>().HasIndex(p => new { p.Sector, p.I, p.J }).IsUnique();
@@ -131,5 +200,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
         b.Entity<LedgerEntry>().HasIndex(l => new { l.PlayerId, l.Id });
         b.Entity<Order>().HasIndex(o => new { o.Resource, o.Side, o.Price });
         b.Entity<Trade>().HasIndex(t => new { t.Resource, t.Id });
+        b.Entity<Contract>().HasIndex(c => c.Status);
+        b.Entity<Shipment>().HasIndex(s => s.Status);
     }
 }

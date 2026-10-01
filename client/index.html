@@ -5,7 +5,7 @@
 <title>New World Order</title>
 <script>
 /* phones (or ?app) get the game full screen, with no desktop page around it */
-if(matchMedia('(pointer:coarse)').matches||/[?&]app\b/.test(location.search))document.documentElement.classList.add('app');
+document.documentElement.classList.add('app');
 if(window.CanvasRenderingContext2D&&!CanvasRenderingContext2D.prototype.roundRect)CanvasRenderingContext2D.prototype.roundRect=function(x,y,w,h,r){r=Math.min(r,w/2,h/2);this.moveTo(x+r,y);this.arcTo(x+w,y,x+w,y+h,r);this.arcTo(x+w,y+h,x,y+h,r);this.arcTo(x,y+h,x,y,r);this.arcTo(x,y,x+w,y,r);this.closePath();return this;};
 /* show any startup error on screen so it can be reported */
 window.__bootErr=function(m){var t=document.getElementById('bootT');if(t){t.textContent='Error: '+m;t.style.letterSpacing='0';t.style.textTransform='none';t.style.maxWidth='80vw';t.style.lineHeight='1.4';}};
@@ -436,7 +436,7 @@ html.app .screen{border-radius:0}
           <input id="suName" maxlength="16" autocomplete="off" placeholder="3 to 16 letters or numbers" style="width:100%;font:600 1.1em/1 'Baloo 2',sans-serif;padding:.7em .9em;border-radius:calc(1.4*var(--u));border:1px solid #d9d1bf;background:#fff;color:#2a2a2a">
           <p id="suErr" class="note" style="color:#c0392b;min-height:1.4em;margin:.5em 0"></p>
           <div class="acts"><button class="primary bigbtn" id="suGo">Claim your land</button></div>
-          <button id="suOffline" style="margin-top:.6em;background:none;border:0;color:#8a8272;text-decoration:underline;cursor:pointer;font:inherit">Play the offline demo instead</button>
+          <button id="suOffline" hidden style="margin-top:.6em;background:none;border:0;color:#8a8272;text-decoration:underline;cursor:pointer;font:inherit">Play the offline demo instead</button>
         </div>
         <div class="ctmsg off" id="ctMsg" aria-live="polite"><b>CARETAKER //</b><span id="ctMsgT"></span></div>
         <div class="sheet ct" id="ctSheet" hidden>
@@ -1114,6 +1114,8 @@ function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.
  if(a.startsWith('Envelope · ')){sendShip(false,+a.slice(11).replace(/,/g,''));return;}
  if(a==='Take the envelope'){takeEnv(shipCur);return;}
  if(a==='Report it'){reportEnv(shipCur);return;}
+ if(a==='Raise +500'&&NET.stopSid){NET.conn.invoke('RaiseBribe',NET.stopSid,500).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);}).catch(er=>toast(er.message));return;}
+ if(a==='Let it play out'&&NET.stopSid){card.hidden=true;hint.hidden=false;NET.stopSid=null;return;}
  if(a==='Raise +500'){if(stopCur){if(res.cash<500){toast('Not enough cash');return;}res.cash-=500;renderRes(['cash']);stopCur.sh.env+=500;toast('Envelope raised to '+stopCur.sh.env.toLocaleString('en-US'));showCard('Your truck is being inspected','By '+stopCur.by,[['Envelope inside',stopCur.sh.env.toLocaleString('en-US')+' cash'],['Their move','Take it and let you pass, or report you']],['Raise +500','Let it play out']);}return;}
  if(a==='Let it play out'){resolveStop();return;}
  if(a==='Cancel'){card.hidden=true;hint.hidden=false;return;}
@@ -1232,7 +1234,7 @@ renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-dx,
   const p=h.point.clone();p.y=0.3;const o3=camera.position.clone().sub(controls.target);o3.y=0;if(o3.length()<0.01)o3.set(0,0,1);o3.normalize();controls.minDistance=2.2;flyTo(p,p.clone().add(o3.multiplyScalar(4.5)).add(new THREE.Vector3(0,6,0)));}});
 function home0(m){const k=mode;mode=m;const h=home();mode=k;return h[1];}
 function home(){if(mode==='visit')return [new THREE.Vector3(0,0,0),new THREE.Vector3(12.5,12,12.5),2.5];if(mode==='county')return [new THREE.Vector3(0,0,0),new THREE.Vector3(15,14,15),2.5];if(mode==='hq')return [new THREE.Vector3(0,0,0),new THREE.Vector3(12.5,11.5,12.5),6];if(mode==='battle')return [new THREE.Vector3(0,0,0.4),new THREE.Vector3(0,11.8,12.8),5];if(mode==='province')return [new THREE.Vector3(0,0,0.6),new THREE.Vector3(0,22,19),2];if(mode==='region')return [new THREE.Vector3(-0.9,0,-0.9),new THREE.Vector3(-0.9,13.2,8.6),2.2];return [new THREE.Vector3(0,0,0),new THREE.Vector3(0,1.4,7.4),2.9];}
-function back(){card.hidden=true;sel.visible=false;hint.hidden=false;const h=home();flyTo(h[0],h[1],()=>{controls.minDistance=h[2];controls.autoRotate=mode!=='region'&&mode!=='province';});}
+function back(){card.hidden=true;sel.visible=false;hint.hidden=false;const h=home();flyTo(h[0],h[1],()=>{controls.minDistance=h[2];controls.autoRotate=false;});}
 const hints={visit:'Red rings are enemies. Tap bases, patrols and camps. Zoom out to return to the province.',county:'Tap a parcel. Zoom into your HQ to go home, or zoom out to see the province.',hq:'Tap a building. Zoom out to return to your sector.',province:'Tap a sector, or zoom into one to enter it. Zoom out to rise to the nation.',world:'Zoom into the lit region, or tap it, to enter the nation view.',region:'Zoom into Aurelia to reveal its provinces and enter one. Zoom out to see the world.'};
 function setMode(m){mode=m;card.hidden=true;chatEl.hidden=true;polEl.hidden=true;$('board').hidden=true;$('stats').hidden=true;$('brief').hidden=true;$('ctSheet').hidden=true;battle.visible=m==='battle';$('bhud').hidden=m!=='battle';$('hud').classList.toggle('inbattle',m==='battle');controls.enableRotate=m!=='battle';controls.enableZoom=m!=='battle';$('secChip').hidden=m!=='county';if(m==='county')renderSec();sel.visible=false;closeMarket(true);county.visible=m==='county';hq.visible=m==='hq';visit.visible=m==='visit';$('visChip').hidden=m!=='visit';if(m!=='visit')vFollow=null;world.visible=m==='world';region.visible=m==='region';province.visible=m==='province';
  hint.textContent=hints[m]||'';hint.hidden=m==='battle';
@@ -1240,7 +1242,7 @@ function setMode(m){mode=m;card.hidden=true;chatEl.hidden=true;polEl.hidden=true
  if(true){hemi.color.set(0x8a97b4);hemi.groundColor.set(0x2e2419);hemi.intensity=1.55;sun.color.set(0xffb07a);sun.intensity=2.9;sun.position.set(-9,8,7);}
  else{hemi.color.set(0xdff3ff);hemi.groundColor.set(0xb89a70);hemi.intensity=1.7;sun.color.set(0xfff4e0);sun.intensity=2.4;sun.position.set(8,15,6);}
  window.__lightBase={sun:sun.intensity,hemi:hemi.intensity,col:sun.color.clone()};if(typeof BG_DARK!=='undefined')scene.background=m==='world'?BG_WORLD:BG_DARK;
- controls.autoRotate=m!=='region'&&m!=='province';controls.enablePan=m==='hq'||m==='region'||m==='province';controls.maxPolarAngle=m==='world'?Math.PI:(m==='region'?1.05:1.25);controls.maxDistance=m==='world'?12:(m==='hq'?30:(m==='region'?26:(m==='province'?42:34)));
+ controls.autoRotate=false;const flat=m==='hq'||m==='county'||m==='visit'||m==='province'||m==='region';controls.enableRotate=!flat&&m!=='battle';controls.screenSpacePanning=false;controls.mouseButtons={LEFT:flat?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:flat?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN};controls.touches={ONE:flat?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};controls.enablePan=m!=='battle'&&m!=='world';controls.maxPolarAngle=m==='world'?Math.PI:(m==='region'?1.05:1.25);controls.maxDistance=m==='world'?12:(m==='hq'?30:(m==='region'?26:(m==='province'?42:34)));
  controls.minDistance=m==='world'?2.9:2.5;controls.zoomToCursor=m==='region'||m==='province';
  const h=home();flyTo(h[0],h[1],()=>controls.minDistance=h[2]);
  [['tCounty','county'],['tProvince','province'],['tNation','region'],['tHome','hq'],['tWorld','world']].forEach(p=>$(p[0]).setAttribute('aria-pressed',String(p[1]===m)));
@@ -1495,9 +1497,9 @@ const prog=sh=>Math.min(1,(performance.now()-sh.t0)/sh.dur);
 function removeShip(sh){shipLayer.remove(sh.line);shipLayer.remove(sh.truck);shipLayer.remove(sh.tag);if(followShip===sh)followShip=null;SHIPS.splice(SHIPS.indexOf(sh),1);}
 function inspectBy(sh){const who=Math.random()<0.5?'Customs · Aurelia':['Kess','Kestrel','Nyx'][Math.floor(Math.random()*3)];return who;}
 setInterval(()=>{SHIPS.slice().forEach(sh=>{if(sh.status!=='moving')return;const p=prog(sh);
-  if(sh.mine&&!sh.legal&&!sh.inspected&&p>=sh.checkAt){sh.inspected=true;if(Math.random()<sh.risk&&sh.env){myStopped(sh);}else if(Math.random()<sh.risk){const by=inspectBy(sh);sh.status='confiscated';ctRemember(-3,'Caught smuggling '+sh.qty+' '+sh.cargo,'smuggle','caught');const fine=Math.round(sh.reward*0.5);res.cash=Math.max(0,res.cash-fine);wanted++;renderRes(['cash']);
+  if(!sh.server&&sh.mine&&!sh.legal&&!sh.inspected&&p>=sh.checkAt){sh.inspected=true;if(Math.random()<sh.risk&&sh.env){myStopped(sh);}else if(Math.random()<sh.risk){const by=inspectBy(sh);sh.status='confiscated';ctRemember(-3,'Caught smuggling '+sh.qty+' '+sh.cargo,'smuggle','caught');const fine=Math.round(sh.reward*0.5);res.cash=Math.max(0,res.cash-fine);wanted++;renderRes(['cash']);
     toast('Caught smuggling! '+by+' confiscated your '+sh.qty+' '+sh.cargo+'. Fine '+fine.toLocaleString('en-US'));pushMsg('nation',by.split(' · ')[0],by.includes('Customs')?'Government':'Citizen','Contraband seized on the road to Sector '+sh.to+'. Nice try.');NEWS.unshift('Customs seized smuggled '+sh.cargo+' bound for Sector '+sh.to);setTimeout(()=>removeShip(sh),4000);}}
-  if(p>=1){sh.status='arrived';if(sh.mine){if(sh.cargo==='fuel')goalDone('fuel');if(sh.legal)ctRemember(2,'Paid tax on a delivery to Sector '+sh.to,'trade');else ctRemember(-4,'Smuggled '+sh.cargo+' past the checkpoints','smuggle');const tax=sh.legal?Math.round(sh.reward*0.13):0;res.cash+=sh.reward-tax+(sh.env||0);renderRes(['cash']);toast('Delivered '+sh.qty+' '+sh.cargo+' to Sector '+sh.to+': +'+(sh.reward-tax).toLocaleString('en-US')+' cash'+(tax?' ('+tax.toLocaleString('en-US')+' tax and Caretaker fee paid)':' (no tax: smuggled'+(sh.env?', envelope returned unopened':'')+')'));const nd=NEEDSB.find(n=>n.sec===sh.to&&n.res===sh.cargo);if(nd)NEEDSB.splice(NEEDSB.indexOf(nd),1);}
+  if(p>=1&&!sh.server){sh.status='arrived';if(sh.mine){if(sh.cargo==='fuel')goalDone('fuel');if(sh.legal)ctRemember(2,'Paid tax on a delivery to Sector '+sh.to,'trade');else ctRemember(-4,'Smuggled '+sh.cargo+' past the checkpoints','smuggle');const tax=sh.legal?Math.round(sh.reward*0.13):0;res.cash+=sh.reward-tax+(sh.env||0);renderRes(['cash']);toast('Delivered '+sh.qty+' '+sh.cargo+' to Sector '+sh.to+': +'+(sh.reward-tax).toLocaleString('en-US')+' cash'+(tax?' ('+tax.toLocaleString('en-US')+' tax and Caretaker fee paid)':' (no tax: smuggled'+(sh.env?', envelope returned unopened':'')+')'));const nd=NEEDSB.find(n=>n.sec===sh.to&&n.res===sh.cargo);if(nd)NEEDSB.splice(NEEDSB.indexOf(nd),1);}
    setTimeout(()=>{removeShip(sh);if(!sh.mine)spawnAI();},3000);}});
  if(!boardEl.hidden)renderBoard();},700);
 let followShip=null;
@@ -1526,10 +1528,10 @@ $('bdx').onclick=()=>{boardEl.hidden=true;hint.hidden=false;};$('tbNeeds').oncli
 let pendingNeed=null;
 function shipCard(n){pendingNeed=n;boardEl.hidden=true;const tax=Math.round(n.reward*0.08),risk=Math.min(0.85,0.3+wanted*0.15),fine=Math.round(n.reward*0.5);const [ax,az]=secPos(12),[bx,bz]=secPos(n.sec);const km=Math.round(Math.hypot(ax-bx,az-bz)*22);
  showCard('Ship '+n.qty+' '+n.what.toLowerCase()+' to Sector '+n.sec,'From Sector 12 · about '+km+' km',[['Reward','+'+n.reward.toLocaleString('en-US')+' cash'],['Ship legally','8% tax to Aurelia + 5% Caretaker fee ('+Math.round(n.reward*0.13).toLocaleString('en-US')+')'],['Smuggle','No tax · '+Math.round(risk*100)+'% chance of inspection'],['If caught','Cargo confiscated, fine '+fine.toLocaleString('en-US')+', wanted level +1'],['Bribe','Hide an envelope in the truck for the inspector']],['Ship legally','Smuggle it','Smuggle + envelope','Cancel']);}
-function sendShip(legal,env){const n=pendingNeed;if(!n)return;env=env||0;if(env>res.cash){toast('Not enough cash for that envelope');return;}res[n.res]-=n.qty;res.cash-=env;renderRes([n.res,'cash']);card.hidden=true;
+function sendShip(legal,env){const n=pendingNeed;if(!n)return;if(window.NET&&NET.conn&&n.id){card.hidden=true;NET.conn.invoke('Ship',n.id,legal,env||0).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);openBoard('ship');}).catch(er=>toast(er.message));return;}env=env||0;if(env>res.cash){toast('Not enough cash for that envelope');return;}res[n.res]-=n.qty;res.cash-=env;renderRes([n.res,'cash']);card.hidden=true;
  const sh=addShip({who:'You',cargo:n.res,qty:n.qty,from:12,to:n.sec,route:legal?'Main road':'Back road',legal,contraband:!legal,mine:true,env,reward:n.reward,risk:Math.min(0.9,(0.3+wanted*0.15)*ctRisk()),dur:45000});
  toast(legal?'Shipment sent on the main road. Tax and the Caretaker fee are paid on delivery':(env?'Smuggled shipment sent with a '+env.toLocaleString('en-US')+' envelope hidden inside':'Smuggled shipment sent by back road. Keep your fingers crossed'));openBoard('ship');}
-function inspect(sh){if(!sh||sh.status!=='moving')return;if(res.cash<150){toast('Inspections cost 150 cash');return;}res.cash-=150;renderRes(['cash']);sh.inspected=true;toast('Inspecting '+sh.who+'\'s shipment...');
+function inspect(sh){if(!sh||sh.status!=='moving')return;if(sh.server&&window.NET&&NET.conn){netInspect(sh);return;}if(res.cash<150){toast('Inspections cost 150 cash');return;}res.cash-=150;renderRes(['cash']);sh.inspected=true;toast('Inspecting '+sh.who+'\'s shipment...');
  setTimeout(()=>{if(sh.contraband&&sh.env){envCard(sh);return;}if(sh.contraband){INSP.catches++;INSP.streak=Math.max(0,INSP.streak-1);sh.status='confiscated';ctRemember(2,'Reported '+sh.who+' for smuggling','order','report');const reward=Math.round(sh.qty*(PRICE[sh.cargo]||20)*0.3);res.cash+=reward;renderRes(['cash']);toast('Contraband found! '+sh.who+'\'s '+sh.qty+' '+sh.cargo+' confiscated. Your reward: +'+reward.toLocaleString('en-US')+' cash');
    pushMsg('global',sh.who,'Shipper',sh.who==='Mara_V'?'That cargo was legal... mostly.':'Who reported my truck?!');NEWS.unshift(sh.who+' caught smuggling '+sh.cargo+' near Sector '+sh.to);setTimeout(()=>{removeShip(sh);spawnAI();},4000);}
   else{INSP.misses++;INSP.streak++;INSP.lastFade=performance.now();const c=missCost(INSP.streak);res.cash=Math.max(0,res.cash-c);renderRes(['cash']);toast('Clean cargo. You paid '+sh.who+' '+c.toLocaleString('en-US')+' compensation ('+INSP.streak+' wrong in a row). Next miss: '+missCost(INSP.streak+1).toLocaleString('en-US'));}if(!boardEl.hidden)renderBoard();},1300);}
@@ -2041,10 +2043,10 @@ const missCost=k=>k<=2?300:300*Math.pow(2,k-2);
 setInterval(()=>{if(INSP.streak>0&&performance.now()-INSP.lastFade>120000){INSP.streak--;INSP.lastFade=performance.now();}},10000);
 function inspRow(){const nx=missCost(INSP.streak+1);return ['Your record',INSP.catches+' catches · '+INSP.misses+' misses · next wrong search costs '+nx.toLocaleString('en-US')];}
 function envCard(sh){shipCur=sh;showCard('Envelope found','Hidden in '+sh.who+'\'s '+sh.qty+' '+sh.cargo,[['Inside',sh.env.toLocaleString('en-US')+' cash'],['Take it','Pocket the cash, wave the truck through. The Caretaker audits at random'],['Report it','Seize the cargo, claim the bounty and the envelope. Your standing rises'],['Cargo',sh.qty+' '+sh.cargo+' (contraband)']],['Take the envelope','Report it']);}
-function takeEnv(sh){card.hidden=true;hint.hidden=false;res.cash+=sh.env;INSP.taken++;renderRes(['cash']);sh.env=0;sh.inspected=true;toast('You pocketed the envelope. The truck rolls on');
+function takeEnv(sh){if(sh&&sh.server){netEnvelope(sh,true);return;}card.hidden=true;hint.hidden=false;res.cash+=sh.env;INSP.taken++;renderRes(['cash']);sh.env=0;sh.inspected=true;toast('You pocketed the envelope. The truck rolls on');
  pushMsg('global',sh.who,'Shipper','Pleasure doing business.');
  setTimeout(()=>{if(Math.random()<0.35){const fine=1800;res.cash=Math.max(0,res.cash-fine);renderRes(['cash']);ctRemember(-10,'Took a bribe from '+sh.who+' and was audited','chaos');setTimeout(()=>toast('Caretaker audit: bribe detected. Fine '+fine.toLocaleString('en-US')),1600);}},9000);}
-function reportEnv(sh){card.hidden=true;hint.hidden=false;const bounty=Math.round(sh.qty*(PRICE[sh.cargo]||20)*0.3),tot=bounty+sh.env;res.cash+=tot;renderRes(['cash']);sh.status='confiscated';INSP.catches++;INSP.streak=Math.max(0,INSP.streak-1);
+function reportEnv(sh){if(sh&&sh.server){netEnvelope(sh,false);return;}card.hidden=true;hint.hidden=false;const bounty=Math.round(sh.qty*(PRICE[sh.cargo]||20)*0.3),tot=bounty+sh.env;res.cash+=tot;renderRes(['cash']);sh.status='confiscated';INSP.catches++;INSP.streak=Math.max(0,INSP.streak-1);
  toast('Reported! Bounty '+bounty.toLocaleString('en-US')+' + envelope '+sh.env.toLocaleString('en-US')+' = +'+tot.toLocaleString('en-US')+' cash');ctRemember(5,'Reported '+sh.who+' for smuggling and attempted bribery','order','report');
  pushMsg('global',sh.who,'Shipper','You took my cargo AND my envelope?!');NEWS.unshift(sh.who+' caught bribing an inspector near Sector '+sh.to);setTimeout(()=>{removeShip(sh);spawnAI();},4000);if(!boardEl.hidden)renderBoard();}
 let stopCur=null;
@@ -2077,8 +2079,8 @@ function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);re
 async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
  c.on('chat',m=>{if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
- c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.onreconnected(()=>{watchHome();watchMarket();});
- try{await c.start();NET.conn=c;watchHome();watchMarket();
+ c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
+ try{await c.start();NET.conn=c;watchHome();watchMarket();watchShipping();
   const hist=await api('/chat/global');hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
 async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(a&&r.awaySeconds>60)a.textContent='You were away '+awayText(r.awaySeconds)+' · '+a.textContent;connectLive();return true;}
  catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
@@ -2173,6 +2175,29 @@ function mkOrder(side,priced){const q=Math.floor(+$('mkQty').value||100),px=pric
 $('mkTabs').querySelectorAll('button').forEach(x=>x.onclick=()=>{NET.mk.res=x.dataset.r;$('mkPx').value='';refreshMine(x.dataset.r);});
 $('mkPostSell').onclick=()=>mkOrder('sell',true);$('mkPostBuy').onclick=()=>mkOrder('buy',true);
 
+
+/* ---------- Trucks and contracts: every shipment on the map is a real player's ---------- */
+NET.shipOffset=0;NET.stopSid=null;
+const serverNow=()=>Date.now()-NET.shipOffset;
+function dueText(iso){const ms=Date.parse(iso)-serverNow();if(ms<=0)return 'now';const h=Math.floor(ms/3600000),m=Math.round(ms%3600000/60000);return h?h+'h '+m+'m':m+'m';}
+function setContracts(list){NEEDSB.length=0;list.filter(c=>c.status==='open').forEach(c=>NEEDSB.push({id:c.id,sec:c.sector,what:RESNAME[c.res]||c.res,res:c.res,qty:c.qty,reward:c.reward,due:dueText(c.expiresAt),who:c.issuer}));
+ if(!boardEl.hidden)renderBoard();}
+function serverShip(v){let sh=SHIPS.find(x=>x.sid===v.id);const dep=Date.parse(v.departAt),arr=Date.parse(v.arriveAt);
+ if(v.status==='arrived'||v.status==='seized'){if(sh){sh.status=v.status==='seized'?'confiscated':'arrived';if(sh.status==='arrived')sh.t0=performance.now()-sh.dur;setTimeout(()=>{if(SHIPS.includes(sh))removeShip(sh);if(!boardEl.hidden)renderBoard();},4000);}if(!boardEl.hidden)renderBoard();return;}
+ if(!sh){sh=addShip({who:v.who,cargo:v.res,qty:v.qty,from:v.from,to:v.to,route:v.route==='back'?'Back road':'Main road',legal:v.route==='main',contraband:false,mine:!!NET.me&&v.who===NET.me.name,dur:Math.max(1000,arr-dep),reward:v.reward});sh.sid=v.id;sh.server=true;}
+ sh.dur=Math.max(1000,arr-dep);sh.t0=performance.now()-(serverNow()-dep);sh.status='moving';if(!boardEl.hidden)renderBoard();}
+async function watchShipping(){if(!NET.conn)return;try{const snap=await NET.conn.invoke('WatchShipping');NET.shipOffset=Date.now()-Date.parse(snap.now);
+  SHIPS.filter(x=>!x.server).forEach(removeShip);snap.ships.forEach(serverShip);setContracts(snap.contracts);setInspector(snap.inspector);}catch(e){console.warn('shipping watch failed',e);}}
+function setInspector(i){if(!i)return;INSP.catches=i.catches;INSP.misses=i.misses;INSP.streak=i.streak;}
+function onNotice(v){if(v.player)applyMe(v.player);toast(v.text);if(v.caretaker)setTimeout(()=>ctSay(v.caretaker),900);}
+function onStopped(v){NET.stopSid=v.id;chatEl.hidden=true;showCard('Your truck is being inspected','By '+v.by+' · '+fmt(v.qty)+' '+v.res+' near Sector '+v.to,[['Envelope inside',fmt(v.envelope)+' cash'],['Their move','Take it and let you pass, or report you'],['You have',v.seconds+' seconds to raise the bribe']],['Raise +500','Let it play out']);
+ setTimeout(()=>{if(NET.stopSid===v.id){NET.stopSid=null;if(card.querySelector('h3')?.textContent==='Your truck is being inspected'){card.hidden=true;hint.hidden=false;}}},v.seconds*1000+500);}
+function netInspect(sh){toast('Inspecting '+sh.who+'\'s truck...');NET.conn.invoke('Inspect',sh.sid).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);
+  if(r.kind==='envelope'){sh.env=r.amount;sh.contraband=true;envCard(sh);}else{card.hidden=true;hint.hidden=false;toast(r.summary);}refreshInspector();}).catch(er=>toast(er.message));}
+function netEnvelope(sh,take){card.hidden=true;hint.hidden=false;NET.conn.invoke('ResolveEnvelope',sh.sid,take).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);refreshInspector();}).catch(er=>toast(er.message));}
+function refreshInspector(){NET.conn.invoke('MyShipping').then(s=>setInspector(s.inspector)).catch(()=>{});}
+setInterval(()=>{if(NET.conn&&NEEDSB.length&&!boardEl.hidden&&boardTab==='needs')renderBoard();},30000);
+
 function worldToNation(){go('region',V3(-0.9,0,-0.9),V3(-0.9,23,18),'Region 1 · 9 nations');}
 function nationToWorld(){go('world',V3(0,0,0),V3(0,1.2,3.5),'World');}
 
@@ -2181,7 +2206,7 @@ const shadowCatch=new THREE.Mesh(new THREE.PlaneGeometry(40,40),new THREE.Shadow
 const skyCol=new THREE.Color(0xbfe6f5),spaceCol=new THREE.Color(0x0e1a2b);
 controls.update();renderRes();if(location.search.includes('autodive'))setTimeout(()=>{const ax=LX(7.4),az=LZ(51.4);controls.target.set(ax,0.3,az);camera.position.set(ax,2.1,az+1);controls.update();},2600);
 if(location.search.includes('autorise'))setTimeout(()=>{camera.position.set(20,20,20);controls.update();},2600);
-window.nwo={camera,controls,br:{SHIPS,inspect,INSP,shipCard,NEEDSB,myStopped,get CT(){return CT;}},vis:{buildVisit,vCard,visitAct,get picks(){return vPicks;},get pat(){return vPat;}},get mode(){return mode;},get anim(){return anim;},get diving(){return diving;},dive:()=>diveToSector(),rise:()=>ascendToNation(),toSector:n=>toSector(n),sectorToProvince:()=>sectorToProvince(),sectorToHome:()=>sectorToHome(),homeToSector:()=>homeToSector(),battle:()=>startBattle({title:'Assault on the militia camp: Sector 30',enemy:'Militia camp',sector:30}),get B(){return BT;},step:n=>{for(let i=0;i<n;i++)battleTick(1/30);controls.update();renderer.render(scene,camera);},deploy:(t,z)=>{selUnit=t;battleTap(V3(-6,0,z));},rivalBattle:(key,defend)=>startBattle({title:RIVALS[key].title,rival:key,defend:!!defend,deck:defend?null:['gunner','launcher','tank','heli','strike'],sector:RIVALS[key].sector}),underAttack:()=>underAttack(),scout:k=>scoutCard(k),board:t=>openBoard(t),ships:()=>SHIPS,worldToNation:()=>worldToNation(),nationToWorld:()=>nationToWorld()};
+window.nwo={camera,controls,sh:{get needs(){return NEEDSB;},get ships(){return SHIPS;},prog},br:{SHIPS,inspect,INSP,shipCard,NEEDSB,myStopped,get CT(){return CT;}},vis:{buildVisit,vCard,visitAct,get picks(){return vPicks;},get pat(){return vPat;}},get mode(){return mode;},get anim(){return anim;},get diving(){return diving;},dive:()=>diveToSector(),rise:()=>ascendToNation(),toSector:n=>toSector(n),sectorToProvince:()=>sectorToProvince(),sectorToHome:()=>sectorToHome(),homeToSector:()=>homeToSector(),battle:()=>startBattle({title:'Assault on the militia camp: Sector 30',enemy:'Militia camp',sector:30}),get B(){return BT;},step:n=>{for(let i=0;i<n;i++)battleTick(1/30);controls.update();renderer.render(scene,camera);},deploy:(t,z)=>{selUnit=t;battleTap(V3(-6,0,z));},rivalBattle:(key,defend)=>startBattle({title:RIVALS[key].title,rival:key,defend:!!defend,deck:defend?null:['gunner','launcher','tank','heli','strike'],sector:RIVALS[key].sector}),underAttack:()=>underAttack(),scout:k=>scoutCard(k),board:t=>openBoard(t),ships:()=>SHIPS,worldToNation:()=>worldToNation(),nationToWorld:()=>nationToWorld()};
 {const h0=(location.hash||'').slice(1),mm={county:'county',province:'province',battle:'battle',nation:'region',home:'hq',world:'world'};if(mm[h0])setMode(mm[h0]);else{setMode('county');if(h0==='market')openMarket();if(h0==='politics')openPol();if(h0==='track'){setMode('province');setTimeout(()=>trackShip(SHIPS[0]),200);}
 if(h0==='briefing')setTimeout(openBrief,300);
 if(h0==='intro'||(!location.search.includes('shot')&&(h0===''||h0==='county'))){if(NET.token){goOnline().then(ok=>{if(ok)openBrief();else openIntro();});}else openIntro();}

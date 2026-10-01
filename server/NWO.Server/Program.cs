@@ -10,6 +10,8 @@ builder.Services.AddDbContext<GameDb>(o => o.UseSqlite($"Data Source={dbPath}"))
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<World>();
 builder.Services.AddSingleton<Market>();
+builder.Services.AddSingleton<Logistics>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Logistics>());
 builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
     .SetIsOriginAllowed(origin => origin.StartsWith("http://localhost") || origin.EndsWith(".vercel.app")
         || (Environment.GetEnvironmentVariable("NWO_ORIGINS") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Contains(origin))
