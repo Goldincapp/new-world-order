@@ -321,3 +321,119 @@ info: Microsoft.EntityFrameworkCore.Database.Command[20101]
       WHERE "c"."Channel" = @__channel_0
       ORDER BY "c"."Id" DESC
       LIMIT @__p_1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__hash_0='?' (Size = 64)], CommandType='Text', CommandTimeout='30']
+      SELECT "t"."Id", "t"."Cash", "t"."CreatedAt", "t"."Fuel", "t"."Gold", "t"."Grain", "t"."HomeSector", "t"."LastCollectAt", "t"."LastSeenAt", "t"."Name", "t"."Nation", "t"."Oil", "t"."Standing", "t"."TokenHash", "p0"."Id", "p0"."Building", "p0"."ClaimedAt", "p0"."I", "p0"."J", "p0"."OwnerId", "p0"."Resource", "p0"."Sector"
+      FROM (
+          SELECT "p"."Id", "p"."Cash", "p"."CreatedAt", "p"."Fuel", "p"."Gold", "p"."Grain", "p"."HomeSector", "p"."LastCollectAt", "p"."LastSeenAt", "p"."Name", "p"."Nation", "p"."Oil", "p"."Standing", "p"."TokenHash"
+          FROM "Players" AS "p"
+          WHERE "p"."TokenHash" = @__hash_0
+          LIMIT 1
+      ) AS "t"
+      LEFT JOIN "Parcels" AS "p0" ON "t"."Id" = "p0"."OwnerId"
+      ORDER BY "t"."Id"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='?' (DbType = Guid), @p0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      UPDATE "Players" SET "LastSeenAt" = @p0
+      WHERE "Id" = @p1
+      RETURNING 1;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__hash_0='?' (Size = 64)], CommandType='Text', CommandTimeout='30']
+      SELECT "p"."Id", "p"."Cash", "p"."CreatedAt", "p"."Fuel", "p"."Gold", "p"."Grain", "p"."HomeSector", "p"."LastCollectAt", "p"."LastSeenAt", "p"."Name", "p"."Nation", "p"."Oil", "p"."Standing", "p"."TokenHash"
+      FROM "Players" AS "p"
+      WHERE "p"."TokenHash" = @__hash_0
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__channel_0='?' (Size = 6), @__p_1='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."Channel", "c"."Name", "c"."Text", "c"."At"
+      FROM "Chat" AS "c"
+      WHERE "c"."Channel" = @__channel_0
+      ORDER BY "c"."Id" DESC
+      LIMIT @__p_1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__hash_0='?' (Size = 64)], CommandType='Text', CommandTimeout='30']
+      SELECT "t"."Id", "t"."Cash", "t"."CreatedAt", "t"."Fuel", "t"."Gold", "t"."Grain", "t"."HomeSector", "t"."LastCollectAt", "t"."LastSeenAt", "t"."Name", "t"."Nation", "t"."Oil", "t"."Standing", "t"."TokenHash", "p0"."Id", "p0"."Building", "p0"."ClaimedAt", "p0"."I", "p0"."J", "p0"."OwnerId", "p0"."Resource", "p0"."Sector"
+      FROM (
+          SELECT "p"."Id", "p"."Cash", "p"."CreatedAt", "p"."Fuel", "p"."Gold", "p"."Grain", "p"."HomeSector", "p"."LastCollectAt", "p"."LastSeenAt", "p"."Name", "p"."Nation", "p"."Oil", "p"."Standing", "p"."TokenHash"
+          FROM "Players" AS "p"
+          WHERE "p"."TokenHash" = @__hash_0
+          LIMIT 1
+      ) AS "t"
+      LEFT JOIN "Parcels" AS "p0" ON "t"."Id" = "p0"."OwnerId"
+      ORDER BY "t"."Id"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='?' (DbType = Guid), @p0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      UPDATE "Players" SET "LastSeenAt" = @p0
+      WHERE "Id" = @p1
+      RETURNING 1;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__hash_0='?' (Size = 64)], CommandType='Text', CommandTimeout='30']
+      SELECT "p"."Id", "p"."Cash", "p"."CreatedAt", "p"."Fuel", "p"."Gold", "p"."Grain", "p"."HomeSector", "p"."LastCollectAt", "p"."LastSeenAt", "p"."Name", "p"."Nation", "p"."Oil", "p"."Standing", "p"."TokenHash"
+      FROM "Players" AS "p"
+      WHERE "p"."TokenHash" = @__hash_0
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__channel_0='?' (Size = 6), @__p_1='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."Channel", "c"."Name", "c"."Text", "c"."At"
+      FROM "Chat" AS "c"
+      WHERE "c"."Channel" = @__channel_0
+      ORDER BY "c"."Id" DESC
+      LIMIT @__p_1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__hash_0='?' (Size = 64)], CommandType='Text', CommandTimeout='30']
+      SELECT "t"."Id", "t"."Cash", "t"."CreatedAt", "t"."Fuel", "t"."Gold", "t"."Grain", "t"."HomeSector", "t"."LastCollectAt", "t"."LastSeenAt", "t"."Name", "t"."Nation", "t"."Oil", "t"."Standing", "t"."TokenHash", "p0"."Id", "p0"."Building", "p0"."ClaimedAt", "p0"."I", "p0"."J", "p0"."OwnerId", "p0"."Resource", "p0"."Sector"
+      FROM (
+          SELECT "p"."Id", "p"."Cash", "p"."CreatedAt", "p"."Fuel", "p"."Gold", "p"."Grain", "p"."HomeSector", "p"."LastCollectAt", "p"."LastSeenAt", "p"."Name", "p"."Nation", "p"."Oil", "p"."Standing", "p"."TokenHash"
+          FROM "Players" AS "p"
+          WHERE "p"."TokenHash" = @__hash_0
+          LIMIT 1
+      ) AS "t"
+      LEFT JOIN "Parcels" AS "p0" ON "t"."Id" = "p0"."OwnerId"
+      ORDER BY "t"."Id"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='?' (DbType = Guid), @p0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      UPDATE "Players" SET "LastSeenAt" = @p0
+      WHERE "Id" = @p1
+      RETURNING 1;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__hash_0='?' (Size = 64)], CommandType='Text', CommandTimeout='30']
+      SELECT "p"."Id", "p"."Cash", "p"."CreatedAt", "p"."Fuel", "p"."Gold", "p"."Grain", "p"."HomeSector", "p"."LastCollectAt", "p"."LastSeenAt", "p"."Name", "p"."Nation", "p"."Oil", "p"."Standing", "p"."TokenHash"
+      FROM "Players" AS "p"
+      WHERE "p"."TokenHash" = @__hash_0
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__channel_0='?' (Size = 6), @__p_1='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."Channel", "c"."Name", "c"."Text", "c"."At"
+      FROM "Chat" AS "c"
+      WHERE "c"."Channel" = @__channel_0
+      ORDER BY "c"."Id" DESC
+      LIMIT @__p_1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__hash_0='?' (Size = 64)], CommandType='Text', CommandTimeout='30']
+      SELECT "t"."Id", "t"."Cash", "t"."CreatedAt", "t"."Fuel", "t"."Gold", "t"."Grain", "t"."HomeSector", "t"."LastCollectAt", "t"."LastSeenAt", "t"."Name", "t"."Nation", "t"."Oil", "t"."Standing", "t"."TokenHash", "p0"."Id", "p0"."Building", "p0"."ClaimedAt", "p0"."I", "p0"."J", "p0"."OwnerId", "p0"."Resource", "p0"."Sector"
+      FROM (
+          SELECT "p"."Id", "p"."Cash", "p"."CreatedAt", "p"."Fuel", "p"."Gold", "p"."Grain", "p"."HomeSector", "p"."LastCollectAt", "p"."LastSeenAt", "p"."Name", "p"."Nation", "p"."Oil", "p"."Standing", "p"."TokenHash"
+          FROM "Players" AS "p"
+          WHERE "p"."TokenHash" = @__hash_0
+          LIMIT 1
+      ) AS "t"
+      LEFT JOIN "Parcels" AS "p0" ON "t"."Id" = "p0"."OwnerId"
+      ORDER BY "t"."Id"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='?' (DbType = Guid), @p0='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      UPDATE "Players" SET "LastSeenAt" = @p0
+      WHERE "Id" = @p1
+      RETURNING 1;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__hash_0='?' (Size = 64)], CommandType='Text', CommandTimeout='30']
+      SELECT "p"."Id", "p"."Cash", "p"."CreatedAt", "p"."Fuel", "p"."Gold", "p"."Grain", "p"."HomeSector", "p"."LastCollectAt", "p"."LastSeenAt", "p"."Name", "p"."Nation", "p"."Oil", "p"."Standing", "p"."TokenHash"
+      FROM "Players" AS "p"
+      WHERE "p"."TokenHash" = @__hash_0
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@__channel_0='?' (Size = 6), @__p_1='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT "c"."Channel", "c"."Name", "c"."Text", "c"."At"
+      FROM "Chat" AS "c"
+      WHERE "c"."Channel" = @__channel_0
+      ORDER BY "c"."Id" DESC
+      LIMIT @__p_1
