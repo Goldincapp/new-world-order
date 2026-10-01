@@ -494,6 +494,7 @@ html.app .screen{border-radius:0}
 
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+<script src="flak.js"></script>
 <script src="nwo-geo.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <script type="module">
@@ -1872,7 +1873,10 @@ function visitAct(a){if(!vCur)return false;const v=vCur;
   if(window.NET&&NET.conn){NET.conn.invoke('StartCampAssault',n).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);go2();}).catch(er=>toast(er.message));return true;}go2();return true;}
  if(a==='Ambush patrol'&&v.kind==='patrol'){card.hidden=true;startBattle({title:'Ambush: '+v.P.F.name+' patrol · Sector '+vSec.n,enemy:v.P.F.name+' patrol',sector:vSec.n});return true;}
  if(a==='Track'&&v.kind==='patrol'){card.hidden=true;hint.hidden=false;vFollow=v.P.units[0];controls.autoRotate=false;toast('Tracking the patrol. Drag to stop');return true;}
- if(a==='Shoot down'&&v.kind==='drone'&&window.NET&&NET.conn){card.hidden=true;hint.hidden=false;vFollow=null;NET.conn.invoke('ShootDrone',vSec.n,v.D.idx).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);v.D.alive=false;toast(r.summary);}).catch(er=>toast(er.message));return true;}
+ if(a==='Shoot down'&&v.kind==='drone'&&window.NET&&NET.conn){card.hidden=true;hint.hidden=false;vFollow=null;const sec=vSec.n,D=v.D;
+  NET.conn.invoke('StartDroneHunt',sec,D.idx).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);
+   DroneHunt.open({sector:sec,onDone:won=>{if(!won){toast('The drone got away. Your flak shells are spent.');return;}NET.conn.invoke('ShootDrone',sec,D.idx).then(r2=>{if(!r2.ok){toast(r2.error);return;}applyMe(r2.player);D.alive=false;toast(r2.summary);}).catch(er=>toast(er.message));}});}).catch(er=>toast(er.message));return true;}
+ if(a==='Shoot down'&&v.kind==='drone'&&!v.hunted){card.hidden=true;DroneHunt.open({sector:vSec.n,onDone:won=>{if(won){v.hunted=true;visitAct('Shoot down');v.hunted=false;}else toast('The drone got away.');}});return true;}
  if(a==='Shoot down'&&v.kind==='drone'){card.hidden=true;hint.hidden=false;v.D.alive=false;vFollow=null;wanted=Math.min(3,wanted+1);ctRemember(-8,'Destroyed a Caretaker drone over Sector '+vSec.n,'chaos');res.cash+=180;renderRes(['cash']);
   toast('Drone down: +180 cash in salvage. Wanted level '+wanted);NEWS.unshift('A Caretaker drone was shot down over Sector '+vSec.n);return true;}
  if(a==='Track'&&v.kind==='drone'){card.hidden=true;hint.hidden=false;vFollow=v.D.g;controls.autoRotate=false;toast('Tracking the drone. Drag to stop');return true;}

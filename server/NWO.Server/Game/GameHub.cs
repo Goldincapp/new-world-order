@@ -78,6 +78,8 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<object> MyRecord() => caretaker.Record(Me.Id);
 
+    public Task<Caretaker.Result> StartDroneHunt(int sector, int idx) => caretaker.StartDroneHunt(Me.Id, sector, idx);
+
     public Task<Caretaker.Result> ShootDrone(int sector, int idx) => caretaker.ShootDrone(Me.Id, sector, idx);
 
     public Task<Caretaker.Result> StartCampAssault(int sector) => caretaker.StartCampAssault(Me.Id, sector);

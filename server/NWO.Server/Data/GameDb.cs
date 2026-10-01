@@ -41,6 +41,11 @@ public class Player
     public DateTime CampAssaultAt { get; set; }
     public DateTime LastCampClearAt { get; set; }
 
+    /// <summary>A drone hunt that has been paid for (flak shells loaded) and not yet finished.</summary>
+    public int DroneHuntSector { get; set; }
+    public int DroneHuntIdx { get; set; }
+    public DateTime DroneHuntAt { get; set; }
+
     /// <summary>The Caretaker's standing for this player, 0 to 100.</summary>
     public int Standing { get; set; } = 54;
 

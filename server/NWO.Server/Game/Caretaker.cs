@@ -118,6 +118,22 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
 
     public record Result(bool Ok, string? Error = null, object? Player = null, string? Summary = null);
 
+    /// <summary>Load flak shells to hunt a drone. The hunt itself is a short mini-game; only a win reported in time counts.</summary>
+    public Task<Result> StartDroneHunt(Guid playerId, int sector, int idx) => world.Locked(async db =>
+    {
+        var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
+        var d = await db.Drones.FirstOrDefaultAsync(x => x.Sector == sector && x.Idx == idx);
+        var now = DateTime.UtcNow;
+        if (d is null) return new Result(false, "There's no drone there.");
+        if (d.DownUntil > now) return new Result(false, "That drone is already down.");
+        if (me.Fuel < DroneAmmoFuel) return new Result(false, $"You need {DroneAmmoFuel:N0} fuel for flak shells.");
+        Ledger.Add(db, me, "fuel", -DroneAmmoFuel, $"Flak shells for a drone hunt over Sector {sector}");
+        me.DroneHuntSector = sector;
+        me.DroneHuntIdx = idx;
+        me.DroneHuntAt = now;
+        return new Result(true, Player: Dto.Me(me), Summary: "Flak loaded.");
+    });
+
     public async Task<Result> ShootDrone(Guid playerId, int sector, int idx)
     {
         object? ev = null;
@@ -126,10 +142,12 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
             var me = await db.Players.Include(p => p.Parcels).FirstAsync(p => p.Id == playerId);
             var d = await db.Drones.FirstOrDefaultAsync(x => x.Sector == sector && x.Idx == idx);
             var now = DateTime.UtcNow;
+            var huntAge = now - me.DroneHuntAt;
+            if (me.DroneHuntSector != sector || me.DroneHuntIdx != idx || huntAge > TimeSpan.FromSeconds(60) || huntAge < TimeSpan.FromSeconds(3))
+                return new Result(false, "That hunt isn't on record.");
+            me.DroneHuntSector = 0;
             if (d is null) return new Result(false, "There's no drone there.");
-            if (d.DownUntil > now) return new Result(false, "That drone is already down.");
-            if (me.Fuel < DroneAmmoFuel) return new Result(false, $"You need {DroneAmmoFuel:N0} fuel to fire on a drone.");
-            Ledger.Add(db, me, "fuel", -DroneAmmoFuel, $"Fired on a Caretaker drone over Sector {sector}");
+            if (d.DownUntil > now) return new Result(false, "Someone else brought it down first.");
             Ledger.Add(db, me, "cash", DroneSalvage, "Drone salvage");
             d.DownUntil = now + DroneRespawn;
             Remember(db, me, -8, "chaos", $"Destroyed a Caretaker drone over Sector {sector}");
