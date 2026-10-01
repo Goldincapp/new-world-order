@@ -99,13 +99,13 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
         return null;
     }
 
-    public Result Join(Guid playerId, string name)
+    public Result Join(Guid playerId, string name, double troopMult = 1, double damageMult = 1)
     {
         lock (gate)
         {
             if (!Active) return new(false, "The Sentinel isn't at the wall right now.");
             if (sim!.Fighters.Count >= 60 && !sim.Fighters.ContainsKey(playerId)) return new(false, "The siege line is full.");
-            sim.Join(playerId, name);
+            sim.Join(playerId, name, troopMult, damageMult);
             return new(true, State: sim.State(playerId));
         }
     }

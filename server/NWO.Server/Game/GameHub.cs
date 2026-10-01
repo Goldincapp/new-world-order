@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using NWO.Server.Data;
@@ -8,7 +9,7 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles, Siege siege) : Hub
+public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles, Siege siege, Research research) : Hub
 {
     record Conn(Guid Id, string Name, DateTime LastMsg, int Watching, int Visiting = 0);
 
@@ -114,6 +115,9 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<object> SiegeStatus() => siege.Status();
 
+    /// <summary>Start researching a tech in the home base's Research lab.</summary>
+    public Task<World.Result> StartResearch(string tech) => research.Start(Me.Id, tech);
+
     /// <summary>Dev tools: start a practice siege, optionally with bot allies.</summary>
     public async Task<Siege.Result> StartPracticeSiege(int bots)
     {
@@ -129,7 +133,8 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public async Task<Siege.Result> JoinSiege()
     {
         var me = Me;
-        var r = siege.Join(me.Id, me.Name);
+        var techs = (await db.Players.Where(p => p.Id == me.Id).Select(p => p.Techs).FirstOrDefaultAsync()) ?? "";
+        var r = siege.Join(me.Id, me.Name, techs.Contains("drill") ? 1.25 : 1, techs.Contains("engineers") ? 1.2 : 1);
         if (r.Ok) await Groups.AddToGroupAsync(Context.ConnectionId, Siege.Group);
         return r;
     }

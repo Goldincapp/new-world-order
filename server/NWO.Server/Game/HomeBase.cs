@@ -30,10 +30,10 @@ public static class HomeBase
         ["barracks"] = new("Barracks", 600, 2, 2, "cash", 0, "Trains and houses your troops", 2),
         ["warehouse"] = new("Warehouse", 500, 2, 2, "cash", 0, "+2 hours of storage before you must collect", 3),
         ["research"] = new("Research lab", 800, 2, 2, "cash", 0, "+5% to everything your land produces", 2),
-        ["crops"] = new("Crop plot", 300, 2, 2, "grain", 10, "Grows grain. Better on fertile ground", SuitAs: "farm", Field: true),
+        ["crops"] = new("Crop plot", 150, 1, 1, "grain", 5, "Grows grain. Better on fertile ground", SuitAs: "farm", Field: true),
         ["oilpump"] = new("Oil pump", 400, 1, 1, "oil", 6, "A small pump. Only pays on oil sands", SuitAs: "rig", Field: true),
         ["solar"] = new("Solar panel", 350, 1, 1, "power", 5, "Electricity. Best on open, sunny ground", SuitAs: "solar", Field: true),
-        ["workshop"] = new("Workshop", 500, 2, 1, "cash", 25, "Odd jobs and repairs for cash"),
+        ["workshop"] = new("Workshop", 500, 2, 2, "cash", 25, "Odd jobs and repairs for cash"),
         ["generator"] = new("Generator", 700, 1, 1, "fuel", 4, "Turns scrap into fuel", Field: true),
     };
 
@@ -111,7 +111,7 @@ public static class HomeBase
         return null;
     }
 
-    public static int MaxBuildings(Player p) => 4 + p.HqLevel * 3;
+    public static int MaxBuildings(Player p) => 4 + p.HqLevel * 3 + (Research.Has(p, "planning") ? 2 : 0);
 
     public static string? Move(GameDb db, Player p, List<HomeTile> tiles, long id, int x, int y, bool rotate)
     {

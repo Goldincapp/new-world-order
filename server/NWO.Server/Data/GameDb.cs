@@ -26,6 +26,10 @@ public class Player
     /// <summary>How far the home base walls reach (an index into HomeBase.Sizes).</summary>
     public int HomeLevel { get; set; }
     public int TutorialStep { get; set; }
+    /// <summary>Researched techs, comma-separated ids (see Research.Techs).</summary>
+    public string? Techs { get; set; }
+    public string? ResearchId { get; set; }
+    public DateTime? ResearchEndsAt { get; set; }
     public List<HomeTile> HomeTiles { get; set; } = new();
     /// <summary>Comma-separated buildings inside the home base walls, e.g. "garden,workshop".</summary>
     public string? HomeBuildings { get; set; }

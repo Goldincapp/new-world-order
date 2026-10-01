@@ -80,13 +80,16 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     var atWar = await Politics.WarBetween(db, me.Nation, parcel.Owner.Nation) is not null;
                     if (Region2.Protected(parcel, now)) return new Result(false, $"{parcel.Owner.Name} only just took this land. It's protected for {(int)Math.Ceiling(((parcel.ClaimedAt ?? now) + Region2.Protection - now).TotalMinutes)} more minutes.");
                     fuel = atWar ? Region2.SeizeFuel / 2 : Region2.SeizeFuel;
-                    var g = Region2.Garrison(parcel.Owner, parcel);
+                    var g = Region2.Garrison(parcel.Owner, parcel, Research.Has(me, "engineers") ? 0.8 : 1);
                     sim = new BattleSim($"Seizing {parcel.Owner.Name}'s land · Sector {sector}", g.Name, g, deck, Random.Shared.Next());
                     target = (pi, pj, parcel.Owner.Id);
                     break;
                 default: return new Result(false, "Unknown battle.");
             }
             if (me.Fuel < fuel) return new Result(false, $"This needs {fuel:N0} fuel for the trucks.");
+            // War research: bigger barracks, air support, engineers who thin out garrisons
+            if (Research.Has(me, "drill")) foreach (var k in sim!.Troops.Keys.ToList()) if (k != "strike") sim.Troops[k] = (int)Math.Ceiling(sim.Troops[k] * 1.25);
+            if (Research.Has(me, "air")) { sim!.Troops["strike"]++; sim.Troops["heli"] = sim.Troops.GetValueOrDefault("heli") + 1; }
             Ledger.Add(db, me, "fuel", -fuel, $"Fuel for a battle: {sim.Title}");
             return new Result(true, Player: Dto.Me(me));
         });

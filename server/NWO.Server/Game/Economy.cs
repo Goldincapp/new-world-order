@@ -38,6 +38,7 @@ public static class Economy
         ["mine"] = new("Mine", 900, 2, "cash", 40),
         ["warehouse"] = new("Warehouse", 1000, 3, "cash", 10),
         ["solar"] = new("Solar farm", 900, 2, "power", 12),
+        ["wind"] = new("Wind turbine", 1400, 2, "power", 20),
     };
 
     /// <summary>
@@ -89,9 +90,14 @@ public static class Economy
             foreach (var b in BuildingsOn(parcel))
             {
                 var t = Buildings[b];
-                r[t.Res] += t.PerHour * Suit(b, land) * rich;
+                var boost = b == "housing" && Research.Has(p, "planning") ? 1.4 : 1;
+                r[t.Res] += t.PerHour * Suit(b, land) * rich * boost;
             }
         }
+        if (Research.Has(p, "irrigation")) r["grain"] *= 1.25;
+        if (Research.Has(p, "drilling")) r["oil"] *= 1.25;
+        if (Research.Has(p, "grid")) r["power"] *= 1.25;
+        if (Research.Has(p, "refining")) r["fuel"] *= 1.5;
         var labs = Math.Min(2, p.HomeTiles.Count(t => t.Type == "research"));
         if (labs > 0) foreach (var k in r.Keys.ToList()) r[k] *= 1 + 0.05 * labs;
         return r;

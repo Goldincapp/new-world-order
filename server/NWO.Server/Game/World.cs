@@ -81,6 +81,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
     {
         if (!Economy.Buildings.TryGetValue(type, out var t)) return "Unknown building.";
         if (parcel is null || parcel.OwnerId != me.Id) return "You can only build on your own parcels.";
+        if (Research.Unlocking(type) is { } tech && !Research.Has(me, tech.Id)) return $"Research {tech.Name} in your Research lab to build a {t.Name.ToLower()}.";
         if (Economy.SlotsUsed(parcel) + t.Slots > Economy.SlotsPerParcel) return "Not enough free slots on this parcel.";
         if (me.Cash < t.Cost) return $"Not enough cash to build a {t.Name.ToLower()}.";
         Economy.Settle(db, me, now);

@@ -53,7 +53,7 @@ public static class Region2
     public static bool Protected(Parcel p, DateTime now) => p.ClaimedAt + Protection > now;
 
     /// <summary>The garrison defending a player's Ashlands parcel: bigger for owners with barracks and built-up land.</summary>
-    public static BattleSim.Rival Garrison(Player owner, Parcel parcel)
+    public static BattleSim.Rival Garrison(Player owner, Parcel parcel, double shrink = 1)
     {
         var barracks = owner.HomeTiles.Count(t => t.Type == "barracks");
         var built = Economy.BuildingsOn(parcel).Count();
@@ -65,6 +65,7 @@ public static class Region2
             ["tank"] = 1 + barracks,
             ["heli"] = barracks >= 2 ? 1 : 0,
         };
+        if (shrink < 1) foreach (var k in g.Keys.ToList()) g[k] = (int)Math.Floor(g[k] * shrink);
         return new BattleSim.Rival($"{owner.Name}'s garrison", owner.Name, owner.Nation, "counter", g, 2 + barracks, 11 + 2 * barracks, barracks >= 1);
     }
 

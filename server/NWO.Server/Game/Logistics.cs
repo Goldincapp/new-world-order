@@ -294,7 +294,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
                     s.Checked = true;
                     // Every live drone over the destination makes the checkpoint more alert.
                     var drones = await Caretaker.DronesAliveOver(db, s.To, now);
-                    if (Rng.NextDouble() < Math.Min(0.9, CheckpointChance * Caretaker.InspectionRisk(owner) * (1 + 0.25 * drones)))
+                    if (Rng.NextDouble() < Math.Min(0.9, CheckpointChance * Caretaker.InspectionRisk(owner) * (1 + 0.25 * drones) * (Research.Has(owner, "channels") ? 0.7 : 1)))
                     {
                         var by = new[] { "Customs · Aurelia", "Caretaker checkpoint", "Kestrel", "Nyx" }[Rng.Next(4)];
                         if (s.Envelope > 0)
@@ -358,10 +358,11 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         s.Status = "arrived";
         var tax = s.Legal ? Math.Round(s.Reward * nation.TaxRate) : 0;
         nation.Treasury += tax;
-        var fee = s.Legal ? Math.Round(s.Reward * CaretakerFee) : 0;
+        var feeRate = Research.Has(owner, "haulage") ? CaretakerFee / 2 : CaretakerFee;
+        var fee = s.Legal ? Math.Round(s.Reward * feeRate) : 0;
         Ledger.Add(db, owner, "cash", s.Reward, $"Delivered {s.Qty:N0} {s.Resource} to Sector {s.To}");
         if (tax > 0) Ledger.Add(db, owner, "cash", -tax, $"{nation.Name} delivery tax ({nation.TaxRate:P0})");
-        if (fee > 0) Ledger.Add(db, owner, "cash", -fee, "Caretaker transit fee (5%)");
+        if (fee > 0) Ledger.Add(db, owner, "cash", -fee, $"Caretaker transit fee ({feeRate:P1})");
         if (s.Envelope > 0) { Ledger.Add(db, owner, "cash", s.Envelope, "Envelope returned unopened"); }
         var env = s.Envelope;
         s.Envelope = 0;

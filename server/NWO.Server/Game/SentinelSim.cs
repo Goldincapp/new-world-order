@@ -36,6 +36,8 @@ public class SentinelSim
         public Dictionary<string, int> Troops = new(BattleSim.StartingTroops);
         public double Damage, RelayDamage; public int Drones, Relays, Deployed;
         public double LastActive, LastHitAt = -99;
+        /// <summary>From research: more troops each resupply, more damage to the Sentinel.</summary>
+        public double TroopMult = 1, DamageMult = 1;
     }
 
     public readonly Dictionary<string, double> LineDamage = new();
@@ -77,11 +79,12 @@ public class SentinelSim
         for (var i = 0; i < 4; i++) Relays.Add(new Relay { Id = ++NextId, X = phase == 1 ? 6 : 4.5, Z = zs[i], Hp = hp, Max = hp, Pair = phase == 1 ? 0 : (i < 2 ? 1 : 2) });
     }
 
-    public Fighter Join(Guid id, string name)
+    public Fighter Join(Guid id, string name, double troopMult = 1, double damageMult = 1)
     {
         if (!Fighters.TryGetValue(id, out var f))
         {
-            Fighters[id] = f = new Fighter { Id = id, Name = name };
+            Fighters[id] = f = new Fighter { Id = id, Name = name, TroopMult = troopMult, DamageMult = damageMult };
+            if (troopMult != 1) foreach (var k in f.Troops.Keys.ToList()) f.Troops[k] = (int)Math.Ceiling(f.Troops[k] * troopMult);
         }
         f.LastActive = T;
         return f;
@@ -150,7 +153,7 @@ public class SentinelSim
     {
         if (Shielded) dmg *= ShieldedMult;
         if (VentOpen) dmg *= VentMult;
-        if (by is not null) by.LastHitAt = T;
+        if (by is not null) { by.LastHitAt = T; dmg *= by.DamageMult; }
         dmg *= ArmorBreak;
         Hp -= dmg;
         lastHitAt = T;
@@ -365,6 +368,6 @@ public class SentinelSim
     public void Reinforce()
     {
         foreach (var f in Fighters.Values)
-            foreach (var k in BattleSim.StartingTroops.Keys) f.Troops[k] = BattleSim.StartingTroops[k];
+            foreach (var k in BattleSim.StartingTroops.Keys) f.Troops[k] = (int)Math.Ceiling(BattleSim.StartingTroops[k] * f.TroopMult);
     }
 }

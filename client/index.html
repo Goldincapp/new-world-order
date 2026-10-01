@@ -301,6 +301,16 @@ html.app .screen{border-radius:0}
 .siegewarn{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);z-index:6;font:800 calc(6*var(--u))/1.1 'Baloo 2',sans-serif;color:#ff5a4a;text-shadow:0 0 calc(3*var(--u)) rgba(255,60,40,.8);pointer-events:none;text-align:center;opacity:0;transition:opacity .25s}
 .siegewarn.on{opacity:1}.empflash{position:absolute;inset:0;z-index:5;background:radial-gradient(circle,rgba(111,227,255,.0),rgba(111,227,255,.35));pointer-events:none;opacity:0;transition:opacity .4s}.empflash.on{opacity:1}
 .tutbar{position:absolute;left:50%;transform:translateX(-50%);top:calc(11*var(--u));z-index:6;max-width:min(92cqw,calc(120*var(--u)));background:rgba(10,12,16,.92);border:1px solid #c9a24a;border-radius:calc(2*var(--u));padding:calc(1.4*var(--u)) calc(2.4*var(--u));color:#e8e2d4;font:500 calc(2.5*var(--u))/1.4 system-ui,sans-serif;display:flex;gap:calc(2*var(--u));align-items:center;box-shadow:0 0 calc(3*var(--u)) rgba(201,162,74,.3)}
+.techEl{position:absolute;inset:calc(6*var(--u)) calc(4*var(--u)) calc(14*var(--u));z-index:20;background:#f7f3ea;color:#2a2a2a;border-radius:calc(2.4*var(--u));padding:calc(2.4*var(--u)) calc(3*var(--u));overflow-y:auto;font:500 calc(2.3*var(--u))/1.35 system-ui,sans-serif;box-shadow:0 calc(1*var(--u)) calc(5*var(--u)) rgba(0,0,0,.5)}
+.techEl h3{margin:0 0 .2em;font:800 calc(3.4*var(--u))/1.1 'Baloo 2',sans-serif}.techEl .note{color:#7a705e;margin:0 0 .6em}.techEl .x{position:absolute;top:calc(1.6*var(--u));right:calc(1.6*var(--u));background:none;border:0;cursor:pointer;color:#555}
+.techNow{background:#2a2a2a;color:#ffd77a;border-radius:.6em;padding:.45em .8em;margin:0 0 .7em;display:flex;gap:.4em;align-items:center}
+.techGrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:calc(1.4*var(--u))}
+.techCol{display:flex;flex-direction:column;gap:calc(1*var(--u))}.techHead{display:flex;flex-direction:column;align-items:flex-start;gap:.1em}.techHead .ms{color:#c9a24a}.techHead small{color:#8a8272;font-size:.85em}
+.techNode{border:1px solid #ddd3bf;border-radius:.7em;padding:.5em .6em;background:#fff;display:flex;flex-direction:column;gap:.25em}
+.techNode .tn{font-weight:700}.techNode .te{color:#5a5448;font-size:.92em}.techNode .tc{color:#8a7440;font-size:.85em}.techNode .tb{color:#a04a3a;font-size:.82em}
+.techNode button{align-self:flex-start;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:.3em .9em;font:700 1em/1 'Baloo 2',sans-serif;cursor:pointer}
+.techNode.done{background:#eaf3e2;border-color:#9cc48a}.techNode.busy{background:#fff6dc;border-color:#e0bf5a}.techNode.locked{opacity:.62}
+@media (orientation:portrait){html.app .techEl{inset:calc(10*var(--u)) 2.5cqw calc(16*var(--u));font-size:calc(3.3*var(--u))}html.app .techGrid{grid-template-columns:1fr}}
 .tutbar b{font:800 calc(2.6*var(--u))/1 'Baloo 2',sans-serif;color:#c9a24a;white-space:nowrap}.tutbar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:calc(1.2*var(--u)) calc(2.4*var(--u));cursor:pointer;white-space:nowrap}
 .placebar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16*var(--u));z-index:6;background:rgba(10,12,16,.92);border:1px solid rgba(255,255,255,.15);border-radius:99px;padding:calc(1*var(--u));display:flex;gap:calc(1*var(--u));align-items:center;color:#e8e2d4;font:600 calc(2.4*var(--u))/1 system-ui,sans-serif}
 .placebar span{padding:0 calc(1.4*var(--u))}.placebar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;border:0;border-radius:99px;padding:calc(1.3*var(--u)) calc(2.4*var(--u));cursor:pointer;background:#2a2f36;color:#e8e2d4}.placebar button.go{background:#c9a24a;color:#1a1408}
@@ -454,6 +464,7 @@ html.app .screen{border-radius:0}
         </div>
         <div class="toast" id="toast"></div>
         <div class="tutbar" id="tutBar" hidden></div>
+        <div class="techEl" id="techEl" hidden></div>
         <div class="placebar" id="placeBar" hidden></div>
         <button class="siegebar" id="siegeBar" hidden></button>
         <div class="siegepanel" id="siegePanel" hidden></div>
@@ -1221,13 +1232,15 @@ const resLayer=new THREE.Group();resLayer.visible=false;county.add(resLayer);
  Object.values(cells).forEach(c=>{if(c.type==='water')return;const R=resOf(c),col=RC[R.t];if(!col)return;const m=new THREE.Mesh(dG,new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:0.3+R.rich*0.12,depthWrite:false}));m.rotation.x=-Math.PI/2;m.position.set(c.x,c.top+0.03,c.z);m.renderOrder=6;resLayer.add(m);});}
 const built={};
 const BLD={housing:{name:'Housing',cost:800,slots:2,jobs:0,eff:'+150 homes, more tax'},farm:{name:'Farm',cost:600,slots:3,jobs:40,eff:'Grain, +40 jobs'},rig:{name:'Oil rig',cost:1500,slots:2,jobs:30,eff:'Oil, +30 jobs',need:'Oil'},
- sawmill:{name:'Sawmill',cost:700,slots:2,jobs:35,eff:'Timber, +35 jobs',need:'Timber'},mine:{name:'Mine',cost:900,slots:2,jobs:45,eff:'Ore and stone, +45 jobs',need:['Iron ore','Stone']},warehouse:{name:'Warehouse',cost:1000,slots:3,jobs:20,eff:'+5,000 storage, +20 jobs'}};
+ sawmill:{name:'Sawmill',cost:700,slots:2,jobs:35,eff:'Timber, +35 jobs',need:'Timber'},mine:{name:'Mine',cost:900,slots:2,jobs:45,eff:'Ore and stone, +45 jobs',need:['Iron ore','Stone']},warehouse:{name:'Warehouse',cost:1000,slots:3,jobs:20,eff:'+5,000 storage, +20 jobs'},
+ solar:{name:'Solar farm',cost:900,slots:2,jobs:5,eff:'Power'},wind:{name:'Wind turbine',cost:1400,slots:2,jobs:5,eff:'Power'}};
 let buildTarget=null;
 function freeSlots(c){const k=c.i+','+c.j,fm={pump:2,tanks:4,tank:2,refinery:6,house:2,capitol:6,windmill:2};let u=(c.type==='field'?4:(fm[c.feat]||0));(built[k]||[]).forEach(t=>u+=BLD[t].slots);return 9-u;}
 function openBuild(c){if(!c)return;buildTarget=c;const R=resOf(c),free=freeSlots(c);
  if(window.NET&&NET.me&&NET.me.buildings&&c.code){const WORD={cash:'cash',oil:'oil',grain:'grain',fuel:'fuel'},suit=(t)=>((NET.me.suitability[t]||{})[c.code]??1);
-  const rows=NET.me.buildings.map(b=>{const f=suit(b.type),out=Math.round(b.perHour*f);return [b.name+' ('+b.slots+' slots)',(out?'+'+out+' '+WORD[b.res]+'/h here':'storage')+(f>=1.2?' · ideal ground':f<0.5?' · poor ground':'')];});
-  showCard('Build on this parcel','Free slots: '+free+' of 9 · '+(({ba:'barren wasteland',sc:'scrubland',gr:'grassland',fe:'fertile farmland',ro:'rocky ground',oi:'oil sands',ru:'old ruins'})[c.code]||'land')+': geography decides what pays',rows,NET.me.buildings.map(b=>b.name+' · '+fmt(b.cost)+' cash'));return;}
+  const WORD2=Object.assign({power:'power'},WORD);
+  const rows=NET.me.buildings.map(b=>{const f=suit(b.type),out=Math.round(b.perHour*f);if(b.locked)return [b.name+' (locked)','Research '+b.tech+' to unlock'];return [b.name+' ('+b.slots+' slots)',(out?'+'+out+' '+WORD2[b.res]+'/h here':'storage')+(f>=1.2?' · ideal ground':f<0.5?' · poor ground':'')];});
+  showCard('Build on this parcel','Free slots: '+free+' of 9 · '+(({ba:'barren wasteland',sc:'scrubland',gr:'grassland',fe:'fertile farmland',ro:'rocky ground',oi:'oil sands',ru:'old ruins'})[c.code]||'land')+': geography decides what pays',rows,NET.me.buildings.filter(b=>!b.locked).map(b=>b.name+' · '+fmt(b.cost)+' cash').concat(NET.me.buildings.some(b=>b.locked)?['Research']:[]));return;}
  const opts=Object.entries(BLD).filter(([t,b])=>!b.need||(Array.isArray(b.need)?b.need.includes(R.t):b.need===R.t));
  showCard('Build on Parcel #'+(48000+c.i*14+c.j),'Free slots: '+free+' of 9 · resource: '+R.t,opts.map(([t,b])=>[b.name+' ('+b.slots+' slots)',b.eff]),opts.map(([t,b])=>b.name+' · '+b.cost.toLocaleString('en-US')+' cash'));}
 const sec={pop:1840,cap:1500,jobs:1120,fuel:62};let contractOpen=true,fuelWarned=false;
@@ -1240,7 +1253,7 @@ function scaffold(c){const g=new THREE.Group();g.position.set(c.x,c.top,c.z);cou
  [[-0.3,-0.3],[0.3,-0.3],[-0.3,0.3],[0.3,0.3]].forEach(q=>{const m=new THREE.Mesh(boxG,pm);m.position.set(q[0],0.3,q[1]);m.scale.set(0.03,0.6,0.03);g.add(m);});
  [0.2,0.45].forEach(y=>[[0,-0.3,0.63,0.03],[0,0.3,0.63,0.03],[-0.3,0,0.03,0.63],[0.3,0,0.03,0.63]].forEach(q=>{const m=new THREE.Mesh(boxG,pm);m.position.set(q[0],y,q[1]);m.scale.set(q[2],0.03,q[3]);g.add(m);}));
  const l=label('Building...','#ffc933',c.x,c.top+1.1,c.z,0.8,county,true);return {g,l};}
-const PARCEL_MODEL={housing:n=>n%2?'house1':'house2',warehouse:()=>'warehouse',sawmill:()=>'workshop',solar:()=>'solar',mine:()=>'chimney'};
+const PARCEL_MODEL={wind:()=>'windmill',housing:n=>n%2?'house1':'house2',warehouse:()=>'warehouse',sawmill:()=>'workshop',solar:()=>'solar',mine:()=>'chimney'};
 function placeModel(c,t,n){const g=new THREE.Group();const ox=[[-0.25,-0.25],[0.25,-0.25],[-0.25,0.25],[0.25,0.25]][n%4];g.position.set(c.x+ox[0],c.top,c.z+ox[1]);county.add(g);
  const pk=PARCEL_MODEL[t]&&PARCEL_MODEL[t](n);if(pk&&MODELS[pk]){const m=model(pk,0.44,0.44);m.rotation.y=(n%4)*Math.PI/2;g.add(m);return;}
  if(t==='farm'&&MODELS.wheat){for(let a=0;a<2;a++)for(let b=0;b<2;b++){const m=model('wheat',0.2,0.2);m.position.set(-0.11+a*0.22,0,-0.11+b*0.22);g.add(m);}return;}
@@ -1699,6 +1712,7 @@ function renderBriefNet(){const me=NET.me,h=me.home||{},pend=me.pending||{},rate
  briefEl.querySelector('.bh .note').textContent=(NET.away?'You were away '+NET.away+' · ':'')+me.nation+' · Sector '+me.homeSector;
  const items=[];const t=h.tutorial;
  if(t)items.push(['school','Tutorial step '+t.step+' of '+t.of+': '+t.text,'warn']);
+ if(me.research){if(me.research.current)items.push(['science','Researching '+me.research.current.name+' · '+timeLeft(me.research.current.endsAt),'']);else if(me.research.labs)items.push(['science','Your Research lab is idle. Tap it in your base to pick a tech','warn']);}
  if(me.ration&&me.ration.ready)items.push(['inventory_2','The Caretaker left your ration crate: collect it below','good']);
  items.push(['factory','Your land makes '+fmtN(rate.cash||0)+' cash, '+fmtN(rate.oil||0)+' oil, '+fmtN(rate.grain||0)+' grain and '+fmtN(rate.power||0)+' power an hour','']);
  const sv=NET.sentinel;if(sv){if(sv.active)items.push(['swords','The Sentinel is attacking now: tap the red bar to join','warn']);else if(!sv.region2Open&&sv.nextAt){const ms=new Date(sv.nextAt)-Date.now();items.push(['skull','The Sentinel arrives in '+(ms>864e5?Math.floor(ms/864e5)+' days':Math.max(1,Math.round(ms/36e5))+' hours')+'. It takes 10 to 15 players to beat','']);}else if(sv.region2Open)items.push(['flag','Region 2 is open','good']);}
@@ -2174,9 +2188,9 @@ function applyMe(p){NET.me=p;setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBas
 function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?h+'h '+m+'m':m+'m';}
 async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
- c.on('chat',m=>{if(m.channel==='global'&&(m.name==='News'||m.name==='Caretaker')){NET.news=(NET.news||[]).concat([m.text]).slice(-8);}if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
+ c.on('research',m=>{if(m.player)applyMe(m.player);toast('Research complete: '+m.done);renderTech();});c.on('chat',m=>{if(m.channel==='global'&&(m.name==='News'||m.name==='Caretaker')){NET.news=(NET.news||[]).concat([m.text]).slice(-8);}if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
  c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.on('record',onRecord);c.on('drone',onDrone);c.on('camp',onCamp);c.on('battle',onBattleState);c.on('siege',onSiege);c.on('siegeMe',onSiegeMe);c.on('siegeEnd',onSiegeEnd);c.on('siegeStart',e=>{NET.practice=!!(e&&e.practice);showSiegeBar(null);});c.on('battleEnd',onBattleEnd);c.on('politics',()=>{if(!polEl.hidden&&document.activeElement!==$('polSpeech'))refreshPol();else NET.pol=null;});c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
- try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({pol:()=>$('nPolitics').click(),province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
+ try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({tech:()=>openTech(),pol:()=>$('nPolitics').click(),province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
   const hist=await api('/chat/global');NET.news=hist.filter(m=>m.name==='News'||m.name==='Caretaker').map(m=>m.text).slice(-8);hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
 async function goOnline(){try{const r=await api('/me');applyMe(r.player);const a=briefEl.querySelector('.bh .note');if(r.awaySeconds>60)NET.away=awayText(r.awaySeconds);api('/sentinel').then(s=>{NET.sentinel=s;}).catch(()=>{});connectLive();return true;}
  catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
@@ -2562,7 +2576,7 @@ function homeFootprint(k,rot){return rot?[k.h,k.w]:[k.w,k.h];}
 const MODEL_FILES={hq:'commercial/building-n',barracks:'industrial/building-t',warehouse:'industrial/building-s',research:'industrial/building-q',workshop:'industrial/building-h',
  generator:'industrial/detail-tank',solar:'industrial/solar-panel-landscape',chimney:'industrial/chimney-small',house1:'suburban/building-type-a',house2:'suburban/building-type-c',
  pine:'nature/tree_pineDefaultA',pine2:'nature/tree_pineRoundC',tree:'nature/tree_default',oak:'nature/tree_oak',rock:'nature/rock_largeA',rock2:'nature/rock_smallC',bush:'nature/plant_bushLarge',wheat:'nature/crops_wheatStageB',corn:'nature/crops_cornStageD',
- truckBox:'car/delivery',truckFlat:'car/truck-flat',tankL:'industrial/detail-tank-large',wallN:'castle/wall-narrow',uTank:'units/tank',uTech:'units/technical',uHeli:'units/heli',uSoldier:'units/soldier',wallGate:'castle/wall-narrow-gate',towerBase:'castle/tower-square-base',towerTop:'castle/tower-square-top',towerMid:'castle/tower-square-mid-windows',pennant:'castle/flag-pennant',
+ truckBox:'car/delivery',truckFlat:'car/truck-flat',tankL:'industrial/detail-tank-large',windmill:'industrial/windmill',wallN:'castle/wall-narrow',uTank:'units/tank',uTech:'units/technical',uHeli:'units/heli',uSoldier:'units/soldier',wallGate:'castle/wall-narrow-gate',towerBase:'castle/tower-square-base',towerTop:'castle/tower-square-top',towerMid:'castle/tower-square-mid-windows',pennant:'castle/flag-pennant',
  cityA:'commercial/building-a',cityC:'commercial/building-c',cityE:'commercial/building-e',cityH:'commercial/building-h',cityJ:'commercial/building-j',tower:'commercial/building-skyscraper-a'};
 const MODELS={};
 (async()=>{const L=new GLTFLoader();await Promise.all(Object.entries(MODEL_FILES).map(async([k,p])=>{try{const g=await L.loadAsync('models/'+p+'.glb');g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});g.scene.updateMatrixWorld(true);MODELS[k]=g.scene;}catch(e){console.warn('model failed',k,e);}}));
@@ -2654,7 +2668,7 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  h.tiles.forEach(t=>{const k=homeKindOf(t.type);const [w,d]=homeFootprint(k,t.rotated);const [x,z]=HG(t.x+w/2,t.y+d/2);const m=homeModel2(t.type,w,d);m.position.set(x,0.04,z);if(t.rotated)m.rotation.y=Math.PI/2;m.userData.tile=t;HB.group.add(m);HB.meshes.set(t.id,m);});
  P=P0;renderTutorial();}
 /* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
-setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden)?'':'hidden';},400);
+setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden)?'':'hidden';},400);
 function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
  b.hidden=false;const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>startPlacing(k.type),900);}else startPlacing(k.type);}else{openBrief();}};}
@@ -2679,7 +2693,24 @@ function homePointer(ray){const h=NET.me.home;
  const objs=[...HB.meshes.values()];const hqG=pickHQ.find(o=>o.userData.info==='hq');if(hqG)objs.push(hqG);const hit=ray.intersectObjects(objs,true)[0];
  if(hit){let o=hit.object;while(o&&!o.userData.tile&&o.userData.info!=='hq')o=o.parent;if(o&&o.userData.info==='hq'){hqCard();return;}if(o&&o.userData.tile){tileCard(o.userData.tile);return;}}
  const g=ray.intersectObject(HB.ground,false)[0];if(g){const gx=g.point.x+h.grid/2,gy=g.point.z+h.grid/2;const Y=h.yard||0;if(gx<h.lo-Y||gy<h.lo-Y||gx>h.hi+Y||gy>h.hi+Y){expandCard();return;}homeBuildMenu(!(gx>=h.lo&&gy>=h.lo&&gx<=h.hi&&gy<=h.hi));}}
-function tileCard(t){const k=homeKindOf(t.type);showCard(k.name,'Home base · '+k.w+'x'+k.h,[['Does',k.blurb],['Makes',k.perHour?'+'+k.perHour+' '+k.res+'/h here':'Bonus to your base']],['Move','Close']);HB.cardTile=t;}
+function tileCard(t){const k=homeKindOf(t.type),rs=NET.me.research;const rows=[['Does',k.blurb],['Makes',k.perHour?'+'+k.perHour+' '+k.res+'/h here':'Bonus to your base']];
+ if(t.type==='research'&&rs)rows.push(['Researching',rs.current?rs.current.name+' · '+timeLeft(rs.current.endsAt):'Nothing. Pick a tech']);
+ showCard(k.name,'Home base · '+k.w+'x'+k.h,rows,t.type==='research'?['Research','Move','Close']:['Move','Close']);HB.cardTile=t;}
+/* ---------- The tech tree ---------- */
+function openTech(){const rs=NET.me&&NET.me.research;if(!rs){toast('Research is not available');return;}card.hidden=true;const el=$('techEl');el.hidden=false;renderTech();}
+function renderTech(){const rs=NET.me.research,el=$('techEl');if(el.hidden)return;
+ const ic={energy:'bolt',people:'groups',war:'swords',industry:'factory',trade:'local_shipping'};
+ let H='<button class="x" id="techX" aria-label="Close research"><span class="ms">close</span></button><h3>Research lab</h3><p class="note">'+(rs.labs?rs.labs+' lab'+(rs.labs>1?'s':'')+' · each extra lab researches 25% faster':'Build a Research lab in your base to start researching')+' · Specialise: every tech you own in other branches makes the next one 15% dearer</p>';
+ if(rs.current)H+='<div class="techNow"><span class="ms">science</span> Researching <b>'+esc(rs.current.name)+'</b> · '+timeLeft(rs.current.endsAt)+'</div>';
+ H+='<div class="techGrid">'+rs.branches.map(b=>'<div class="techCol"><div class="techHead"><span class="ms">'+ic[b.id]+'</span><b>'+esc(b.name)+'</b><small>'+esc(b.blurb)+' · '+b.owned+'/3</small></div>'+b.techs.map(t=>{
+   const st=t.done?'done':t.researching?'busy':t.can?'open':'locked';
+   return '<div class="techNode '+st+'"><div class="tn">Tier '+t.tier+' · '+esc(t.name)+'</div><div class="te">'+esc(t.effect)+'</div>'+
+    (t.done?'<div class="tc">Researched</div>':t.researching?'<div class="tc">In progress · '+timeLeft(rs.current.endsAt)+'</div>':
+    '<div class="tc">'+fmt(t.cash)+' cash'+(t.gold?' · '+t.gold+' gold':'')+' · '+(t.minutes>=60?(t.minutes/60).toFixed(t.minutes%60?1:0)+' h':Math.max(1,Math.round(t.minutes))+' min')+'</div>'+
+    (t.can?'<button data-tech="'+t.id+'">Research</button>':'<div class="tb">'+esc(t.blocked||'')+'</div>'))+'</div>';}).join('')+'</div>').join('')+'</div>';
+ el.innerHTML=H;$('techX').onclick=()=>{el.hidden=true;hint.hidden=false;};
+ el.querySelectorAll('[data-tech]').forEach(b=>b.onclick=()=>NET.conn.invoke('StartResearch',b.dataset.tech).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Research started');renderTech();}).catch(er=>toast(er.message)));}
+setInterval(()=>{const el=$('techEl');if(el&&!el.hidden&&NET.me&&NET.me.research&&NET.me.research.current)renderTech();},30000);
 function hqCard(){current=null;const h=NET.me.home;showCard('Headquarters','Level '+h.hqLevel+' · '+NET.me.name+'\'s home base',[['Buildings',h.tiles.length+' of '+h.maxBuildings],['Base size',(h.hi-h.lo)+'x'+(h.hi-h.lo)],['Upgrade','Level '+(h.hqLevel+1)+' · '+fmt(h.upgradeCost)+' cash'+(h.hqLevel>=2?' · '+h.hqLevel*15+' power':'')],['Expansion',h.expand?h.expand.size+'x'+h.expand.size+' · '+fmt(h.expand.cash)+' cash, '+h.expand.power+' power · HQ Lv '+h.expand.needHq:'Fully expanded']],['Build','Upgrade HQ','Expand base','The Sentinel','The Ashlands','Start over']);}
 function homeBuildMenu(yard){const h=NET.me.home,ks=yard?h.kinds.filter(k=>k.field):h.kinds;showCard(yard?'Build in the yard':'Build at home',(h.maxBuildings-h.tiles.length)+' building slots left · '+(yard?'fields, pumps and panels can go outside the walls':'pick, then tap where it goes'),ks.map(k=>[k.name+' ('+k.w+'x'+k.h+')',(k.perHour?'+'+k.perHour+' '+k.res+'/h':k.blurb)+' · '+fmt(k.cost)+(k.field&&!yard?' · inside or outside':'')]),ks.map(k=>'Place '+k.name).concat(['Close']));}
 function expandCard(){const h=NET.me.home,e=h.expand;if(!e){toast('Your base already reaches as far as it can this season');return;}
@@ -2702,7 +2733,7 @@ function warScoreCard(){api('/region2').then(b=>{current=null;const rows=b.playe
   b.nations.slice(0,3).forEach(n=>rows.push(['Nation: '+n.nation,n.score+' pts · '+n.players+' players']));
   rows.push(['Scoring','+5 a claim, +25 a capture, +10 for every parcel you hold']);
   showCard('Ashlands war score','Who holds Region 2',rows,['Enter the Ashlands','Close']);}).catch(er=>toast(er.message));}
-function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}
+function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}if(a==='Research'){openTech();return true;}
  if(a==='The Ashlands'){region2Card();return true;}if(a==='War score'){warScoreCard();return true;}
  if(a==='Enter the Ashlands'){card.hidden=true;openSectorMap(101);return true;}
  if(a==='Leave the Ashlands'){card.hidden=true;openSectorMap(NET.me.homeSector);return true;}
