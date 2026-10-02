@@ -6,8 +6,29 @@ namespace NWO.Server.Game;
 /// The rules match the client's original battle: three lanes, command points, unit counters,
 /// militia waves or a rival garrison with its own tactics, and towers at both ends.
 /// </summary>
-public class BattleSim
+/// <summary>What the battle service needs from any battle: the lanes or the base arena.</summary>
+public interface IBattle
 {
+    string Title { get; }
+    string Enemy { get; }
+    string[] Deck { get; }
+    bool Done { get; }
+    bool Won { get; }
+    string Why { get; }
+    Dictionary<string, int> Lost { get; }
+    Dictionary<string, int> ELost { get; }
+    Dictionary<string, int> Troops { get; }
+    List<double[]> Shots { get; }
+    void Step(double dt);
+    object State();
+    void Finish(bool won, string why);
+    string? Strike(double x, double z);
+}
+
+public class BattleSim : IBattle
+{
+    string IBattle.Title => Title; string IBattle.Enemy => Enemy; string[] IBattle.Deck => Deck; bool IBattle.Done => Done; bool IBattle.Won => Won; string IBattle.Why => Why;
+    Dictionary<string, int> IBattle.Lost => Lost; Dictionary<string, int> IBattle.ELost => ELost; Dictionary<string, int> IBattle.Troops => Troops; List<double[]> IBattle.Shots => Shots;
     public record UnitType(string Name, int Cost, double Hp, double Dps, double Range, double Speed, string Kind,
         double VsInf, double VsVeh, double VsAir, double VsStruct, int Squad = 1);
 

@@ -1417,7 +1417,7 @@ const battle=new THREE.Group();battle.visible=false;scene.add(battle);P=battle;
 const BL=18,BW=6.2,LANES=[-1.7,0,1.7];
 add(boxG,0x34373e,0,-1.15,0,null,null,true).scale.set(BL+0.4,0.5,BW+0.4);add(boxG,0x271c15,0,-0.725,0,null,null,true).scale.set(BL+0.4,0.35,BW+0.4);add(boxG,0x4a3526,0,-0.3,0,null,null,true).scale.set(BL+0.4,0.5,BW+0.4);
 const bground=add(new RoundedBoxGeometry(BL+0.44,0.12,BW+0.44,2,0.05),0x3f5a2e,0,0,0);
-LANES.forEach(z=>add(boxG,0x6e5c44,0,0.065,z,null,null,true).scale.set(BL-1,0.01,0.7));
+const laneStrips=LANES.map(z=>{const m=add(boxG,0x6e5c44,0,0.065,z,null,null,true);m.scale.set(BL-1,0.01,0.7);return m;});
 for(let i=0;i<26;i++){const x=(hash(i,4)-0.5)*BL,z=(hash(9,i)>0.5?1:-1)*(BW/2-0.35);if(Math.abs(x)>7)continue;pine(x,0.06,z+(hash(i,i)-0.5)*0.3,0.55);}
 for(let i=0;i<8;i++)rocks((hash(i,2)-0.5)*12,0.06,(hash(3,i)-0.5)*BW*0.8,0.35);
 /* your barricade */
@@ -1443,7 +1443,8 @@ const UT={
  strike:{n:'Artillery',ic:'crisis_alert',cost:6,spell:true},
  raider:{n:'Raider',hp:65,dps:11,rng:2,spd:1.1,type:'inf',m:{inf:1,veh:0.5,air:0.8,struct:0.6},col:0x7a3a2a},
  technical:{n:'Technical',hp:220,dps:16,rng:2.4,spd:1.0,type:'veh',m:{inf:1.3,veh:0.8,air:0.7,struct:0.9},col:0x6a4a3a},
- mortar:{n:'Mortar team',hp:75,dps:18,rng:4,spd:0.7,type:'inf',m:{inf:1.2,veh:0.6,air:0,struct:1.6},col:0x7a3a2a}};
+ mortar:{n:'Mortar team',hp:75,dps:18,rng:4,spd:0.7,type:'inf',m:{inf:1.2,veh:0.6,air:0,struct:1.6},col:0x7a3a2a},
+ sentry:{n:'Caretaker sentry',hp:320,dps:24,rng:2.8,spd:1.3,type:'air',m:{inf:1.2,veh:1.1,air:1,struct:0.9},col:0x9aa6b2}};
 const troops0={gunner:24,launcher:10,tank:6,heli:3,militia:30,strike:3};let troopsLeft={...troops0};
 let BT=null;const units=[],fx=[];
 const hpBarG=new THREE.PlaneGeometry(0.5,0.06);
@@ -1492,7 +1493,7 @@ function tracer(a,b,side){const g=new THREE.BufferGeometry().setFromPoints([a,b]
 const muzzleOf=u=>u.g.userData.muzzle?u.g.localToWorld(u.g.userData.muzzle.clone()):u.g.position.clone().add(V3(0,0.2,0));
 let selUnit=null;
 function renderCards(){const el=$('ucards');el.innerHTML=((BT&&BT.deck)||['gunner','launcher','tank','heli','militia','strike']).map(t=>{const u=UT[t],low=BT&&(BT.cp<u.cost||troopsLeft[t]<=0);return '<button class="ucard'+(low?' low':'')+'" data-t="'+t+'" aria-pressed="'+(selUnit===t)+'"><span class="ms">'+u.ic+'</span><b>'+u.n+'</b><small>'+u.cost+' cmd · '+troopsLeft[t]+' left</small></button>';}).join('');
- el.querySelectorAll('.ucard').forEach(b=>b.onclick=()=>{const t=b.dataset.t;selUnit=selUnit===t?null:t;$('btip').textContent=selUnit?(selUnit==='strike'?'Tap the battlefield to call the strike':'Tap a lane to deploy '+UT[selUnit].n.toLowerCase()+'s'):'Pick a unit, then tap a lane to deploy it';renderCards();});}
+ el.querySelectorAll('.ucard').forEach(b=>b.onclick=()=>{const t=b.dataset.t;selUnit=selUnit===t?null:t;if(AR.zone)AR.zone.visible=!!(BT&&BT.arena&&selUnit&&selUnit!=='strike');$('btip').textContent=selUnit?(selUnit==='strike'?'Tap the battlefield to call the strike':'Tap a lane to deploy '+UT[selUnit].n.toLowerCase()+'s'):'Pick a unit, then tap a lane to deploy it';renderCards();});}
 function startBattle(o){const prev=mode;troopsLeft={...troops0};
  if(window.NET&&NET.conn&&!o.local&&!o.defend){netStartBattle(o,prev);return;}
  go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>initBattle(o,prev),700);}
@@ -1500,7 +1501,7 @@ function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={
   $('bEnemyN').textContent=BT.enemy;selUnit=null;renderCards();toast(o.title);}}
 function lossText(o){return Object.entries(o).map(([t,n])=>n+' '+UT[t].n.toLowerCase()+(n>1?'s':'')).join(', ')||'none';}
 let war18=0;
-function leaveBattleNow(){card.hidden=true;if(window.NET&&NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle'&&BT.prev!=='siege')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);}
+function leaveBattleNow(){card.hidden=true;arenaOff();if(window.NET&&NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle'&&BT.prev!=='siege')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);}
 /* A finished battle never strands you: leave as soon as the result card is closed, or 15 seconds after it ends */
 setInterval(()=>{const inB=mode==='battle',inS=mode==='siege';if(!inB&&!inS){window.__doneAt=0;return;}
  const done=!BT||BT.done;if(!done){window.__doneAt=0;return;}if(!window.__doneAt)window.__doneAt=Date.now();
@@ -1550,6 +1551,40 @@ const gText=g=>Object.entries(g).filter(([t,n])=>n>0).map(([t,n])=>n+' '+UT[t].n
 function scoutCard(key){const R=RIVALS[key];pendingRival=key;chatEl.hidden=true;showCard('Scout report',R.name+' · led by '+R.leader,[['Garrison',gText(R.garrison)],['Defences','Walls Lv '+R.walls+', 2 turrets'+(R.air?' (can hit helicopters)':'')],['Doctrine',R.dname],['Stored output',R.stored+' (loot capped at 15%)'],['Stakes',R.sector?'War score toward capturing Sector '+R.sector:'Front-line control']],['Choose army','Cancel']);}
 const UNAMES={gunner:'Gunner',launcher:'Launcher',tank:'Tank',heli:'Heli',militia:'Militia'};
 function pickArmy(){const R=RIVALS[pendingRival];showCard('Choose your army','Pick up to 4 unit types · artillery always comes',[['Enemy has',gText(R.garrison)],['Counters','Launchers break walls and tanks; gunners stop helicopters; tanks crush gunners'],['Selected',chosen.map(t=>UNAMES[t]).join(', ')||'Nothing yet']],Object.keys(UNAMES).map(t=>UNAMES[t]+(chosen.includes(t)?' ✓':'')).concat(['Launch attack']));}
+/* ---------- Base assault arena: an HQ and two guard towers, deploy anywhere in your half ---------- */
+let arenaG=null;const AR={structs:new Map()};
+function arenaBuild(){if(arenaG){battle.remove(arenaG);}laneStrips.forEach(m=>m.visible=false);arenaG=new THREE.Group();battle.add(arenaG);AR.structs.clear();const P0=P;P=arenaG;
+ // your deploy zone, shown while a card is picked
+ AR.zone=add(new THREE.PlaneGeometry(8,6),0x3d7fd6,-5,0.075,0,null,{transparent:true,opacity:0.16,depthWrite:false},true);AR.zone.rotation.x=-Math.PI/2;AR.zone.visible=false;
+ add(boxG,0xe8e0cc,-1,0.08,0,null,{transparent:true,opacity:0.35},true).scale.set(0.04,0.01,6.1);
+ // the defender's ground: packed earth, sandbag lines
+ const dg=add(new THREE.PlaneGeometry(6.4,6.1),0x5a4a36,6,0.07,0,null,{roughness:1},true);dg.rotation.x=-Math.PI/2;
+ [-2.7,2.7].forEach(z=>{for(let i=0;i<5;i++)add(new RoundedBoxGeometry(0.5,0.22,0.3,1,0.06),0x8a7a58,3.4+i*1.1,0.18,z);});
+ P=P0;}
+function arenaStructMesh(kind,x,z){const g=new THREE.Group();g.position.set(x,0.07,z);arenaG.add(g);
+ if(kind==='hq'){const m=MODELS.hq&&model('hq',1.6,1.6,1.7);if(m)g.add(m);else{const P0=P;P=g;add(new RoundedBoxGeometry(1.4,1.1,1.4,2,0.08),0x4a4d55,0,0.55,0);add(new THREE.ConeGeometry(1.1,0.6,4),0x7a2a22,0,1.4,0).rotation.y=Math.PI/4;P=P0;}}
+ else{if(MODELS.towerBase){const b=castlePiece('towerBase',0.8,1.0,0.8);g.add(b);if(MODELS.towerTop){const t=castlePiece('towerTop',0.85,0.9,0.85);t.position.y=1.0;g.add(t);}}
+  else{const P0=P;P=g;add(new THREE.CylinderGeometry(0.32,0.38,1.2,12),0x5f5a53,0,0.6,0);add(new THREE.ConeGeometry(0.42,0.4,12),0x7a2a22,0,1.4,0);P=P0;}}
+ const bar=new THREE.Mesh(hpBarG,new THREE.MeshBasicMaterial({color:0xff5a4a,depthTest:false}));bar.renderOrder=12;bar.scale.set(2.2,1.6,1);bar.position.y=kind==='hq'?2.1:1.7;g.add(bar);g.userData.bar=bar;return g;}
+function arenaOff(){laneStrips.forEach(m=>m.visible=true);if(arenaG){battle.remove(arenaG);arenaG=null;}AR.structs.clear();if(typeof campM!=='undefined')campM.visible=true;}
+function applyArenaState(st){BT.t=st.t;BT.cp=st.cp;Object.assign(troopsLeft,st.troops);
+ let hp=0;st.structs.forEach(([id,kind,x,z,f])=>{let m=AR.structs.get(id);if(!m){m=arenaStructMesh(kind,x,z);AR.structs.set(id,m);m.userData.f=1;}
+  if(f<=0&&m.visible){m.visible=false;boom(x,0.6,z,true);boom(x+0.3,0.4,z-0.2,true);toast(kind==='hq'?'The HQ is down!':'Guard tower destroyed: one star');}
+  m.userData.f=f;m.userData.bar.scale.x=Math.max(0.02,f)*2.2;m.userData.bar.quaternion.copy(camera.quaternion);hp+=f;});
+ BT.en=hp;BT.enMax=st.structs.length;BT.you=1;BT.youMax=1;BT.stars=st.stars;
+ $('bEnemyN').textContent=BT.enemy+' · '+'★'.repeat(st.stars)+'☆'.repeat(3-st.stars);
+ const seen=new Set();
+ st.units.forEach(([id,t,side,x,z,hp,ct])=>{seen.add(id);let u=NET.bUnits.get(id);
+  if(!u){const g=unitMesh(t==='sentry'?'heli':t,side);g.position.set(x,UT[t].type==='air'?1.3:0.07,z);if(side)g.rotation.y=Math.PI;
+   if(ct){const ring=new THREE.Mesh(new THREE.TorusGeometry(0.28,0.03,6,24),new THREE.MeshBasicMaterial({color:0x8fd3ff}));ring.rotation.x=Math.PI/2;ring.position.y=-0.15;g.add(ring);}
+   u={g,t,side,tx:x,tz:z,hp};NET.bUnits.set(id,u);}
+  // face the way you're moving
+  const dx=x-u.tx,dz=z-u.tz;if(Math.abs(dx)+Math.abs(dz)>0.01)u.g.rotation.y=Math.atan2(-dz,dx);
+  u.tx=x;u.tz=z;u.hp=hp;});
+ NET.bUnits.forEach((u,id)=>{if(!seen.has(id)){boom(u.g.position.x,u.g.position.y+0.1,u.g.position.z);battle.remove(u.g);NET.bUnits.delete(id);if(!u.side)BT.lost[u.t]=(BT.lost[u.t]||0)+1;}});
+ const posOf=id=>{if(id<0){const m=AR.structs.get(id);return m?m.position.clone().add(V3(0,1.1,0)):null;}const u=NET.bUnits.get(id);return u?u.g.position.clone().add(V3(0,0.15,0)):null;};
+ st.shots.forEach(sh=>{if(sh[0]===-2){boom(sh[1],0.3,sh[2],true);return;}const a=posOf(sh[0]),b=posOf(sh[1]);if(a&&b&&Math.random()<0.5)tracer(a,b,sh[0]<0?1:0);});
+ (st.notes||[]).forEach(n=>{if(!AR.noted)AR.noted=new Set();if(!AR.noted.has(n)){AR.noted.add(n);toast(n);}});}
 function setupRival(o){const R=o.rival?RIVALS[o.rival]:null;BT.rival=R;BT.defend=!!o.defend;BT.deck=o.deck||null;
  campM.visible=!R;campR.visible=!!R&&!o.defend;if(R){rFlag.material=mat(R.flag,{emissive:R.flag,emissiveIntensity:0.25});BT.eg={...R.garrison};BT.ecp=4;
   if(o.defend){BT.enemy='Attackers remaining';BT.en=Object.values(BT.eg).reduce((a,b)=>a+b,0);BT.enMax=BT.en;BT.t=100;}else{BT.enemy=R.name;BT.en=BT.enMax=2200+R.walls*150;}}}
@@ -2202,7 +2237,7 @@ async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
  c.on('me',p=>{applyMe(p);toast('Your balance was updated');});c.on('alliance',()=>{if(!$('allyEl').hidden)loadAlly();});c.on('allianceNote',m=>{toast(m.text);if(!$('allyEl').hidden)loadAlly();});c.on('research',m=>{if(m.player)applyMe(m.player);toast('Research complete: '+m.done);renderTech();});c.on('chat',m=>{if(m.channel==='global'&&(m.name==='News'||m.name==='Caretaker')){NET.news=(NET.news||[]).concat([m.text]).slice(-8);}if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
  c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.on('record',onRecord);c.on('drone',onDrone);c.on('camp',onCamp);c.on('battle',onBattleState);c.on('siege',onSiege);c.on('siegeMe',onSiegeMe);c.on('siegeEnd',onSiegeEnd);c.on('siegeStart',e=>{NET.practice=!!(e&&e.practice);showSiegeBar(null);});c.on('battleEnd',onBattleEnd);c.on('politics',()=>{if(!polEl.hidden&&document.activeElement!==$('polSpeech'))refreshPol();else NET.pol=null;});c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
- try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({ally:()=>openAlly(),tech:()=>openTech(),pol:()=>$('nPolitics').click(),province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
+ try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const rb=(location.search.match(/[?&]rb=([^&]+)/)||[])[1];if(rb)setTimeout(()=>{netStartBattle({kind:'raidbase',sector:0,rivalKey:decodeURIComponent(rb),title:'Raid',enemy:'Garrison'},'county');if(/[?&]auto/.test(location.search)){let k=0;setInterval(()=>{if(!BT||!BT.arena||BT.done)return;const t=['tank','launcher','gunner','heli','gunner'][k++%5];NET.conn.invoke('DeployAt',t,-3-Math.random()*2,(Math.random()-0.5)*4);},1500);}},2500);}{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({ally:()=>openAlly(),tech:()=>openTech(),pol:()=>$('nPolitics').click(),province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
   const hist=await api('/chat/global');$('bAlly').hidden=false;['bLeases','bStats'].forEach(id=>{if($(id))$(id).hidden=true;});
   NET.conn.invoke('AllianceChat').then(list=>{CHAT.alliance.length=0;list.forEach(m=>CHAT.alliance.push({who:m.name===NET.me.name?'You':m.name,tag:'Ally',txt:m.text,me:m.name===NET.me.name}));}).catch(()=>{});
   NET.news=hist.filter(m=>m.name==='News'||m.name==='Caretaker').map(m=>m.text).slice(-8);hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
@@ -2443,8 +2478,10 @@ NET.bUnits=new Map();
 function netStartBattle(o,prev){const kind=o.kind||(o.rival?'raid':(o.campAssault||/militia camp/i.test(o.enemy||'')?'camp':'ambush'));
  NET.conn.invoke('StartBattle',kind,o.sector||0,o.rivalKey||o.rival||null,o.deck||null).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);
   go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>{initBattle({...o,deck:r.battle.deck},prev);BT.server=r.battle.id;BT.title=r.battle.title;BT.enemy=r.battle.enemy;$('bEnemyN').textContent=BT.enemy;
-   NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();applyBattleState(r.battle.state);renderCards();},700);}).catch(er=>toast(er.message));}
-function applyBattleState(st){if(!BT||!BT.server)return;BT.t=st.t;BT.cp=st.cp;BT.you=st.you;BT.youMax=st.youMax;BT.en=st.en;BT.enMax=st.enMax;Object.assign(troopsLeft,st.troops);
+   NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();
+   if(r.battle.arena){BT.arena=true;arenaBuild();campM.visible=false;campR.visible=false;$('btip').textContent='Pick a unit, then tap anywhere in your half (blue) to deploy';toast('Base assault: knock down the towers and the HQ');}
+   applyBattleState(r.battle.state);renderCards();},700);}).catch(er=>toast(er.message));}
+function applyBattleState(st){if(!BT||!BT.server)return;if(st.arena){applyArenaState(st);return;}BT.t=st.t;BT.cp=st.cp;BT.you=st.you;BT.youMax=st.youMax;BT.en=st.en;BT.enMax=st.enMax;Object.assign(troopsLeft,st.troops);
  const seen=new Set();
  st.units.forEach(([id,t,side,x,z,hp])=>{seen.add(id);let u=NET.bUnits.get(id);
   if(!u){const g=unitMesh(t,side);g.position.set(x,UT[t].type==='air'?1.3:0.07,z);if(side)g.rotation.y=Math.PI;u={g,t,side,tx:x,tz:z,hp};NET.bUnits.set(id,u);}
@@ -2465,7 +2502,9 @@ function serverBattleFrame(dt){const now=performance.now();
  $('bYou').style.width=Math.max(0,BT.you/BT.youMax*100)+'%';$('bYouT').textContent=Math.max(0,Math.round(BT.you)).toLocaleString('en-US');$('bEnemy').style.width=Math.max(0,BT.en/BT.enMax*100)+'%';
  const mm=Math.floor(BT.t/60),ss=Math.floor(BT.t%60);$('bTitle').textContent=BT.title.split(':')[0].split(' · ')[0]+' · '+mm+':'+String(ss).padStart(2,'0');
  $('cpN').textContent=Math.floor(BT.cp);$('cpB').style.width=(BT.cp*10)+'%';if(Math.random()<dt*2)renderCards();}
-function netBattleTap(pt){if(selUnit==='strike'){if(BT.cp<6){toast('Not enough command points yet');return;}NET.conn.invoke('Strike',pt.x,pt.z).then(e=>{if(e)toast(e);else toast('Artillery strike');});return;}
+function netBattleTap(pt){if(BT.arena&&selUnit!=='strike'){const u=UT[selUnit];if(pt.x>-1){toast('Deploy in your half of the field (the blue zone)');return;}if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
+  NET.conn.invoke('DeployAt',selUnit,pt.x,Math.max(-2.9,Math.min(2.9,pt.z))).then(e=>{if(e)toast(e);});return;}
+ if(selUnit==='strike'){if(BT.cp<6){toast('Not enough command points yet');return;}NET.conn.invoke('Strike',pt.x,pt.z).then(e=>{if(e)toast(e);else toast('Artillery strike');});return;}
  const u=UT[selUnit];if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
  const lane=LANES.reduce((a,z,i)=>Math.abs(z-pt.z)<Math.abs(LANES[a]-pt.z)?i:a,0);NET.conn.invoke('Deploy',selUnit,lane).then(e=>{if(e)toast(e);});}
 function onBattleState(m){if(BT&&BT.server===m.id)applyBattleState(m.state);}
@@ -2709,7 +2748,12 @@ function homePointer(ray){const h=NET.me.home;
  const g=ray.intersectObject(HB.ground,false)[0];if(g){const gx=g.point.x+h.grid/2,gy=g.point.z+h.grid/2;const Y=h.yard||0;if(gx<h.lo-Y||gy<h.lo-Y||gx>h.hi+Y||gy>h.hi+Y){expandCard();return;}homeBuildMenu(!(gx>=h.lo&&gy>=h.lo&&gx<=h.hi&&gy<=h.hi));}}
 function tileCard(t){const k=homeKindOf(t.type),rs=NET.me.research;const rows=[['Does',k.blurb],['Makes',k.perHour?'+'+k.perHour+' '+k.res+'/h here':'Bonus to your base']];
  if(t.type==='research'&&rs)rows.push(['Researching',rs.current?rs.current.name+' · '+timeLeft(rs.current.endsAt):'Nothing. Pick a tech']);
- showCard(k.name,'Home base · '+k.w+'x'+k.h,rows,t.type==='research'?['Research','Move','Close']:['Move','Close']);HB.cardTile=t;}
+ showCard(k.name,'Home base · '+k.w+'x'+k.h,rows,t.type==='research'?['Research','Move','Close']:t.type==='barracks'?['Defense','Move','Close']:['Move','Close']);HB.cardTile=t;}
+function defenseCard(){NET.conn.invoke('GetDefense').then(d=>{current=null;const doc=d.doctrines.find(x=>x.id===d.doctrine);
+  const tr=Object.entries(d.trained).map(([k,v])=>v+' '+(UT[k]?UT[k].n.toLowerCase():k)+(v>1?'s':'')).join(', ')||'None yet';
+  showCard('Base defense','Raiders face your towers, your patrols and your reserve',[['Doctrine',doc.name+': '+doc.blurb],['Free garrison',d.free.patrol+' on patrol, '+d.free.reserve+' in reserve (grows with HQ and barracks)'],['Towers',fmt(d.free.towerHp)+' HP each · HQ '+fmt(d.free.hqHp)+' HP'],['Trained defenders',tr+' · '+d.used+'/'+d.capacity+' barracks space'],['Losses','Trained defenders killed in a raid are gone']],
+   d.doctrines.filter(x=>x.id!==d.doctrine).map(x=>'Doctrine: '+x.name).concat(['Train 5 gunners · '+fmt(d.costs.gunner*5),'Train 2 launchers · '+fmt(d.costs.launcher*2),'Train 1 tank · '+fmt(d.costs.tank),'Train 1 heli · '+fmt(d.costs.heli),'Close']));
+  NET.defense=d;}).catch(er=>toast(er.message));}
 /* ---------- Alliances ---------- */
 function openAlly(){card.hidden=true;$('allyEl').hidden=false;loadAlly();}
 function loadAlly(){NET.conn.invoke('GetAlliance').then(v=>{NET.ally=v;renderAlly();}).catch(er=>toast(er.message));}
@@ -2785,7 +2829,10 @@ function warScoreCard(){api('/region2').then(b=>{current=null;const rows=b.playe
   b.nations.slice(0,3).forEach(n=>rows.push(['Nation: '+n.nation,n.score+' pts · '+n.players+' players']));
   rows.push(['Scoring','+5 a claim, +25 a capture, +10 for every parcel you hold']);
   showCard('Ashlands war score','Who holds Region 2',rows,['Enter the Ashlands','Close']);}).catch(er=>toast(er.message));}
-function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}if(a==='Raid · 40 fuel'&&NET.raidTarget&&NET.big){card.hidden=true;netStartBattle({kind:'raidbase',sector:NET.big.sector,rivalKey:NET.raidTarget,title:'Raid',enemy:'Garrison'},'county');return true;}if(a==='Research'){openTech();return true;}
+function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}
+ if(a==='Defense'){defenseCard();return true;}
+ if(a.startsWith('Doctrine: ')&&NET.defense){const d=NET.defense.doctrines.find(x=>'Doctrine: '+x.name===a);if(d){NET.conn.invoke('SetDefense',d.id).then(r=>{if(!r.ok){toast(r.error);return;}toast('Doctrine set: '+d.name);defenseCard();});}return true;}
+ {const m=a.match(/^Train (\d+) (gunner|launcher|tank|heli)s? · /);if(m){NET.conn.invoke('TrainDefenders',m[2],+m[1]).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Defenders trained');defenseCard();}).catch(er=>toast(er.message));return true;}}if(a==='Raid · 40 fuel'&&NET.raidTarget&&NET.big){card.hidden=true;netStartBattle({kind:'raidbase',sector:NET.big.sector,rivalKey:NET.raidTarget,title:'Raid',enemy:'Garrison'},'county');return true;}if(a==='Research'){openTech();return true;}
  if(a==='The Ashlands'){region2Card();return true;}if(a==='War score'){warScoreCard();return true;}
  if(a==='Enter the Ashlands'){card.hidden=true;openSectorMap(101);return true;}
  if(a==='Leave the Ashlands'){card.hidden=true;openSectorMap(NET.me.homeSector);return true;}

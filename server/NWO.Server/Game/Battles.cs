@@ -11,7 +11,7 @@ namespace NWO.Server.Game;
 /// </summary>
 public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker) : BackgroundService
 {
-    record Live(long Id, Guid PlayerId, string Kind, int Sector, string? RivalKey, BattleSim Sim);
+    record Live(long Id, Guid PlayerId, string Kind, int Sector, string? RivalKey, IBattle Sim);
 
     static readonly ConcurrentDictionary<Guid, Live> Active = new();
     static long nextId;
@@ -48,6 +48,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         }
 
         BattleSim? sim = null;
+        ArenaSim? arena = null;
         (int i, int j, Guid owner)? target = null;
         Guid? raidTarget = null;
         var r = await world.Locked(async db =>
@@ -96,30 +97,38 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     if (me.AllianceId is not null && victim.AllianceId == me.AllianceId) return new Result(false, $"{victim.Name} is in your alliance.");
                     if (victim.LastRaidedAt + RaidShield > now) return new Result(false, $"{victim.Name} was raided recently. Their walls are manned for {(int)Math.Ceiling((victim.LastRaidedAt + RaidShield - now).TotalMinutes)} more minutes.");
                     fuel = BaseRaidFuel;
-                    var hp = victim.Parcels.FirstOrDefault(x => x.IsHome) ?? new Parcel();
-                    var vg = Region2.Garrison(victim, hp, Research.Has(me, "engineers") ? 0.8 : 1);
-                    sim = new BattleSim($"Raid on {victim.Name}'s base · Sector {victim.HomeSector}", $"{victim.Name}'s garrison", vg with { Name = $"{victim.Name}'s garrison" }, deck, Random.Shared.Next());
+                    if (victim.IsBot) Defense.ForBot(victim, Random.Shared);
+                    var defense = Defense.For(victim, Research.Has(me, "engineers") ? 0.8 : 1);
+                    arena = new ArenaSim($"Assault on {victim.Name}'s base · Sector {victim.HomeSector}", $"{victim.Name}'s base", defense, Defense.Trained(victim),
+                        BattleSim.StartingTroops, deck, Random.Shared.Next());
+                    arena.CaretakerSides(me.Standing, victim.Standing, victim.IsBot);
                     raidTarget = victim.Id;
                     break;
                 default: return new Result(false, "Unknown battle.");
             }
             if (me.Fuel < fuel) return new Result(false, $"This needs {fuel:N0} fuel for the trucks.");
             // War research: bigger barracks, air support, engineers who thin out garrisons
-            if (Research.Has(me, "drill")) foreach (var k in sim!.Troops.Keys.ToList()) if (k != "strike") sim.Troops[k] = (int)Math.Ceiling(sim.Troops[k] * 1.25);
-            if (Research.Has(me, "air")) { sim!.Troops["strike"]++; sim.Troops["heli"] = sim.Troops.GetValueOrDefault("heli") + 1; }
-            Ledger.Add(db, me, "fuel", -fuel, $"Fuel for a battle: {sim.Title}");
+            IBattle any = (IBattle?)sim ?? arena!;
+            if (Research.Has(me, "drill")) foreach (var k in any.Troops.Keys.ToList()) if (k != "strike") any.Troops[k] = (int)Math.Ceiling(any.Troops[k] * 1.25);
+            if (Research.Has(me, "air")) { any.Troops["strike"] = any.Troops.GetValueOrDefault("strike") + 1; any.Troops["heli"] = any.Troops.GetValueOrDefault("heli") + 1; }
+            Ledger.Add(db, me, "fuel", -fuel, $"Fuel for a battle: {any.Title}");
             return new Result(true, Player: Dto.Me(me));
         });
-        if (!r.Ok || sim is null) return r;
-        var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, sim);
+        if (!r.Ok || (sim is null && arena is null)) return r;
+        IBattle battle = (IBattle?)sim ?? arena!;
+        var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, battle);
         if (target is { } t0) SeizeTargets[live.Id] = t0;
         if (raidTarget is { } rt) RaidTargets[live.Id] = rt;
         Active[playerId] = live;
-        return r with { Battle = new { id = live.Id, title = sim.Title, enemy = sim.Enemy, deck = sim.Deck, rival = sim.Opponent?.Name, state = sim.State() } };
+        return r with { Battle = new { id = live.Id, title = battle.Title, enemy = battle.Enemy, deck = battle.Deck, rival = sim?.Opponent?.Name, arena = arena is not null, state = battle.State() } };
     }
 
     public string? Deploy(Guid playerId, string type, int lane) =>
-        Active.TryGetValue(playerId, out var b) ? (type == "strike" ? "Tap the field to aim a strike." : Lock(b, () => b.Sim.Deploy(type, lane))) : "You're not in a battle.";
+        Active.TryGetValue(playerId, out var b) ? (type == "strike" ? "Tap the field to aim a strike." : b.Sim is BattleSim bs ? Lock(b, () => bs.Deploy(type, lane)) : "Tap where to deploy.") : "You're not in a battle.";
+
+    /// <summary>Base assault: deploy at a point in your half of the arena.</summary>
+    public string? DeployAt(Guid playerId, string type, double x, double z) =>
+        Active.TryGetValue(playerId, out var b) ? (b.Sim is ArenaSim a ? Lock(b, () => a.Deploy(type, x, z)) : "This battle uses lanes.") : "You're not in a battle.";
 
     public string? Strike(Guid playerId, double x, double z) =>
         Active.TryGetValue(playerId, out var b) ? Lock(b, () => b.Sim.Strike(x, z)) : "You're not in a battle.";
@@ -172,13 +181,24 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         if (b.Kind == "raidbase")
         {
             RaidTargets.TryRemove(b.Id, out var vid);
+            var ar = s as ArenaSim;
+            var stars = ar?.Stars ?? (s.Won ? 3 : 0);
+            rows.Add(["Stars", new string('★', stars) + new string('☆', 3 - stars)]);
             await world.Locked(async db =>
             {
                 var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == b.PlayerId);
                 var v = await db.Players.FirstOrDefaultAsync(p => p.Id == vid);
+                // The defender loses the trained defenders that died
+                if (v is not null && ar is not null && ar.TrainedLost.Count > 0)
+                {
+                    var tr = Defense.Trained(v);
+                    foreach (var (k, n) in ar.TrainedLost) tr[k] = Math.Max(0, tr.GetValueOrDefault(k) - n);
+                    Defense.SetTrained(v, tr);
+                }
                 if (s.Won && v is not null)
                 {
-                    var cash = Math.Floor(Math.Min(4000, v.Cash * 0.2)); var oil = Math.Floor(Math.Min(300, v.Oil * 0.2)); var grain = Math.Floor(Math.Min(300, v.Grain * 0.2));
+                    var pct = stars >= 3 ? 0.2 : stars == 2 ? 0.15 : 0.1;
+                    var cash = Math.Floor(Math.Min(4000, v.Cash * pct)); var oil = Math.Floor(Math.Min(300, v.Oil * pct)); var grain = Math.Floor(Math.Min(300, v.Grain * pct));
                     foreach (var (res, amt) in new[] { ("cash", cash), ("oil", oil), ("grain", grain) })
                         if (amt >= 1) { Ledger.Add(db, v, res, -amt, $"Raided by {me.Name}"); Ledger.Add(db, me, res, amt, $"Raid loot: {v.Name}"); }
                     v.LastRaidedAt = DateTime.UtcNow;
@@ -236,7 +256,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         }
         rows.Add(["Their losses", BattleSim.Losses(s.ELost)]);
         rows.Add(["Your losses", BattleSim.Losses(s.Lost)]);
-        if (!s.Won) rows.Add(["Tip", s.Opponent?.Doctrine == "counter" ? "They counter what you send: mix units and switch lanes" : "Launchers break camps; gunners stop helis"]);
+        if (!s.Won) rows.Add(["Tip", s is ArenaSim ? "Take out a guard tower first: it stops shooting and opens the way to the HQ" : (s as BattleSim)?.Opponent?.Doctrine == "counter" ? "They counter what you send: mix units and switch lanes" : "Launchers break camps; gunners stop helis"]);
         await hub.Clients.Clients(GameHub.ConnectionsOf(b.PlayerId)).SendAsync("battleEnd", new { id = b.Id, won = s.Won, why = s.Why, rows, player });
         if (announce is not null) await hub.Clients.All.SendAsync("chat", new { channel = "global", name = "News", text = announce, at = DateTime.UtcNow });
     }

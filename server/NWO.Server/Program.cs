@@ -202,6 +202,39 @@ api.MapPost("/admin/grant", async (HttpContext ctx, World world, IHubContext<Gam
     return r is null ? Results.NotFound(new { error = "No player by that name." }) : Results.Ok(r);
 });
 
+// Admin: simulate base assaults against a base of a given size, with a simple scripted attacker.
+api.MapPost("/admin/arena/simulate", (HttpContext ctx, int hq, int barracks, string? doctrine, int? trained, int? runs) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    var p = new Player { HqLevel = hq, DefenseDoctrine = doctrine ?? "balanced" };
+    for (var i = 0; i < barracks; i++) p.HomeTiles.Add(new HomeTile { Type = "barracks" });
+    var tr = new Dictionary<string, int> { ["gunner"] = trained ?? 0 };
+    var results = new List<object>();
+    for (var run = 0; run < (runs ?? 10); run++)
+    {
+        var rng = new Random(run);
+        var a = new ArenaSim("sim", "base", Defense.For(p), tr, BattleSim.StartingTroops, null, run);
+        string[] pool = ["gunner", "launcher", "tank", "launcher", "heli", "militia"];
+        while (!a.Done)
+        {
+            if (rng.NextDouble() < 0.25)
+            {
+                var t = pool[rng.Next(pool.Length)];
+                if (a.Cp >= 6 && a.Troops["strike"] > 0 && rng.NextDouble() < 0.2)
+                {
+                    var target = a.Structures.Where(x => x.Alive).OrderBy(x => x.X).FirstOrDefault();
+                    if (target is not null) a.Strike(target.X, target.Z);
+                }
+                else a.Deploy(t, -3 - rng.NextDouble() * 3, (rng.NextDouble() - 0.5) * 5);
+            }
+            a.Step(0.1);
+            a.Shots.Clear();
+        }
+        results.Add(new { a.Won, a.Stars, minutes = Math.Round(a.T / 60, 2), a.Why });
+    }
+    return Results.Ok(new { wins = results.Count(r => ((dynamic)r).Won), avgStars = results.Average(r => (double)((dynamic)r).Stars), results });
+});
+
 api.MapPost("/admin/sentinel/start", async (HttpContext ctx, Siege siege) =>
 {
     if (!Admin.Allowed(ctx)) return Results.Unauthorized();

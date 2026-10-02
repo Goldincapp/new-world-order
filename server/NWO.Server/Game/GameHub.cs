@@ -111,6 +111,24 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public Task<Battles.Result> StartBattle(string kind, int sector, string? rival, string[]? deck) => battles.Start(Me.Id, kind, sector, rival, deck);
 
     public string? Deploy(string type, int lane) => battles.Deploy(Me.Id, type, lane);
+    public string? DeployAt(string type, double x, double z) => battles.DeployAt(Me.Id, type, x, z);
+
+    // ---------- Home defence
+    public async Task<object> GetDefense()
+    {
+        var p = await db.Players.Include(x => x.HomeTiles).FirstAsync(x => x.Id == Me.Id);
+        return Defense.View(p);
+    }
+    public async Task<World.Result> SetDefense(string doctrine)
+    {
+        if (!Defense.Doctrines.ContainsKey(doctrine)) return new(false, "Unknown doctrine.");
+        return await world.Locked(async gdb => { var p = await gdb.Players.FirstAsync(x => x.Id == Me.Id); p.DefenseDoctrine = doctrine; return new World.Result(true); });
+    }
+    public async Task<World.Result> TrainDefenders(string type, int count) => await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == Me.Id);
+        return Defense.Train(gdb, p, type, count) is { } why ? new World.Result(false, why) : new World.Result(true, Player: Dto.Me(p));
+    });
 
     public string? Strike(double x, double z) => battles.Strike(Me.Id, x, z);
 
