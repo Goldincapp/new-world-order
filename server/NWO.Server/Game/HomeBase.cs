@@ -48,7 +48,6 @@ public static class HomeBase
         new("oilpump", "Oil runs the world. Set up an Oil pump: it pays most on oil sands.", 250),
         new("solar", "The grid is gone. Install a Solar panel for your own electricity.", 250, 20),
         new("collect", "Your base is working. Collect what it has made.", 200),
-        new("expand", "Beyond your walls the land is fogged. Expand your base when you can afford it, then head out to your sector to claim more.", 0),
     ];
 
     public static (int lo, int hi) Bounds(Player p)

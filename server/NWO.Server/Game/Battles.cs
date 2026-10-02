@@ -112,6 +112,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
             if (Research.Has(me, "drill")) foreach (var k in any.Troops.Keys.ToList()) if (k != "strike") any.Troops[k] = (int)Math.Ceiling(any.Troops[k] * 1.25);
             if (Research.Has(me, "air")) { any.Troops["strike"] = any.Troops.GetValueOrDefault("strike") + 1; any.Troops["heli"] = any.Troops.GetValueOrDefault("heli") + 1; }
             Ledger.Add(db, me, "fuel", -fuel, $"Fuel for a battle: {any.Title}");
+            Guide.Advance(db, me, "battle");
             return new Result(true, Player: Dto.Me(me));
         });
         if (!r.Ok || (sim is null && arena is null)) return r;

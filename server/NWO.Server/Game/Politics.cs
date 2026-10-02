@@ -141,6 +141,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
         Ledger.Add(db, me, "cash", -CandidacyDeposit, $"Election deposit for {n.Name}");
         n.Treasury += CandidacyDeposit;
         db.Candidates.Add(new Candidate { NationId = n.Id, ElectionNo = n.ElectionNo, PlayerId = me.Id, Name = me.Name, Speech = speech });
+        Guide.Advance(db, me, "vote");
         return (new Result(true, Player: Dto.Me(me), Summary: "You're on the ballot. Win votes before the polls close."), $"{me.Name} is running for President: \"{speech}\"");
     });
 
@@ -165,6 +166,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
         var c = await db.Candidates.FirstOrDefaultAsync(x => x.Id == candidateId && x.NationId == n.Id && x.ElectionNo == n.ElectionNo);
         if (c is null) return (new Result(false, "That candidate isn't on this ballot."), null);
         var b = await db.Ballots.FirstOrDefaultAsync(x => x.NationId == n.Id && x.ElectionNo == n.ElectionNo && x.VoterId == me.Id);
+        Guide.Advance(db, me, "vote");
         if (b is null) db.Ballots.Add(new Ballot { NationId = n.Id, ElectionNo = n.ElectionNo, VoterId = me.Id, CandidateId = c.Id });
         else b.CandidateId = c.Id;
         return (new Result(true, Summary: $"Your vote is for {c.Name}. You can change it until the polls close."), null);
@@ -208,6 +210,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
             v.For = yes;
         }
         else db.LawVotes.Add(new LawVote { LawId = l.Id, VoterId = me.Id, For = yes });
+        Guide.Advance(db, me, "vote");
         if (yes) l.For++; else l.Against++;
         if (v is null) Caretaker.Remember(db, me, 1, "order", $"Voted in the council: {l.Title}");
         return (new Result(true, Summary: $"Vote recorded: {(yes ? "for" : "against")}."), null);

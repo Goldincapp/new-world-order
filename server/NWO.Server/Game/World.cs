@@ -55,6 +55,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (me.Cash < cost) return "Not enough cash to claim this parcel.";
         Economy.Settle(db, me, now);
         Ledger.Add(db, me, "cash", -cost, $"Claimed parcel {sector}:{i},{j}");
+        Guide.Advance(db, me, "claim");
         if (r2) { me.WarScore += Region2.ClaimScore; Caretaker.Remember(db, me, 0, "war", $"Staked a claim in the Ashlands, Sector {sector}"); }
         var p = new Parcel { Sector = sector, I = i, J = j, Resource = SectorTemplate.Resource(sector, i, j), Owner = me, ClaimedAt = now };
         db.Parcels.Add(p); // setting Owner already adds it to me.Parcels
@@ -88,6 +89,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         Economy.Settle(db, me, now);
         Ledger.Add(db, me, "cash", -t.Cost, $"Built {t.Name} on {sector}:{i},{j}");
         parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? type : parcel.Buildings + "," + type;
+        Guide.Advance(db, me, "build");
         return null;
     });
 
@@ -127,6 +129,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (power > 0) Ledger.Add(db, me, "power", -power, $"Power for HQ level {me.HqLevel + 1}");
         Ledger.Add(db, me, "cash", -cost, $"Upgraded HQ to level {me.HqLevel + 1}");
         me.HqLevel++;
+        Guide.Advance(db, me, "hq");
         return null;
     });
 

@@ -316,6 +316,7 @@ html.app .screen{border-radius:0}
 .allyEl .two{display:grid;grid-template-columns:1fr 1fr;gap:1.2em}@media (orientation:portrait){html.app .allyEl .two{grid-template-columns:1fr}}
 .techNode.done{background:#eaf3e2;border-color:#9cc48a}.techNode.busy{background:#fff6dc;border-color:#e0bf5a}.techNode.locked{opacity:.62}
 @media (orientation:portrait){html.app .techEl{inset:calc(10*var(--u)) 2.5cqw calc(16*var(--u));font-size:calc(3.3*var(--u))}html.app .techGrid{grid-template-columns:1fr}}
+.tutbar.guide{flex-wrap:wrap;max-width:min(94cqw,calc(150*var(--u)))}.tutbar.guide>span:nth-child(2){flex:1;min-width:16em}.tutbar .gbtns{display:flex;gap:.4em}@media (orientation:portrait){html.app .tutbar.guide>span:nth-child(2){min-width:0;flex-basis:100%}html.app .tutbar.guide{max-width:none}}.tutbar button.sk{background:transparent;color:#c9a24a;border:1px solid #6b5a30}
 .tutbar b{font:800 calc(2.6*var(--u))/1 'Baloo 2',sans-serif;color:#c9a24a;white-space:nowrap}.tutbar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:calc(1.2*var(--u)) calc(2.4*var(--u));cursor:pointer;white-space:nowrap}
 .placebar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16*var(--u));z-index:6;background:rgba(10,12,16,.92);border:1px solid rgba(255,255,255,.15);border-radius:99px;padding:calc(1*var(--u));display:flex;gap:calc(1*var(--u));align-items:center;color:#e8e2d4;font:600 calc(2.4*var(--u))/1 system-ui,sans-serif}
 .placebar span{padding:0 calc(1.4*var(--u))}.placebar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;border:0;border-radius:99px;padding:calc(1.3*var(--u)) calc(2.4*var(--u));cursor:pointer;background:#2a2f36;color:#e8e2d4}.placebar button.go{background:#c9a24a;color:#1a1408}
@@ -1771,10 +1772,10 @@ function renderBriefNet(){const me=NET.me,h=me.home||{},pend=me.pending||{},rate
  const anyPend=(pend.cash||0)+(pend.oil||0)+(pend.grain||0)+(pend.fuel||0)+(pend.power||0)>=1;
  $('brCollect').innerHTML=[['Cash',pend.cash],['Oil',pend.oil],['Grain',pend.grain],['Power',pend.power]].map(x=>'<div><span>'+x[0]+'</span><br><b>+'+fmtN(x[1]||0)+'</b></div>').join('');
  $('brCollectBtn').textContent=anyPend||(me.ration&&me.ration.ready)?'Collect all':'Nothing to collect yet';
- const steps=['Barracks','Warehouse','Research lab','Crop plot','Oil pump','Solar panel','Collect','Expand your base'];const done=t?t.step-1:steps.length;
+ const gd=me.guide;const steps=!t&&gd?gd.titles:['Barracks','Warehouse','Research lab','Crop plot','Oil pump','Solar panel','Collect'];const done=t?t.step-1:gd?gd.step-1:steps.length;
  $('brGoals').innerHTML=steps.map((g,i)=>'<div class="goal'+(i<done?' done':'')+'"><span class="ms">'+(i<done?'check_circle':'radio_button_unchecked')+'</span><span class="t">'+g+'</span><span class="rw"></span></div>').join('');
  const st=briefEl.querySelector('.streak');if(st){st.style.display='none';if(st.previousElementSibling)st.previousElementSibling.style.display='none';}
- $('brGo').textContent='Go to my base';$('brSave').hidden=false;const gh=$('brGoals').previousElementSibling;if(gh)gh.textContent='Getting started';}
+ $('brGo').textContent='Go to my base';$('brSave').hidden=false;const gh=$('brGoals').previousElementSibling;if(gh)gh.textContent=me.home&&me.home.tutorial?'Getting started':'Field Guide';}
 function renderBrief(){if(window.NET&&NET.me){renderBriefNet();return;}const need=secNeeds();const poll=Math.round(cands[0][1]/cands.reduce((a,c)=>a+c[1],0)*100);
  const items=[...(window.NET&&NET.me&&NET.me.ration&&NET.me.ration.ready?[['inventory','A Caretaker drone left your ration crate: +'+NET.me.ration.crate.grain+' grain'+(NET.me.ration.crate.fuel?', +'+NET.me.ration.crate.fuel+' fuel':'')+'. Collect it below','good']]:[]),['inventory_2','Your parcels produced '+fmtN(OFFLINE.oil)+' oil and '+fmtN(OFFLINE.grain)+' grain',''],['real_estate_agent','Lease on Sector 23 paid 186 oil','good'],['trending_up','Oil price up 4% since yesterday (now '+price.toFixed(2)+'): a good time to sell',''],
   need.length?['home_work','Sector 12 needs '+need.join(', ')+': the governor is paying contracts','warn']:['home_work','Sector 12 has everything it needs','good'],['shield','Mara_V raided your convoy overnight: your escort held','good'],['gavel','Customs confiscated a back-road shipment near Sector 8',''],
@@ -2725,9 +2726,27 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  P=P0;renderTutorial();}
 /* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
 setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden&&$('allyEl').hidden)?'':'hidden';},400);
-function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
- b.hidden=false;const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
+function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');
+ if(!t&&NET.me&&NET.me.guide&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){renderGuide(NET.me.guide);return;}
+ if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
+ b.hidden=false;b.classList.remove('guide');const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>startPlacing(k.type),900);}else startPlacing(k.type);}else{openBrief();}};}
+/* ---------- The Field Guide: one short chapter per system, done by doing it ---------- */
+function renderGuide(g){const b=$('tutBar');b.hidden=false;b.classList.add('guide');
+ b.innerHTML='<b>Field Guide '+g.step+'/'+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">'+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">Show me</button><button id="tutSkip" class="sk">Skip guide</button></span>';
+ $('tutGo').onclick=()=>guideShow(g);$('tutSkip').onclick=()=>{if(confirm('Skip the rest of the Field Guide? You can still learn everything by playing.'))NET.conn.invoke('SkipGuide').then(r=>{if(r.ok){applyMe(r.player);$('tutBar').hidden=true;toast('Field Guide skipped');}});};}
+function guideShow(g){card.hidden=true;const seen=w=>NET.conn.invoke('GuideSeen',w).then(r=>{if(r.ok){applyMe(r.player);toast('Field Guide: chapter complete');}}).catch(()=>{});
+ switch(g.show){
+  case 'sector':openSectorMap(NET.me.homeSector);setTimeout(()=>toast(g.do==='claim'?'Tap an empty parcel next to your base, then Claim':'Tap a parcel you own (gold border), then Build'),1200);break;
+  case 'hq':sectorToHome();setTimeout(()=>{if(typeof hqCard==='function')hqCard();},1100);break;
+  case 'research':if(NET.me.research&&NET.me.research.labs){openTech();}else{sectorToHome();setTimeout(()=>toast('Build a Research lab in your base first'),1100);}break;
+  case 'market':$('bMarket').click();setTimeout(()=>toast('Pick a resource, then place a buy or sell order'),600);break;
+  case 'contracts':$('bContracts').click();setTimeout(()=>toast('Pick a contract you have the goods for, then ship it'),600);break;
+  case 'battle':sectorToProvince();setTimeout(()=>toast('Tap the red Militia camp to attack it, or tap a bot\'s base in a sector to raid it'),1400);break;
+  case 'alliance':openAlly();break;
+  case 'politics':$('nPolitics').click();setTimeout(()=>toast('Vote for a candidate, or vote on a law'),600);break;
+  case 'record':$('bRecord').click();seen('record');break;
+  case 'sentinel':sentinelCard();seen('sentinel');break;}}
 function startPlacing(type,moveId){const k=homeKindOf(type);if(!k)return;card.hidden=true;const t0=moveId?NET.me.home.tiles.find(t=>t.id===moveId):null;
  HB.placing={type,moveId,rot:t0?t0.rotated:false,x:t0?t0.x:Math.floor(NET.me.home.lo+1),y:t0?t0.y:Math.floor(NET.me.home.lo+1)};
  if(HB.ghost)HB.group.remove(HB.ghost);HB.ghost=new THREE.Mesh(new THREE.BoxGeometry(1,0.08,1),new THREE.MeshBasicMaterial({color:0x7fe08a,transparent:true,opacity:0.55,depthWrite:false}));HB.group.add(HB.ghost);

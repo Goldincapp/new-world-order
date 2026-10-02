@@ -28,6 +28,8 @@ public class Player
     /// <summary>How far the home base walls reach (an index into HomeBase.Sizes).</summary>
     public int HomeLevel { get; set; }
     public int TutorialStep { get; set; }
+    /// <summary>Progress through the Field Guide that follows the home tutorial.</summary>
+    public int GuideStep { get; set; }
     /// <summary>Researched techs, comma-separated ids (see Research.Techs).</summary>
     public string? Techs { get; set; }
     public string? ResearchId { get; set; }

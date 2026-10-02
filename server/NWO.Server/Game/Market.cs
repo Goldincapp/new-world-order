@@ -138,6 +138,7 @@ public class Market(World world, IHubContext<GameHub> hub)
                 var avg = value / filled;
                 summary = $"{(side == "buy" ? "Bought" : "Sold")} {filled:N0} {res} at {avg:N2} on average" + (left > 0 && limit is not null ? $"; {left:N0} more waiting at {limit:N2}" : "");
             }
+            Guide.Advance(db, me, "order");
             return new Result(true, Player: Dto.Me(me), Summary: summary);
         });
 

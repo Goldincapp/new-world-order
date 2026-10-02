@@ -117,6 +117,7 @@ public class Alliances(World world, IHubContext<GameHub> hub)
         db.Alliances.Add(a);
         await db.SaveChangesAsync();
         Join(me, a, "leader");
+        Guide.Advance(db, me, "alliance");
         db.AllianceInvites.RemoveRange(db.AllianceInvites.Where(i => i.PlayerId == me.Id));
         Caretaker.Remember(db, me, 1, "order", $"Founded the alliance {name} [{tag}]");
         return (new Result(true, Summary: $"{name} [{tag}] is founded. Invite players from the alliance screen.", Player: Dto.Me(me)), async () =>
@@ -154,6 +155,7 @@ public class Alliances(World world, IHubContext<GameHub> hub)
         if (n >= MaxMembers) return (new Result(false, $"{a.Name} is full ({MaxMembers} members)."), null);
         if (p.AllianceId is not null) return (new Result(false, $"{p.Name} is already in an alliance."), null);
         Join(p, a, "member");
+        Guide.Advance(db, p, "alliance");
         db.AllianceInvites.RemoveRange(db.AllianceInvites.Where(i => i.PlayerId == p.Id));
         Caretaker.Remember(db, p, 1, "order", $"Joined the alliance {a.Name}");
         return (new Result(true, Summary: $"{p.Name} joined {a.Name}.", Player: Dto.Me(p)), async () =>

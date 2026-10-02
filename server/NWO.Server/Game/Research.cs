@@ -116,6 +116,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         p.ResearchId = t.Id;
         p.ResearchEndsAt = DateTime.UtcNow + time;
         p.ResearchHelpers = null;
+        Guide.Advance(db, p, "research");
         return new World.Result(true, Player: Dto.Me(p));
     });
 

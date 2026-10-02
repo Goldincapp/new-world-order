@@ -138,6 +138,19 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<World.Result> NameSector(int sector, string name) => sectorNames.Name(Me.Id, sector, name);
 
+    /// <summary>Field Guide chapters that are done by reading (the record, the Sentinel), and skipping the guide.</summary>
+    public async Task<World.Result> GuideSeen(string what)
+    {
+        if (what is not ("record" or "sentinel")) return new(false, "Unknown.");
+        return await world.Locked(async gdb => { var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == Me.Id); Guide.Advance(gdb, p, what); return new World.Result(true, Player: Dto.Me(p)); });
+    }
+    public async Task<World.Result> SkipGuide() => await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == Me.Id);
+        p.TutorialStep = Math.Max(p.TutorialStep, HomeBase.Tutorial.Length); p.GuideStep = Guide.Steps.Length;
+        return new World.Result(true, Player: Dto.Me(p));
+    });
+
     // ---------- Alliances
     public Task<object> GetAlliance() => alliances.View(Me.Id);
     public Task<Alliances.Result> CreateAlliance(string name, string tag, bool open) => alliances.Create(Me.Id, name, tag, open);

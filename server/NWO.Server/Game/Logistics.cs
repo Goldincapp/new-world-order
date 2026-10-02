@@ -107,6 +107,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
             db.Shipments.Add(s);
             await db.SaveChangesAsync();
             view = View(s);
+            Guide.Advance(db, me, "ship");
             return new Result(true, Player: Dto.Me(me), Summary: legal
                 ? $"Truck sent on the main road to Sector {c.Sector}. Tax and the Caretaker fee are paid on delivery."
                 : envelope > 0 ? $"Truck sent by back road with a {envelope:N0} envelope hidden in the cargo." : "Truck sent by back road. Keep your fingers crossed.");
