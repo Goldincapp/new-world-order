@@ -80,11 +80,15 @@ public static class Economy
     {
         var r = new Dictionary<string, double> { ["cash"] = 40, ["oil"] = 0, ["grain"] = 0, ["fuel"] = 0 };
         r["power"] = 0;
-        HomeBase.AddRates(p, p.HomeTiles, r);
+        // The Caretaker tithes what's made in sectors it still holds
+        var home = new Dictionary<string, double>(r.Keys.ToDictionary(k => k, _ => 0.0));
+        HomeBase.AddRates(p, p.HomeTiles, home);
+        var homeKeep = 1 - Presence.Tithe(p.HomeSector);
+        foreach (var (k, v) in home) r[k] = r.GetValueOrDefault(k) + v * homeKeep;
         foreach (var parcel in p.Parcels.Where(x => !x.IsHome))
         {
             var (res, perHour) = Yield[parcel.Resource];
-            var rich = Region2.Contains(parcel.Sector) ? Region2.YieldMult : 1;
+            var rich = (Region2.Contains(parcel.Sector) ? Region2.YieldMult : 1) * (1 - Presence.Tithe(parcel.Sector));
             r[res] += perHour * rich;
             var land = SectorTemplate.Code(parcel.Sector, parcel.I, parcel.J);
             foreach (var b in BuildingsOn(parcel))

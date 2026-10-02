@@ -14,7 +14,7 @@ public class ArenaSim : IBattle
     public const double Duration = 150, DeployMaxX = -1, HalfDepth = 2.9;
     const double Tick = 0.35, Aggro = 3.6;
 
-    public static readonly BattleSim.UnitType Sentry = new("Caretaker sentry", 0, 320, 24, 2.8, 1.3, "air", 1.2, 1.1, 1, 0.9);
+    public static readonly BattleSim.UnitType Sentry = new("Caretaker sentry", 3, 320, 24, 2.8, 1.3, "air", 1.2, 1.1, 1, 0.9);
     static BattleSim.UnitType TypeOf(string t) => t == "sentry" ? Sentry : BattleSim.Types[t];
 
     public class Unit
@@ -135,11 +135,11 @@ public class ArenaSim : IBattle
         var threat = Units.Where(u => u.Side == 0 && u.Hp > 0).OrderByDescending(u => u.X).FirstOrDefault();
         if (threat is not null && threat.X > -2 && Ecp >= 2)
         {
-            var pick = Garrison.Where(kv => kv.Value > 0 && BattleSim.Types[kv.Key].Cost <= Ecp)
+            var pick = Garrison.Where(kv => kv.Value > 0 && TypeOf(kv.Key).Cost <= Ecp)
                 .OrderByDescending(kv => Counters(kv.Key, threat.T)).ThenBy(_ => rng.Next()).Select(kv => kv.Key).FirstOrDefault();
             if (pick is not null)
             {
-                var t = BattleSim.Types[pick];
+                var t = TypeOf(pick);
                 Ecp -= t.Cost; Garrison[pick] -= t.Squad;
                 var near = Structures.Where(s => s.Alive).OrderBy(s => Dist(s.X, s.Z, threat.X, threat.Z)).FirstOrDefault();
                 var (sx, sz) = near is null ? (7.0, 0.0) : (near.X - 0.6, near.Z);
@@ -230,7 +230,7 @@ public class ArenaSim : IBattle
 
     static double Counters(string type, BattleSim.UnitType threat)
     {
-        var t = BattleSim.Types[type];
+        var t = TypeOf(type);
         return threat.Kind switch { "inf" => t.VsInf, "veh" => t.VsVeh, "air" => t.VsAir, _ => 1 };
     }
 

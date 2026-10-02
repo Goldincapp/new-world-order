@@ -114,7 +114,7 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
     }
 
     public static async Task<int> DronesAliveOver(GameDb db, int sector, DateTime now) =>
-        await db.Drones.CountAsync(d => d.Sector == sector && (d.DownUntil == null || d.DownUntil <= now));
+        Presence.Applies(sector) && Presence.Of(sector) < 20 ? 0 : await db.Drones.CountAsync(d => d.Sector == sector && (d.DownUntil == null || d.DownUntil <= now));
 
     public record Result(bool Ok, string? Error = null, object? Player = null, string? Summary = null);
 

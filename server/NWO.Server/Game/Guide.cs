@@ -13,7 +13,7 @@ public static class Guide
 
     public static readonly Step[] Steps =
     [
-        new("claim", "Claim land", "Your home is one parcel in a sector of a thousand. Go to your sector and claim an empty parcel next to you. What's under it (oil, grain, timber, ore or ruins) decides what it's good for.", "sector", Cash: 1500),
+        new("claim", "Claim land", "Your home is one parcel in a sector of a thousand. Go to your sector and claim an empty parcel next to you. What's under it (oil, grain, timber, ore or ruins) decides what it's good for. The Caretaker still holds every sector and tithes what you make: build it up and it leaves.", "sector", Cash: 1500),
         new("build", "Build on your land", "Tap a parcel you own and build on it. Anything can go anywhere, but geography decides the output: a rig on oil sands pumps, a rig on barren ground barely trickles.", "sector", Cash: 1000),
         new("hq", "Upgrade your HQ", "Your HQ sets how many buildings you can run, unlocks bigger expansions and tier 2 and 3 research. Tap it in your base and upgrade.", "hq", Cash: 1000),
         new("research", "Pick a research path", "Your Research lab holds a tech tree with five branches. Specialise: techs outside your branch get dearer, so choose what kind of player you want to be.", "research", Cash: 800),

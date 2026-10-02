@@ -295,7 +295,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
                     s.Checked = true;
                     // Every live drone over the destination makes the checkpoint more alert.
                     var drones = await Caretaker.DronesAliveOver(db, s.To, now);
-                    if (Rng.NextDouble() < Math.Min(0.9, CheckpointChance * Caretaker.InspectionRisk(owner) * (1 + 0.25 * drones) * (Research.Has(owner, "channels") ? 0.7 : 1)))
+                    if (Rng.NextDouble() < Math.Min(0.9, CheckpointChance * Caretaker.InspectionRisk(owner) * (1 + 0.25 * drones) * (Research.Has(owner, "channels") ? 0.7 : 1) * Presence.CheckpointFactor(s.To)))
                     {
                         var by = new[] { "Customs · Aurelia", "Caretaker checkpoint", "Kestrel", "Nyx" }[Rng.Next(4)];
                         if (s.Envelope > 0)

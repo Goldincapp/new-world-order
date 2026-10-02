@@ -19,6 +19,8 @@ builder.Services.AddSingleton<Battles>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Battles>());
 builder.Services.AddSingleton<Alliances>();
 builder.Services.AddSingleton<SectorNames>();
+builder.Services.AddSingleton<Presence>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Presence>());
 builder.Services.AddSingleton<Bots>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Bots>());
 builder.Services.AddSingleton<Research>();
@@ -41,6 +43,7 @@ using (var scope = app.Services.CreateScope())
     await Politics.EnsureNations(db);
     await Siege.EnsureState(db);
     await Bots.Ensure(db);
+    await Presence.Ensure(db);
 }
 
 app.UseCors();
@@ -166,13 +169,14 @@ api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm)
         await db.Trades.ExecuteDeleteAsync(); await db.Orders.ExecuteDeleteAsync(); await db.Ledger.ExecuteDeleteAsync();
         await db.Records.ExecuteDeleteAsync(); await db.Chat.ExecuteDeleteAsync(); await db.HomeTiles.ExecuteDeleteAsync();
         await db.Parcels.ExecuteDeleteAsync(); await db.Drones.ExecuteDeleteAsync(); await db.Camps.ExecuteDeleteAsync();
-        await db.AllianceInvites.ExecuteDeleteAsync(); await db.Alliances.ExecuteDeleteAsync(); await db.SectorNames.ExecuteDeleteAsync();
+        await db.AllianceInvites.ExecuteDeleteAsync(); await db.Alliances.ExecuteDeleteAsync(); await db.SectorNames.ExecuteDeleteAsync(); await db.SectorPresence.ExecuteDeleteAsync();
         await db.Players.ExecuteDeleteAsync(); await db.Server.ExecuteDeleteAsync();
         await Market.EnsureCaretakerOrders(db);
         await Caretaker.EnsureLand(db);
         await Politics.EnsureNations(db);
         await Siege.EnsureState(db);
         await Bots.Ensure(db);
+        await Presence.Ensure(db);
         return n;
     });
     return Results.Ok(new { wiped = players });
@@ -206,7 +210,7 @@ api.MapPost("/admin/grant", async (HttpContext ctx, World world, IHubContext<Gam
 });
 
 // Admin: simulate base assaults against a base of a given size, with a simple scripted attacker.
-api.MapPost("/admin/arena/simulate", (HttpContext ctx, int hq, int barracks, string? doctrine, int? trained, int? runs) =>
+api.MapPost("/admin/arena/simulate", (HttpContext ctx, int hq, int barracks, string? doctrine, int? trained, int? runs, double? outpost) =>
 {
     if (!Admin.Allowed(ctx)) return Results.Unauthorized();
     var p = new Player { HqLevel = hq, DefenseDoctrine = doctrine ?? "balanced" };
@@ -216,7 +220,7 @@ api.MapPost("/admin/arena/simulate", (HttpContext ctx, int hq, int barracks, str
     for (var run = 0; run < (runs ?? 10); run++)
     {
         var rng = new Random(run);
-        var a = new ArenaSim("sim", "base", Defense.For(p), tr, BattleSim.StartingTroops, null, run);
+        var a = new ArenaSim("sim", "base", outpost is { } op ? Presence.Outpost(op) : Defense.For(p), outpost is null ? tr : new(), BattleSim.StartingTroops, null, run);
         string[] pool = ["gunner", "launcher", "tank", "launcher", "heli", "militia"];
         while (!a.Done)
         {

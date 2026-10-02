@@ -90,6 +90,16 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     sim = new BattleSim($"Seizing {parcel.Owner.Name}'s land · Sector {sector}", g.Name, g, deck, Random.Shared.Next());
                     target = (pi, pj, parcel.Owner.Id);
                     break;
+                case "outpost":
+                    if (!Presence.Applies(sector)) return new Result(false, "There's no Caretaker outpost to assault here.");
+                    var sp = await db.SectorPresence.FindAsync(sector);
+                    if (sp is null || sp.Presence <= 0.5) return new Result(false, "The Caretaker has already left this sector.");
+                    if (sp.LastAssaultAt + Presence.AssaultEvery > now) return new Result(false, $"The outpost was attacked recently and is on alert. Try again in {(int)Math.Ceiling((sp.LastAssaultAt + Presence.AssaultEvery - now).TotalMinutes)} minutes.");
+                    fuel = Presence.AssaultFuel;
+                    arena = new ArenaSim($"Assault on the Caretaker outpost · Sector {sector}", "Caretaker outpost", Presence.Outpost(sp.Presence), new(), BattleSim.StartingTroops, deck, Random.Shared.Next());
+                    Presence.Assaulted(db, sp, false);
+                    Caretaker.Remember(db, me, -8, "war", $"Attacked the Caretaker's outpost in Sector {sector}");
+                    break;
                 case "raidbase":
                     var victim = await db.Players.Include(x => x.HomeTiles).Include(x => x.Parcels).FirstOrDefaultAsync(x => x.Name == rivalKey);
                     if (victim is null || victim.Id == playerId) return new Result(false, "Pick another settlement to raid.");
@@ -179,7 +189,28 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         var rows = new List<string[]> { new[] { "Result", s.Why } };
         string? announce = null;
         object? player = null;
-        if (b.Kind == "raidbase")
+        if (b.Kind == "outpost")
+        {
+            var stars = (s as ArenaSim)?.Stars ?? 0;
+            rows.Add(["Stars", new string('★', stars) + new string('☆', 3 - stars)]);
+            await world.Locked(async db =>
+            {
+                var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == b.PlayerId);
+                var sp = await db.SectorPresence.FindAsync(b.Sector);
+                if (s.Won && sp is not null)
+                {
+                    Presence.Assaulted(db, sp, true);
+                    Ledger.Add(db, me, "cash", 1500, "Salvage from a Caretaker outpost");
+                    rows.Add(["Caretaker", $"Pushed back {Presence.AssaultConcession}% for good. Presence in Sector {b.Sector}: {Math.Round(sp.Presence)}%"]);
+                    rows.Add(["Salvage", "+1,500 cash"]);
+                    announce = $"{me.Name} beat the Caretaker's outpost in Sector {b.Sector}. Its hold there is weakening.";
+                }
+                else rows.Add(["Caretaker", "It holds. Develop the sector and it will leave on its own"]);
+                player = Dto.Me(me);
+                return true;
+            });
+        }
+        else if (b.Kind == "raidbase")
         {
             RaidTargets.TryRemove(b.Id, out var vid);
             var ar = s as ArenaSim;

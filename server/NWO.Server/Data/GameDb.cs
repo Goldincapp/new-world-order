@@ -264,6 +264,22 @@ public class Nation
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>How strongly the Caretaker holds a settled sector (100 = it rules, 0 = free).</summary>
+public class SectorPresence
+{
+    [System.ComponentModel.DataAnnotations.Key]
+    [System.ComponentModel.DataAnnotations.Schema.DatabaseGenerated(System.ComponentModel.DataAnnotations.Schema.DatabaseGeneratedOption.None)]
+    public int Sector { get; set; }
+    public double Presence { get; set; } = 100;
+    /// <summary>Where presence is heading, from the sector's development.</summary>
+    public double Target { get; set; } = 100;
+    /// <summary>Permanent ground the Caretaker has given up, from petitions and lost battles.</summary>
+    public int Concessions { get; set; }
+    public int PetitionConcessions { get; set; }
+    public DateTime LastPetitionAt { get; set; }
+    public DateTime LastAssaultAt { get; set; }
+}
+
 /// <summary>A player-given name for a sector, earned by holding a tenth of its land.</summary>
 public class SectorName
 {
@@ -396,6 +412,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
     public DbSet<Coup> Coups => Set<Coup>();
     public DbSet<Alliance> Alliances => Set<Alliance>();
     public DbSet<SectorName> SectorNames => Set<SectorName>();
+    public DbSet<SectorPresence> SectorPresence => Set<SectorPresence>();
     public DbSet<AllianceInvite> AllianceInvites => Set<AllianceInvite>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Ballot> Ballots => Set<Ballot>();
