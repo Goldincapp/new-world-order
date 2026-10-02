@@ -14,9 +14,9 @@ public static class HomeBase
     /// <summary>The whole home grid. Only the unlocked square in the middle is usable.</summary>
     public const int GridMax = 26;
     /// <summary>Unlocked sizes: the starting walls, then each expansion.</summary>
-    public static readonly int[] Sizes = [10, 14, 18, 22, 26];
-    public static readonly double[] ExpandCash = [0, 5000, 20000, 60000, 150000];
-    public static readonly double[] ExpandPower = [0, 40, 150, 400, 900];
+    public static readonly int[] Sizes = [14, 18, 22, 26];
+    public static readonly double[] ExpandCash = [0, 8000, 40000, 120000];
+    public static readonly double[] ExpandPower = [0, 60, 250, 600];
     public const int HqSize = 3;
     /// <summary>A strip of open land around the walls where fields, pumps and panels can go. Beyond it is fog.</summary>
     public const int Yard = 3;
