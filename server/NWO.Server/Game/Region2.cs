@@ -77,7 +77,8 @@ public static class Region2
         var st = await db.Server.FindAsync(1);
         var holders = await db.Players.Include(p => p.Parcels)
             .Where(p => p.WarScore > 0 || p.Parcels.Any(x => x.Sector >= First && x.Sector <= Last)).ToListAsync();
-        var ranked = holders.Select(p => new { p.Name, p.Nation, score = Score(p), parcels = p.Parcels.Count(x => Contains(x.Sector)), captures = p.Captures })
+        var aNames = await db.Alliances.ToDictionaryAsync(a => a.Id, a => a.Name + " [" + a.Tag + "]");
+        var ranked = holders.Select(p => new { p.Name, p.Nation, alliance = p.AllianceId is { } ai ? aNames.GetValueOrDefault(ai) : null, score = Score(p), parcels = p.Parcels.Count(x => Contains(x.Sector)), captures = p.Captures })
             .OrderByDescending(x => x.score).ToList();
         return new
         {
@@ -86,6 +87,7 @@ public static class Region2
             first = First, last = Last, claimCost = ClaimCost, seizeFuel = SeizeFuel,
             sectors = Enumerable.Range(First, Last - First + 1).Select(n => new { n, biome = Biome(n) }),
             players = ranked.Take(20),
+            alliances = ranked.Where(x => x.alliance != null).GroupBy(x => x.alliance).Select(g => new { alliance = g.Key, score = g.Sum(x => x.score), players = g.Count() }).OrderByDescending(x => x.score),
             nations = ranked.GroupBy(x => x.Nation).Select(g => new { nation = g.Key, score = g.Sum(x => x.score), players = g.Count() }).OrderByDescending(x => x.score),
         };
     }

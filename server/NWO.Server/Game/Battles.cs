@@ -20,6 +20,9 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
     public const double CampFuel = 100, RaidFuel = 60, AmbushFuel = 30;
     /// <summary>Who owned an Ashlands parcel when its seizure started, so a win only transfers if nothing changed.</summary>
     static readonly ConcurrentDictionary<long, (int i, int j, Guid owner)> SeizeTargets = new();
+    static readonly ConcurrentDictionary<long, Guid> RaidTargets = new();
+    public const double BaseRaidFuel = 40;
+    static readonly TimeSpan RaidShield = TimeSpan.FromMinutes(30);
 
     /// <summary>The Blue Party garrisons the player can raid, and what they hold.</summary>
     static readonly Dictionary<string, (int sector, BattleSim.Rival rival, double lootRes, string res, double lootCash)> Rivals = new()
@@ -46,6 +49,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
 
         BattleSim? sim = null;
         (int i, int j, Guid owner)? target = null;
+        Guid? raidTarget = null;
         var r = await world.Locked(async db =>
         {
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
@@ -76,6 +80,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     var parcel = await db.Parcels.Include(x => x.Owner).ThenInclude(o => o!.HomeTiles).FirstOrDefaultAsync(x => x.Sector == sector && x.I == pi && x.J == pj);
                     if (parcel?.Owner is null) return new Result(false, "Nobody holds that parcel. Claim it instead.");
                     if (parcel.OwnerId == playerId) return new Result(false, "That land is already yours.");
+                    if (me.AllianceId is not null && parcel.Owner.AllianceId == me.AllianceId) return new Result(false, $"{parcel.Owner.Name} is in your alliance.");
                     if (parcel.Owner.Nation == me.Nation) return new Result(false, $"{parcel.Owner.Name} is a fellow citizen of {me.Nation}. Found or join another nation to fight them for it.");
                     var atWar = await Politics.WarBetween(db, me.Nation, parcel.Owner.Nation) is not null;
                     if (Region2.Protected(parcel, now)) return new Result(false, $"{parcel.Owner.Name} only just took this land. It's protected for {(int)Math.Ceiling(((parcel.ClaimedAt ?? now) + Region2.Protection - now).TotalMinutes)} more minutes.");
@@ -83,6 +88,18 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     var g = Region2.Garrison(parcel.Owner, parcel, Research.Has(me, "engineers") ? 0.8 : 1);
                     sim = new BattleSim($"Seizing {parcel.Owner.Name}'s land · Sector {sector}", g.Name, g, deck, Random.Shared.Next());
                     target = (pi, pj, parcel.Owner.Id);
+                    break;
+                case "raidbase":
+                    var victim = await db.Players.Include(x => x.HomeTiles).Include(x => x.Parcels).FirstOrDefaultAsync(x => x.Name == rivalKey);
+                    if (victim is null || victim.Id == playerId) return new Result(false, "Pick another settlement to raid.");
+                    if (!victim.IsBot) return new Result(false, "For now only bot settlements can be raided.");
+                    if (me.AllianceId is not null && victim.AllianceId == me.AllianceId) return new Result(false, $"{victim.Name} is in your alliance.");
+                    if (victim.LastRaidedAt + RaidShield > now) return new Result(false, $"{victim.Name} was raided recently. Their walls are manned for {(int)Math.Ceiling((victim.LastRaidedAt + RaidShield - now).TotalMinutes)} more minutes.");
+                    fuel = BaseRaidFuel;
+                    var hp = victim.Parcels.FirstOrDefault(x => x.IsHome) ?? new Parcel();
+                    var vg = Region2.Garrison(victim, hp, Research.Has(me, "engineers") ? 0.8 : 1);
+                    sim = new BattleSim($"Raid on {victim.Name}'s base · Sector {victim.HomeSector}", $"{victim.Name}'s garrison", vg with { Name = $"{victim.Name}'s garrison" }, deck, Random.Shared.Next());
+                    raidTarget = victim.Id;
                     break;
                 default: return new Result(false, "Unknown battle.");
             }
@@ -96,6 +113,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         if (!r.Ok || sim is null) return r;
         var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, sim);
         if (target is { } t0) SeizeTargets[live.Id] = t0;
+        if (raidTarget is { } rt) RaidTargets[live.Id] = rt;
         Active[playerId] = live;
         return r with { Battle = new { id = live.Id, title = sim.Title, enemy = sim.Enemy, deck = sim.Deck, rival = sim.Opponent?.Name, state = sim.State() } };
     }
@@ -151,7 +169,28 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         var rows = new List<string[]> { new[] { "Result", s.Why } };
         string? announce = null;
         object? player = null;
-        if (b.Kind == "seize")
+        if (b.Kind == "raidbase")
+        {
+            RaidTargets.TryRemove(b.Id, out var vid);
+            await world.Locked(async db =>
+            {
+                var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == b.PlayerId);
+                var v = await db.Players.FirstOrDefaultAsync(p => p.Id == vid);
+                if (s.Won && v is not null)
+                {
+                    var cash = Math.Floor(Math.Min(4000, v.Cash * 0.2)); var oil = Math.Floor(Math.Min(300, v.Oil * 0.2)); var grain = Math.Floor(Math.Min(300, v.Grain * 0.2));
+                    foreach (var (res, amt) in new[] { ("cash", cash), ("oil", oil), ("grain", grain) })
+                        if (amt >= 1) { Ledger.Add(db, v, res, -amt, $"Raided by {me.Name}"); Ledger.Add(db, me, res, amt, $"Raid loot: {v.Name}"); }
+                    v.LastRaidedAt = DateTime.UtcNow;
+                    Caretaker.Remember(db, me, -2, "war", $"Raided {v.Name}'s base");
+                    rows.Add(["Loot", $"+{cash:N0} cash, +{oil:N0} oil, +{grain:N0} grain"]);
+                    announce = $"{me.Name} raided {v.Name}'s base in Sector {v.HomeSector}.";
+                }
+                player = Dto.Me(me);
+                return true;
+            });
+        }
+        else if (b.Kind == "seize")
         {
             SeizeTargets.TryRemove(b.Id, out var tg);
             if (s.Won)

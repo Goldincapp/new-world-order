@@ -59,6 +59,16 @@ public class Player
     /// <summary>When this player last changed nation; they can only switch once a day.</summary>
     public DateTime NationChangedAt { get; set; }
     public int Captures { get; set; }
+    /// <summary>A computer-run settler that populates the map; its base can be raided.</summary>
+    public bool IsBot { get; set; }
+    public long? AllianceId { get; set; }
+    /// <summary>leader, officer or member.</summary>
+    public string? AllianceRole { get; set; }
+    public DateTime? AllianceJoinedAt { get; set; }
+    /// <summary>Allies who have helped this research (comma-separated ids); cleared when research starts.</summary>
+    public string? ResearchHelpers { get; set; }
+    /// <summary>When this player's base was last raided, so it can't be farmed.</summary>
+    public DateTime LastRaidedAt { get; set; }
 
     /// <summary>A drone hunt that has been paid for (flak shells loaded) and not yet finished.</summary>
     public int DroneHuntSector { get; set; }
@@ -248,6 +258,34 @@ public class Nation
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>A player alliance: a name, a tag, a shared bank and a private chat.</summary>
+public class Alliance
+{
+    public long Id { get; set; }
+    public string Name { get; set; } = "";
+    public string Tag { get; set; } = "";
+    public string Description { get; set; } = "";
+    public Guid LeaderId { get; set; }
+    /// <summary>Open alliances let anyone join; closed ones need an officer to accept.</summary>
+    public bool Open { get; set; } = true;
+    public double BankCash { get; set; }
+    public double BankFuel { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>An invitation from an alliance to a player, or a player's request to join an alliance.</summary>
+public class AllianceInvite
+{
+    public long Id { get; set; }
+    public long AllianceId { get; set; }
+    public Guid PlayerId { get; set; }
+    public string PlayerName { get; set; } = "";
+    /// <summary>invite (alliance asked the player) or request (player asked the alliance).</summary>
+    public string Kind { get; set; } = "invite";
+    public string By { get; set; } = "";
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
 /// <summary>A war between two nations. Ends when one side offers peace and the other accepts.</summary>
 public class War
 {
@@ -338,6 +376,8 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
     public DbSet<Nation> Nations => Set<Nation>();
     public DbSet<War> Wars => Set<War>();
     public DbSet<Coup> Coups => Set<Coup>();
+    public DbSet<Alliance> Alliances => Set<Alliance>();
+    public DbSet<AllianceInvite> AllianceInvites => Set<AllianceInvite>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Ballot> Ballots => Set<Ballot>();
     public DbSet<Law> Laws => Set<Law>();

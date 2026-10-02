@@ -309,6 +309,11 @@ html.app .screen{border-radius:0}
 .techNode{border:1px solid #ddd3bf;border-radius:.7em;padding:.5em .6em;background:#fff;display:flex;flex-direction:column;gap:.25em}
 .techNode .tn{font-weight:700}.techNode .te{color:#5a5448;font-size:.92em}.techNode .tc{color:#8a7440;font-size:.85em}.techNode .tb{color:#a04a3a;font-size:.82em}
 .techNode button{align-self:flex-start;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:.3em .9em;font:700 1em/1 'Baloo 2',sans-serif;cursor:pointer}
+.allyEl .arow{display:flex;gap:.6em;align-items:center;justify-content:space-between;border-bottom:1px dashed #e2d9c5;padding:.35em 0;flex-wrap:wrap}.allyEl .arow small{color:#8a8272}
+.allyEl .acts{display:flex;gap:.4em;flex-wrap:wrap;margin:.4em 0}.allyEl button{background:#e9e1cf;color:#2a2a2a;border:0;border-radius:99px;padding:.3em .85em;font:700 .95em/1.1 'Baloo 2',sans-serif;cursor:pointer}
+.allyEl button.go{background:#c9a24a;color:#1a1408}.allyEl button.bad{background:#f1d9d2;color:#8a2a1a}.allyEl input{font:inherit;padding:.4em .6em;border-radius:.5em;border:1px solid #d9d1bf;min-width:7em;background:#fff;color:#2a2a2a}
+.allyEl h4{margin:.9em 0 .25em;font:700 1.05em/1.2 'Baloo 2',sans-serif}.allyEl .dot{display:inline-block;width:.55em;height:.55em;border-radius:50%;background:#bbb;margin-right:.3em}.allyEl .dot.on{background:#3cb371}
+.allyEl .two{display:grid;grid-template-columns:1fr 1fr;gap:1.2em}@media (orientation:portrait){html.app .allyEl .two{grid-template-columns:1fr}}
 .techNode.done{background:#eaf3e2;border-color:#9cc48a}.techNode.busy{background:#fff6dc;border-color:#e0bf5a}.techNode.locked{opacity:.62}
 @media (orientation:portrait){html.app .techEl{inset:calc(10*var(--u)) 2.5cqw calc(16*var(--u));font-size:calc(3.3*var(--u))}html.app .techGrid{grid-template-columns:1fr}}
 .tutbar b{font:800 calc(2.6*var(--u))/1 'Baloo 2',sans-serif;color:#c9a24a;white-space:nowrap}.tutbar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:calc(1.2*var(--u)) calc(2.4*var(--u));cursor:pointer;white-space:nowrap}
@@ -365,6 +370,7 @@ html.app .screen{border-radius:0}
           <button class="hbtn" id="bRes" aria-label="Resource map"><span class="ms">layers</span><span class="l">Resources</span></button>
           <button class="hbtn" id="bRecord" aria-label="Caretaker record"><span class="ms">visibility</span><span class="l">Record</span></button>
           <button class="hbtn" id="bStats" aria-label="Stats"><span class="ms">monitoring</span><span class="l">Stats</span></button>
+          <button class="hbtn" id="bAlly" aria-label="Alliance" hidden><span class="ms">shield</span><span class="l">Alliance</span></button>
           <button class="hbtn" id="bAlliance" aria-label="Chat"><span class="ms">forum</span><i id="unread">9</i><span class="l">Chat</span></button>
         </div>
         <div class="nav" role="group" aria-label="Game navigation">
@@ -465,6 +471,7 @@ html.app .screen{border-radius:0}
         <div class="toast" id="toast"></div>
         <div class="tutbar" id="tutBar" hidden></div>
         <div class="techEl" id="techEl" hidden></div>
+        <div class="techEl allyEl" id="allyEl" hidden></div>
         <div class="placebar" id="placeBar" hidden></div>
         <button class="siegebar" id="siegeBar" hidden></button>
         <div class="siegepanel" id="siegePanel" hidden></div>
@@ -1204,7 +1211,7 @@ function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
  if(window.NET&&NET.big){const k0=c.i+','+c.j,sp0=NET.sector[k0];
   if(c.code==='ha'){const r2=NET.big.region===2;showCard(r2?'Ashlands outpost':'Sector hall','Sector '+NET.big.sector+' · '+NET.big.settlers+' settlers'+(r2?' · Region 2':''),[['Biome',BIOME_NAME[NET.big.biome]||NET.big.biome],['Land',r2?'Rich, and contested: anything here can be seized':'Mostly barren: build to make it pay'],['Claim cost',fmt(NET.big.claimCost||NET.me.claimCost)+' cash a parcel']].concat(r2?[['Output','x1.5 everything this land makes']]:[]),r2?['Previous sector','Next sector','War score','Leave the Ashlands']:['Close']);return;}
   if(sp0&&sp0.home){if(sp0.owner===NET.me.name){showCard('Your home base','Parcel '+id+' · Sector '+NET.big.sector,[['HQ','Level '+NET.me.home.hqLevel],['Buildings',NET.me.home.tiles.length+' of '+NET.me.home.maxBuildings],['Base size',(NET.me.home.hi-NET.me.home.lo)+'x'+(NET.me.home.hi-NET.me.home.lo)]],['Enter home base']);return;}
-   showCard(sp0.owner+'\'s base','Parcel '+id+' · home base',[['Owner',sp0.owner],['Land here',RESNAME[sp0.res]||sp0.res]],['Close']);return;}
+   NET.raidTarget=sp0.bot?sp0.owner:null;showCard(sp0.owner+'\'s base','Parcel '+id+' · home base',[['Owner',sp0.owner+(sp0.bot?' (bot)':'')],['Land here',RESNAME[sp0.res]||sp0.res]].concat(sp0.bot?[['Raid it','Beat their garrison to take up to 20% of their cash, oil and grain. Costs 40 fuel']]:[]),sp0.bot?['Raid · 40 fuel','Close']:['Close']);return;}
   if(sp0&&sp0.owner&&sp0.owner!==NET.me.name){const r2=NET.big.region===2;showCard(sp0.owner+'\'s land','Parcel '+id+' · Sector '+NET.big.sector,[['Owner',sp0.owner],['Land here',RESNAME[sp0.res]||sp0.res],['Built',sp0.b&&sp0.b.length?sp0.b.join(', '):'Nothing yet']].concat(r2?[['Seize it','Beat their garrison and it is yours. Costs 80 fuel. Half the buildings are wrecked in the fighting']]:[['Region 1','Land here can\'t be taken by force']]),r2?['Seize · 80 fuel','Close']:['Close']);return;}}
  if(!(window.NET&&NET.big)&&c.i===6&&c.j===12){slots.forEach(s=>s.material=slotUsed);showCard('Your HQ parcel','Parcel '+id+' · home base',[['Owner','You'],['Headquarters','Level 12'],['Walls','Level 6'],['Garrison','40 troops']],['Enter home base','Upgrade'],9);return;}
  const k=c.i+','+c.j,owner=ownerOf(c),R=resOf(c),sv=surveyed.has(k)||owner==='You';
@@ -2193,10 +2200,12 @@ function applyMe(p){NET.me=p;setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBas
 function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?h+'h '+m+'m':m+'m';}
 async function connectLive(){if(!window.signalR||!NET.token)return;
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
- c.on('me',p=>{applyMe(p);toast('Your balance was updated');});c.on('research',m=>{if(m.player)applyMe(m.player);toast('Research complete: '+m.done);renderTech();});c.on('chat',m=>{if(m.channel==='global'&&(m.name==='News'||m.name==='Caretaker')){NET.news=(NET.news||[]).concat([m.text]).slice(-8);}if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
+ c.on('me',p=>{applyMe(p);toast('Your balance was updated');});c.on('alliance',()=>{if(!$('allyEl').hidden)loadAlly();});c.on('allianceNote',m=>{toast(m.text);if(!$('allyEl').hidden)loadAlly();});c.on('research',m=>{if(m.player)applyMe(m.player);toast('Research complete: '+m.done);renderTech();});c.on('chat',m=>{if(m.channel==='global'&&(m.name==='News'||m.name==='Caretaker')){NET.news=(NET.news||[]).concat([m.text]).slice(-8);}if(NET.me&&m.name===NET.me.name){pushMsg(m.channel,'You',NET.me.nation,m.text,true);}else pushMsg(m.channel,m.name,'Player',m.text);if(!chatEl.hidden)renderChat();});
  c.on('presence',n=>{NET.online=n;});c.on('parcel',onParcel);c.on('market',onMarket);c.on('ship',serverShip);c.on('contracts',setContracts);c.on('notice',onNotice);c.on('stopped',onStopped);c.on('record',onRecord);c.on('drone',onDrone);c.on('camp',onCamp);c.on('battle',onBattleState);c.on('siege',onSiege);c.on('siegeMe',onSiegeMe);c.on('siegeEnd',onSiegeEnd);c.on('siegeStart',e=>{NET.practice=!!(e&&e.practice);showSiegeBar(null);});c.on('battleEnd',onBattleEnd);c.on('politics',()=>{if(!polEl.hidden&&document.activeElement!==$('polSpeech'))refreshPol();else NET.pol=null;});c.onreconnected(()=>{watchHome();watchMarket();watchShipping();});
- try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({tech:()=>openTech(),pol:()=>$('nPolitics').click(),province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
-  const hist=await api('/chat/global');NET.news=hist.filter(m=>m.name==='News'||m.name==='Caretaker').map(m=>m.text).slice(-8);hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
+ try{await c.start();NET.conn=c;if(/[?&]sv/.test(location.search))setTimeout(joinSiege,2500);if(/[?&]hb/.test(location.search))setTimeout(sectorToHome,2500);{const mv=(location.search.match(/[?&]mv=([a-z]+)/)||[])[1];if(mv)setTimeout(()=>{({ally:()=>openAlly(),tech:()=>openTech(),pol:()=>$('nPolitics').click(),province:sectorToProvince,nation:()=>{sectorToProvince();setTimeout(ascendToNation,1500);},world:()=>{sectorToProvince();setTimeout(ascendToNation,1500);setTimeout(nationToWorld,3000);}})[mv]?.();},2500);}watchHome();watchMarket();watchShipping();c.invoke('SiegeStatus').then(s=>{if(s.active)showSiegeBar({fighters:s.fighters,hp:s.hp,maxHp:1});}).catch(()=>{});c.invoke('MyRecord').then(syncRecord).catch(()=>{});
+  const hist=await api('/chat/global');$('bAlly').hidden=false;['bLeases','bStats'].forEach(id=>{if($(id))$(id).hidden=true;});
+  NET.conn.invoke('AllianceChat').then(list=>{CHAT.alliance.length=0;list.forEach(m=>CHAT.alliance.push({who:m.name===NET.me.name?'You':m.name,tag:'Ally',txt:m.text,me:m.name===NET.me.name}));}).catch(()=>{});
+  NET.news=hist.filter(m=>m.name==='News'||m.name==='Caretaker').map(m=>m.text).slice(-8);hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
 async function goOnline(){try{const r=await api('/me');applyMe(r.player);if(r.collected){const c=r.collected,parts=[['cash',c.cash],['oil',c.oil],['grain',c.grain],['fuel',c.fuel],['power',c.power]].filter(x=>x[1]>=1).map(x=>fmtN(x[1])+' '+x[0]);if(parts.length){NET.awayMade=parts.join(', ');setTimeout(()=>toast('While you were away your land made '+NET.awayMade+'. It is in your stores'),1500);}}const a=briefEl.querySelector('.bh .note');if(r.awaySeconds>60)NET.away=awayText(r.awaySeconds);api('/sentinel').then(s=>{NET.sentinel=s;}).catch(()=>{});connectLive();return true;}
  catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
 function openSignup(){card.hidden=true;chatEl.hidden=true;hint.hidden=true;$('signup').hidden=false;$('suErr').textContent='';setTimeout(()=>$('suName').focus(),100);}
@@ -2673,7 +2682,7 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  h.tiles.forEach(t=>{const k=homeKindOf(t.type);const [w,d]=homeFootprint(k,t.rotated);const [x,z]=HG(t.x+w/2,t.y+d/2);const m=homeModel2(t.type,w,d);m.position.set(x,0.04,z);if(t.rotated)m.rotation.y=Math.PI/2;m.userData.tile=t;HB.group.add(m);HB.meshes.set(t.id,m);});
  P=P0;renderTutorial();}
 /* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
-setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden)?'':'hidden';},400);
+setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden&&$('allyEl').hidden)?'':'hidden';},400);
 function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
  b.hidden=false;const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>startPlacing(k.type),900);}else startPlacing(k.type);}else{openBrief();}};}
@@ -2701,6 +2710,44 @@ function homePointer(ray){const h=NET.me.home;
 function tileCard(t){const k=homeKindOf(t.type),rs=NET.me.research;const rows=[['Does',k.blurb],['Makes',k.perHour?'+'+k.perHour+' '+k.res+'/h here':'Bonus to your base']];
  if(t.type==='research'&&rs)rows.push(['Researching',rs.current?rs.current.name+' · '+timeLeft(rs.current.endsAt):'Nothing. Pick a tech']);
  showCard(k.name,'Home base · '+k.w+'x'+k.h,rows,t.type==='research'?['Research','Move','Close']:['Move','Close']);HB.cardTile=t;}
+/* ---------- Alliances ---------- */
+function openAlly(){card.hidden=true;$('allyEl').hidden=false;loadAlly();}
+function loadAlly(){NET.conn.invoke('GetAlliance').then(v=>{NET.ally=v;renderAlly();}).catch(er=>toast(er.message));}
+function allyCall(p){return p.then(r=>{if(!r.ok){toast(r.error);return;}if(r.player)applyMe(r.player);if(r.summary)toast(r.summary);loadAlly();}).catch(er=>toast(er.message));}
+function renderAlly(){const v=NET.ally,el=$('allyEl');if(!v||el.hidden)return;const m=v.mine;
+ let H='<button class="x" id="allyX" aria-label="Close alliance"><span class="ms">close</span></button>';
+ if(m){const off=m.role==='leader'||m.role==='officer',lead=m.role==='leader';
+  H+='<h3>'+esc(m.name)+' ['+esc(m.tag)+']</h3><p class="note">'+m.members.length+' of '+m.max+' members · '+(m.open?'open to all':'invite only')+' · war score '+m.warScore+' · you are '+(m.role==='leader'?'the leader':'an '+m.role).replace('an member','a member')+'</p><p style="margin:.2em 0 .5em">'+esc(m.description||'')+'</p>';
+  H+='<div class="acts"><button class="go" id="aHelp"'+(m.canHelp?'':' disabled')+'>Help allies'+(m.canHelp?' ('+m.canHelp+')':'')+'</button><button id="aChat">Alliance chat</button><button class="bad" id="aLeave">'+(lead&&m.members.length===1?'Disband':'Leave')+'</button></div>';
+  H+='<div class="two"><div><h4>Members</h4>'+m.members.map(x=>{const acts=[];if(!x.me&&lead){if(x.role==='member')acts.push(['officer','Promote']);if(x.role==='officer')acts.push(['member','Demote']);acts.push(['leader','Make leader']);}
+     if(!x.me&&off&&x.role!=='leader'&&(lead||x.role==='member'))acts.push(['kick','Remove']);
+     return '<div class="arow"><span><span class="dot'+(x.online?' on':'')+'"></span><b>'+esc(x.name)+'</b> <small>'+x.role+(x.bot?' · bot':'')+' · '+esc(x.nation)+' · HQ '+x.hq+' · '+fmt(x.income)+'/h · war '+x.warScore+(x.research?' · researching '+esc(x.research.name)+' ('+x.research.helps+'/10 helps)':'')+'</small></span><span>'+acts.map(a=>'<button data-mem="'+esc(x.name)+'" data-act="'+a[0]+'">'+a[1]+'</button>').join('')+'</span></div>';}).join('')+'</div>';
+  H+='<div><h4>Bank</h4><div class="arow"><span>Cash</span><b>'+fmt(m.bank.cash)+'</b></div><div class="arow"><span>Fuel</span><b>'+fmt(m.bank.fuel)+'</b></div>'+
+   '<div class="acts"><input id="aAmt" type="number" min="1" placeholder="Amount"><button id="aDonC">Donate cash</button><button id="aDonF">Donate fuel</button></div>';
+  if(off)H+='<div class="acts"><input id="aTo" placeholder="Member name"><button id="aPayC">Pay cash</button><button id="aPayF">Pay fuel</button></div><p class="note" style="margin:0">Officers pay members from the bank using the amount above</p>';
+  if(off){H+='<h4>Invite</h4><div class="acts"><input id="aInv" placeholder="Player name"><button class="go" id="aInvGo">Invite</button></div>';
+   if(m.requests.length)H+='<h4>Requests to join</h4>'+m.requests.map(r=>'<div class="arow"><span>'+esc(r.name)+'</span><span><button class="go" data-req="'+r.id+'" data-yes="1">Accept</button><button data-req="'+r.id+'" data-yes="0">Decline</button></span></div>').join('');
+   if(m.invited.length)H+='<h4>Invited</h4>'+m.invited.map(r=>'<div class="arow"><span>'+esc(r.name)+'</span><small>by '+esc(r.by)+'</small></div>').join('');}
+  if(lead)H+='<h4>Settings</h4><div class="acts"><input id="aDesc" style="flex:1" maxlength="200" value="'+esc(m.description||'')+'"><label class="note" style="display:flex;gap:.3em;align-items:center"><input type="checkbox" id="aOpen"'+(m.open?' checked':'')+' style="min-width:0"> Open to all</label><button id="aSave">Save</button></div>';
+  H+='</div></div>';}
+ else{H+='<h3>Alliances</h3><p class="note">Join forces: a shared bank, a private chat, help with research, and allies can\'t take each other\'s land</p>';
+  if(v.invites.length)H+='<h4>Invitations</h4>'+v.invites.map(i=>'<div class="arow"><span><b>'+esc(i.alliance)+'</b> <small>invited by '+esc(i.by)+'</small></span><span><button class="go" data-inv="'+i.id+'" data-yes="1">Join</button><button data-inv="'+i.id+'" data-yes="0">Decline</button></span></div>').join('');
+  H+='<div class="two"><div><h4>Find an alliance</h4>'+(v.browse.length?v.browse.map(a=>'<div class="arow"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <small>'+a.members+' members · '+(a.open?'open':'invite only')+' · '+esc(a.description||'')+'</small></span><span>'+(a.requested?'<small>Requested</small>':'<button class="go" data-join="'+a.id+'">'+(a.open?'Join':'Ask to join')+'</button>')+'</span></div>').join(''):'<p class="note">No alliances yet. Found the first one</p>')+'</div>';
+  H+='<div><h4>Found an alliance · '+fmt(v.createCost)+' cash</h4><div class="acts"><input id="aName" maxlength="24" placeholder="Alliance name" style="flex:1"><input id="aTag" maxlength="5" placeholder="TAG" style="width:5em;min-width:0;text-transform:uppercase"></div><label class="note" style="display:flex;gap:.3em;align-items:center"><input type="checkbox" id="aNewOpen" checked style="min-width:0"> Anyone can join (untick for invite only)</label><div class="acts"><button class="go" id="aCreate">Found it</button></div></div></div>';}
+ el.innerHTML=H;$('allyX').onclick=()=>{el.hidden=true;hint.hidden=false;};
+ const q=(id,fn)=>{if($(id))$(id).onclick=fn;},amt=()=>+(($('aAmt')||{}).value||0);
+ q('aHelp',()=>allyCall(NET.conn.invoke('HelpAlliance')));q('aLeave',()=>{if(confirm('Leave the alliance?'))allyCall(NET.conn.invoke('LeaveAlliance'));});
+ q('aChat',()=>{el.hidden=true;setChan('alliance');chatEl.hidden=false;renderChat();});
+ q('aDonC',()=>allyCall(NET.conn.invoke('DonateToAlliance','cash',amt())));q('aDonF',()=>allyCall(NET.conn.invoke('DonateToAlliance','fuel',amt())));
+ q('aPayC',()=>allyCall(NET.conn.invoke('GrantFromAlliance',$('aTo').value.trim(),'cash',amt())));q('aPayF',()=>allyCall(NET.conn.invoke('GrantFromAlliance',$('aTo').value.trim(),'fuel',amt())));
+ q('aInvGo',()=>allyCall(NET.conn.invoke('InviteToAlliance',$('aInv').value.trim())));
+ q('aSave',()=>allyCall(NET.conn.invoke('EditAlliance',$('aDesc').value,$('aOpen').checked)));
+ q('aCreate',()=>allyCall(NET.conn.invoke('CreateAlliance',$('aName').value.trim(),$('aTag').value.trim(),$('aNewOpen').checked)));
+ el.querySelectorAll('[data-mem]').forEach(b=>b.onclick=()=>{const n=b.dataset.mem,a=b.dataset.act;if(a==='kick'){if(confirm('Remove '+n+'?'))allyCall(NET.conn.invoke('KickFromAlliance',n));}else if(a!=='leader'||confirm('Hand leadership to '+n+'?'))allyCall(NET.conn.invoke('SetAllianceRole',n,a));});
+ el.querySelectorAll('[data-req]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('AnswerAlliance',+b.dataset.req,b.dataset.yes==='1')));
+ el.querySelectorAll('[data-inv]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('AnswerAlliance',+b.dataset.inv,b.dataset.yes==='1')));
+ el.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('RequestAlliance',+b.dataset.join)));}
+$('bAlly').onclick=()=>{if($('allyEl').hidden)openAlly();else $('allyEl').hidden=true;};
 /* ---------- The tech tree ---------- */
 function openTech(){const rs=NET.me&&NET.me.research;if(!rs){toast('Research is not available');return;}card.hidden=true;const el=$('techEl');el.hidden=false;renderTech();}
 function renderTech(){const rs=NET.me.research,el=$('techEl');if(el.hidden)return;
@@ -2738,7 +2785,7 @@ function warScoreCard(){api('/region2').then(b=>{current=null;const rows=b.playe
   b.nations.slice(0,3).forEach(n=>rows.push(['Nation: '+n.nation,n.score+' pts · '+n.players+' players']));
   rows.push(['Scoring','+5 a claim, +25 a capture, +10 for every parcel you hold']);
   showCard('Ashlands war score','Who holds Region 2',rows,['Enter the Ashlands','Close']);}).catch(er=>toast(er.message));}
-function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}if(a==='Research'){openTech();return true;}
+function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}if(a==='Raid · 40 fuel'&&NET.raidTarget&&NET.big){card.hidden=true;netStartBattle({kind:'raidbase',sector:NET.big.sector,rivalKey:NET.raidTarget,title:'Raid',enemy:'Garrison'},'county');return true;}if(a==='Research'){openTech();return true;}
  if(a==='The Ashlands'){region2Card();return true;}if(a==='War score'){warScoreCard();return true;}
  if(a==='Enter the Ashlands'){card.hidden=true;openSectorMap(101);return true;}
  if(a==='Leave the Ashlands'){card.hidden=true;openSectorMap(NET.me.homeSector);return true;}

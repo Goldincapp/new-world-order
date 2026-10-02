@@ -9,7 +9,7 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles, Siege siege, Research research) : Hub
+public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles, Siege siege, Research research, Alliances alliances) : Hub
 {
     record Conn(Guid Id, string Name, DateTime LastMsg, int Watching, int Visiting = 0);
 
@@ -21,6 +21,7 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
         var p = await Auth.PlayerFrom(Context.GetHttpContext()!, db);
         if (p is null) { Context.Abort(); return; }
         Online[Context.ConnectionId] = new Conn(p.Id, p.Name, DateTime.MinValue, 0);
+        if (p.AllianceId is { } aid) await Groups.AddToGroupAsync(Context.ConnectionId, Alliances.Group(aid));
         await Clients.All.SendAsync("presence", OnlineCount());
         await base.OnConnectedAsync();
     }
@@ -33,6 +34,8 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     }
 
     public static int OnlineCount() => Online.Values.Select(v => v.Id).Distinct().Count();
+
+    public static HashSet<Guid> OnlineIds() => Online.Values.Select(c => c.Id).ToHashSet();
 
     public static IReadOnlyList<string> ConnectionsOf(Guid playerId) =>
         Online.Where(kv => kv.Value.Id == playerId).Select(kv => kv.Key).ToList();
@@ -115,6 +118,27 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<object> SiegeStatus() => siege.Status();
 
+    // ---------- Alliances
+    public Task<object> GetAlliance() => alliances.View(Me.Id);
+    public Task<Alliances.Result> CreateAlliance(string name, string tag, bool open) => alliances.Create(Me.Id, name, tag, open);
+    public Task<Alliances.Result> InviteToAlliance(string player) => alliances.Invite(Me.Id, player);
+    public Task<Alliances.Result> RequestAlliance(long allianceId) => alliances.RequestJoin(Me.Id, allianceId);
+    public Task<Alliances.Result> AnswerAlliance(long inviteId, bool accept) => alliances.Respond(Me.Id, inviteId, accept);
+    public Task<Alliances.Result> LeaveAlliance() => alliances.Leave(Me.Id);
+    public Task<Alliances.Result> KickFromAlliance(string player) => alliances.Kick(Me.Id, player);
+    public Task<Alliances.Result> SetAllianceRole(string player, string role) => alliances.SetRole(Me.Id, player, role);
+    public Task<Alliances.Result> EditAlliance(string description, bool open) => alliances.Edit(Me.Id, description, open);
+    public Task<Alliances.Result> DonateToAlliance(string res, double amount) => alliances.Donate(Me.Id, res, amount);
+    public Task<Alliances.Result> GrantFromAlliance(string player, string res, double amount) => alliances.Grant(Me.Id, player, res, amount);
+    public Task<Alliances.Result> HelpAlliance() => alliances.Help(Me.Id);
+    public async Task<object> AllianceChat()
+    {
+        var aid = await db.Players.Where(p => p.Id == Me.Id).Select(p => p.AllianceId).FirstOrDefaultAsync();
+        if (aid is null) return Array.Empty<object>();
+        var ch = "alliance:" + aid;
+        return (await db.Chat.Where(m => m.Channel == ch).OrderByDescending(m => m.Id).Take(50).Select(m => new { m.Name, m.Text, m.At }).ToListAsync()).AsEnumerable().Reverse();
+    }
+
     /// <summary>Start researching a tech in the home base's Research lab.</summary>
     public Task<World.Result> StartResearch(string tech) => research.Start(Me.Id, tech);
 
@@ -186,6 +210,17 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
         if (DateTime.UtcNow - me.LastMsg < TimeSpan.FromSeconds(1)) return;
         Online[Context.ConnectionId] = me with { LastMsg = DateTime.UtcNow };
 
+        if (channel == "alliance")
+        {
+            // Alliance chat is private: stored per alliance and sent only to its members.
+            var aid = await db.Players.Where(p => p.Id == me.Id).Select(p => p.AllianceId).FirstOrDefaultAsync();
+            if (aid is null) return;
+            var am = new ChatMessage { Channel = "alliance:" + aid, PlayerId = me.Id, Name = me.Name, Text = text };
+            db.Chat.Add(am);
+            await db.SaveChangesAsync();
+            await Clients.Group(Alliances.Group(aid.Value)).SendAsync("chat", new { channel = "alliance", am.Name, am.Text, am.At });
+            return;
+        }
         var msg = new ChatMessage { Channel = channel, PlayerId = me.Id, Name = me.Name, Text = text };
         db.Chat.Add(msg);
         await db.SaveChangesAsync();

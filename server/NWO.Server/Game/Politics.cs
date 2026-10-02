@@ -75,7 +75,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
         var laws = await db.Laws.Where(l => l.NationId == n.Id).OrderByDescending(l => l.Id).Take(8).ToListAsync();
         var lawIds = laws.Select(l => l.Id).ToList();
         var myLawVotes = await db.LawVotes.Where(v => v.VoterId == playerId && lawIds.Contains(v.LawId)).ToListAsync();
-        var citizens = await db.Players.CountAsync(p => p.Nation == n.Name);
+        var citizens = await db.Players.CountAsync(p => p.Nation == n.Name && !p.IsBot);
         var allNations = await db.Nations.ToListAsync();
         var counts = await db.Players.GroupBy(p => p.Nation).Select(g => new { g.Key, n = g.Count() }).ToListAsync();
         var wars = await db.Wars.Where(w => w.EndedAt == null).ToListAsync();
@@ -266,7 +266,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
                 any = true;
                 var cands = await db.Candidates.Where(c => c.NationId == n.Id && c.ElectionNo == n.ElectionNo).ToListAsync();
                 var ballots = await db.Ballots.Where(b => b.NationId == n.Id && b.ElectionNo == n.ElectionNo).ToListAsync();
-                var citizens = Math.Max(1, await db.Players.CountAsync(p => p.Nation == n.Name));
+                var citizens = Math.Max(1, await db.Players.CountAsync(p => p.Nation == n.Name && !p.IsBot));
                 var winner = cands.Select(c => (c, votes: ballots.Count(b => b.CandidateId == c.Id)))
                     .OrderByDescending(x => x.votes).ThenBy(x => x.c.Id).FirstOrDefault();
                 if (winner.c is not null)
@@ -403,7 +403,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
             if (me.Cash < CoupCash || me.Gold < CoupGold) return new Result(false, $"Arming a coup costs {CoupCash:N0} cash and {CoupGold:N0} gold.");
             Ledger.Add(db, me, "cash", -CoupCash, $"Armed a coup in {n.Name}");
             Ledger.Add(db, me, "gold", -CoupGold, $"Armed a coup in {n.Name}");
-            var citizens = await db.Players.CountAsync(p => p.Nation == n.Name);
+            var citizens = await db.Players.CountAsync(p => p.Nation == n.Name && !p.IsBot);
             var c = new Coup { NationId = n.Id, LeaderId = me.Id, LeaderName = me.Name, EndsAt = DateTime.UtcNow + CoupWindow, Needed = CoupNeeded(n, citizens), Backers = me.Id.ToString() };
             db.Coups.Add(c);
             nation = n.Name;

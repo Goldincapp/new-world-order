@@ -115,6 +115,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         if (gold > 0) Ledger.Add(db, p, "gold", -gold, $"Research: {t.Name}");
         p.ResearchId = t.Id;
         p.ResearchEndsAt = DateTime.UtcNow + time;
+        p.ResearchHelpers = null;
         return new World.Result(true, Player: Dto.Me(p));
     });
 

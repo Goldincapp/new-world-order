@@ -17,6 +17,9 @@ builder.Services.AddSingleton<Siege>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Siege>());
 builder.Services.AddSingleton<Battles>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Battles>());
+builder.Services.AddSingleton<Alliances>();
+builder.Services.AddSingleton<Bots>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<Bots>());
 builder.Services.AddSingleton<Research>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Research>());
 builder.Services.AddSingleton<Logistics>();
@@ -36,6 +39,7 @@ using (var scope = app.Services.CreateScope())
     await Caretaker.EnsureLand(db);
     await Politics.EnsureNations(db);
     await Siege.EnsureState(db);
+    await Bots.Ensure(db);
 }
 
 app.UseCors();
@@ -159,11 +163,13 @@ api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm)
         await db.Trades.ExecuteDeleteAsync(); await db.Orders.ExecuteDeleteAsync(); await db.Ledger.ExecuteDeleteAsync();
         await db.Records.ExecuteDeleteAsync(); await db.Chat.ExecuteDeleteAsync(); await db.HomeTiles.ExecuteDeleteAsync();
         await db.Parcels.ExecuteDeleteAsync(); await db.Drones.ExecuteDeleteAsync(); await db.Camps.ExecuteDeleteAsync();
+        await db.AllianceInvites.ExecuteDeleteAsync(); await db.Alliances.ExecuteDeleteAsync();
         await db.Players.ExecuteDeleteAsync(); await db.Server.ExecuteDeleteAsync();
         await Market.EnsureCaretakerOrders(db);
         await Caretaker.EnsureLand(db);
         await Politics.EnsureNations(db);
         await Siege.EnsureState(db);
+        await Bots.Ensure(db);
         return n;
     });
     return Results.Ok(new { wiped = players });
@@ -244,7 +250,7 @@ static class Dto
             pending = Economy.Pending(p, now),
             ratesPerHour = Economy.RatesPerHour(p),
             parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x) }),
-            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, warScore = Region2.Score(p),
+            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, allianceId = p.AllianceId, allianceRole = p.AllianceRole, warScore = Region2.Score(p),
             claimCost = Economy.ClaimCost,
             buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour, tech = Research.Unlocking(kv.Key)?.Name, locked = Research.Unlocking(kv.Key) is { } tk && !Research.Has(p, tk.Id) }),
             research = Research.View(p),
