@@ -262,6 +262,18 @@ public class Nation
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>A player-given name for a sector, earned by holding a tenth of its land.</summary>
+public class SectorName
+{
+    [System.ComponentModel.DataAnnotations.Key]
+    [System.ComponentModel.DataAnnotations.Schema.DatabaseGenerated(System.ComponentModel.DataAnnotations.Schema.DatabaseGeneratedOption.None)]
+    public int Sector { get; set; }
+    public string Name { get; set; } = "";
+    public Guid OwnerId { get; set; }
+    public string OwnerName { get; set; } = "";
+    public DateTime NamedAt { get; set; } = DateTime.UtcNow;
+}
+
 /// <summary>A player alliance: a name, a tag, a shared bank and a private chat.</summary>
 public class Alliance
 {
@@ -381,6 +393,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
     public DbSet<War> Wars => Set<War>();
     public DbSet<Coup> Coups => Set<Coup>();
     public DbSet<Alliance> Alliances => Set<Alliance>();
+    public DbSet<SectorName> SectorNames => Set<SectorName>();
     public DbSet<AllianceInvite> AllianceInvites => Set<AllianceInvite>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Ballot> Ballots => Set<Ballot>();

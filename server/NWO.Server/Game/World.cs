@@ -37,7 +37,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         var open = r2 ? (await db.Server.FindAsync(1))?.Region2Open ?? false : !Economy.Closed.Contains(sector);
         return new
         {
-            sector, open, region = r2 ? 2 : 1, claimCost = r2 ? Region2.ClaimCost : Economy.ClaimCost, settlers, size = SectorTemplate.Size, biome = SectorTemplate.Biome(sector),
+            sector, open, region = r2 ? 2 : 1, name = (await db.SectorNames.FindAsync(sector)) is { } sn ? new { sn.Name, by = sn.OwnerName } : null, needToName = SectorNames.Needed(sector), claimCost = r2 ? Region2.ClaimCost : Economy.ClaimCost, settlers, size = SectorTemplate.Size, biome = SectorTemplate.Biome(sector),
             hall = new { i = SectorTemplate.Hall.i, j = SectorTemplate.Hall.j },
             rows = SectorTemplate.Rows(sector),
             parcels = owned.Select(p => ParcelView(sector, p.I, p.J, p)),

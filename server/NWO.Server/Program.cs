@@ -18,6 +18,7 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<Siege>());
 builder.Services.AddSingleton<Battles>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Battles>());
 builder.Services.AddSingleton<Alliances>();
+builder.Services.AddSingleton<SectorNames>();
 builder.Services.AddSingleton<Bots>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<Bots>());
 builder.Services.AddSingleton<Research>();
@@ -146,6 +147,8 @@ api.MapPost("/me/restart", async (HttpContext ctx, GameDb db, World world) =>
 
 api.MapGet("/sentinel", (Siege siege) => siege.Status());
 
+api.MapGet("/sectors/names", async (GameDb db) => Results.Ok(await SectorNames.All(db)));
+
 api.MapGet("/region2", async (GameDb db) => Results.Ok(await Region2.Board(db)));
 
 // Admin: wipe the world back to a fresh season. Needs ?confirm=WIPE so it can't happen by accident.
@@ -163,7 +166,7 @@ api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm)
         await db.Trades.ExecuteDeleteAsync(); await db.Orders.ExecuteDeleteAsync(); await db.Ledger.ExecuteDeleteAsync();
         await db.Records.ExecuteDeleteAsync(); await db.Chat.ExecuteDeleteAsync(); await db.HomeTiles.ExecuteDeleteAsync();
         await db.Parcels.ExecuteDeleteAsync(); await db.Drones.ExecuteDeleteAsync(); await db.Camps.ExecuteDeleteAsync();
-        await db.AllianceInvites.ExecuteDeleteAsync(); await db.Alliances.ExecuteDeleteAsync();
+        await db.AllianceInvites.ExecuteDeleteAsync(); await db.Alliances.ExecuteDeleteAsync(); await db.SectorNames.ExecuteDeleteAsync();
         await db.Players.ExecuteDeleteAsync(); await db.Server.ExecuteDeleteAsync();
         await Market.EnsureCaretakerOrders(db);
         await Caretaker.EnsureLand(db);

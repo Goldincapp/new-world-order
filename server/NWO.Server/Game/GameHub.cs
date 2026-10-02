@@ -9,7 +9,7 @@ namespace NWO.Server.Game;
 /// Live connection to every phone. Players watch the sector they're looking at and get its changes
 /// as they happen; chat, and later shipments, battles and Caretaker events, ride the same connection.
 /// </summary>
-public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles, Siege siege, Research research, Alliances alliances) : Hub
+public class GameHub(GameDb db, World world, Market market, Logistics logistics, Caretaker caretaker, Politics politics, Battles battles, Siege siege, Research research, Alliances alliances, SectorNames sectorNames) : Hub
 {
     record Conn(Guid Id, string Name, DateTime LastMsg, int Watching, int Visiting = 0);
 
@@ -135,6 +135,8 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public string? Retreat() => battles.Retreat(Me.Id);
 
     public Task<object> SiegeStatus() => siege.Status();
+
+    public Task<World.Result> NameSector(int sector, string name) => sectorNames.Name(Me.Id, sector, name);
 
     // ---------- Alliances
     public Task<object> GetAlliance() => alliances.View(Me.Id);
