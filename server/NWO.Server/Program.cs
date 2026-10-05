@@ -44,6 +44,13 @@ using (var scope = app.Services.CreateScope())
     await Siege.EnsureState(db);
     await Bots.Ensure(db);
     await Presence.Ensure(db);
+    await db.Chat.Where(m => m.PlayerId == null).ExecuteDeleteAsync();
+    if (!await db.ChatLog.AnyAsync())
+    {
+        db.ChatLog.AddRange(await db.Chat.Where(m => m.PlayerId != null).OrderBy(m => m.Id)
+            .Select(m => new ChatLog { At = m.At, Channel = m.Channel, PlayerId = m.PlayerId!.Value, Name = m.Name, Text = m.Text }).ToListAsync());
+        await db.SaveChangesAsync();
+    }
 }
 
 app.UseCors();
@@ -188,6 +195,21 @@ api.MapPost("/admin/region2/open", async (HttpContext ctx, World world) =>
     if (!Admin.Allowed(ctx)) return Results.Unauthorized();
     await world.Locked(async db => { var st = (await db.Server.FindAsync(1))!; st.Region2Open = true; st.Region2OpenedAt = DateTime.UtcNow - Region2.HeadStart; st.Gatebreakers ??= "(opened by an admin)"; return true; });
     return Results.Ok(new { open = true });
+});
+
+// Admin: every player chat message, for feedback. ?since=2026-10-01&channel=global&format=csv (default json). Survives wipes.
+api.MapGet("/admin/chatlog", async (HttpContext ctx, GameDb db, DateTime? since, string? channel, string? name, string? format) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    var q = db.ChatLog.AsQueryable();
+    if (since is not null) q = q.Where(m => m.At >= since);
+    if (!string.IsNullOrEmpty(channel)) q = q.Where(m => m.Channel.StartsWith(channel));
+    if (!string.IsNullOrEmpty(name)) q = q.Where(m => m.Name == name);
+    var rows = await q.OrderBy(m => m.Id).Select(m => new { at = m.At, m.Channel, m.Name, m.Text }).ToListAsync();
+    if (format != "csv") return Results.Ok(rows);
+    static string C(string v) => "\"" + v.Replace("\"", "\"\"") + "\"";
+    var csv = "at,channel,name,text\n" + string.Concat(rows.Select(r => $"{r.at:yyyy-MM-dd HH:mm:ss},{C(r.Channel)},{C(r.Name)},{C(r.Text)}\n"));
+    return Results.Text(csv, "text/csv");
 });
 
 api.MapGet("/admin/sentinel/history", (HttpContext ctx) => Admin.Allowed(ctx) ? Results.Ok(Siege.History) : Results.Unauthorized());

@@ -125,6 +125,17 @@ public class ChatMessage
     public DateTime At { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>Every message a player has ever sent, in any channel. Kept through world wipes, for reading feedback.</summary>
+public class ChatLog
+{
+    public long Id { get; set; }
+    public DateTime At { get; set; } = DateTime.UtcNow;
+    public string Channel { get; set; } = "global";
+    public Guid PlayerId { get; set; }
+    public string Name { get; set; } = "";
+    public string Text { get; set; } = "";
+}
+
 /// <summary>One line of the Caretaker's record: what it remembers about a player.</summary>
 public class RecordEntry
 {
@@ -428,6 +439,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
     public DbSet<Player> Players => Set<Player>();
     public DbSet<Parcel> Parcels => Set<Parcel>();
     public DbSet<ChatMessage> Chat => Set<ChatMessage>();
+    public DbSet<ChatLog> ChatLog => Set<ChatLog>();
     public DbSet<RecordEntry> Records => Set<RecordEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)

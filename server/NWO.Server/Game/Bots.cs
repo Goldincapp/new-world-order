@@ -25,14 +25,6 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
         ("Iron Wolves", "IRW", false), ("Salt Road Traders", "SRT", true), ("Ashen Vanguard", "ASH", true),
     ];
 
-    static readonly string[] Chatter =
-    [
-        "Anyone selling fuel under 60?", "Drones over Sector {s} again. Watch your trucks.", "Back road through {s} is clear tonight.",
-        "Who's in for the Sentinel when it shows?", "Grain prices are a joke this week.", "Just finished Mining. Ore everywhere.",
-        "Looking for an alliance that actually fights.", "The Caretaker docked my ration. Again.", "Selling oil, decent price, message me.",
-        "Militia camp near {s} is back.", "Built my third farm. The Caretaker approves, apparently.", "Anyone else think the election is rigged?",
-    ];
-
     static readonly string[] HomeTypes = ["barracks", "warehouse", "research", "crops", "crops", "oilpump", "solar", "workshop", "generator", "barracks"];
 
     public static async Task Ensure(GameDb db)
@@ -98,17 +90,15 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
         }
     }
 
-    /// <summary>Every couple of minutes one bot does something: collects, claims and builds, talks, donates, researches.</summary>
+    /// <summary>Every couple of minutes one bot does something: collects, claims and builds, donates, researches. Bots don't chat.</summary>
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
         var rng = new Random();
         await Task.Delay(TimeSpan.FromSeconds(20), stop);
-        var lastChat = DateTime.UtcNow;
         while (!stop.IsCancellationRequested)
         {
             try
             {
-                string? say = null;
                 await world.Locked(async db =>
                 {
                     var bots = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).Where(p => p.IsBot).ToListAsync();
@@ -148,19 +138,8 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
                             b.ResearchId = t.Id; b.ResearchEndsAt = now + time; b.ResearchHelpers = null;
                         }
                     }
-                    if (now - lastChat > TimeSpan.FromMinutes(12) && rng.NextDouble() < 0.5)
-                    {
-                        lastChat = now;
-                        say = $"{b.Name}|" + Chatter[rng.Next(Chatter.Length)].Replace("{s}", (home?.Sector ?? 12).ToString());
-                    }
                     return true;
                 });
-                if (say is not null)
-                {
-                    var parts = say.Split('|', 2);
-                    await world.Locked(async db => { db.Chat.Add(new ChatMessage { Channel = "global", Name = parts[0], Text = parts[1] }); return true; });
-                    await hub.Clients.All.SendAsync("chat", new { channel = "global", name = parts[0], text = parts[1], at = DateTime.UtcNow }, stop);
-                }
             }
             catch (Exception e) { Console.WriteLine($"Bot tick failed: {e.Message}"); }
             await Task.Delay(TimeSpan.FromSeconds(90 + rng.Next(60)), stop);

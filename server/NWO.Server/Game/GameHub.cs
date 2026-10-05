@@ -251,12 +251,14 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
             if (aid is null) return;
             var am = new ChatMessage { Channel = "alliance:" + aid, PlayerId = me.Id, Name = me.Name, Text = text };
             db.Chat.Add(am);
+            db.ChatLog.Add(new ChatLog { Channel = am.Channel, PlayerId = me.Id, Name = me.Name, Text = text });
             await db.SaveChangesAsync();
             await Clients.Group(Alliances.Group(aid.Value)).SendAsync("chat", new { channel = "alliance", am.Name, am.Text, am.At });
             return;
         }
         var msg = new ChatMessage { Channel = channel, PlayerId = me.Id, Name = me.Name, Text = text };
         db.Chat.Add(msg);
+        db.ChatLog.Add(new ChatLog { Channel = channel, PlayerId = me.Id, Name = me.Name, Text = text });
         await db.SaveChangesAsync();
         await Clients.All.SendAsync("chat", new { msg.Channel, msg.Name, msg.Text, msg.At });
     }
