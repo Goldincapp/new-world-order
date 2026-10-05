@@ -20,6 +20,16 @@ public class Presence(World world, IHubContext<GameHub> hub) : BackgroundService
     const double FallPerHour = 3, RisePerHour = 1;
 
     static readonly ConcurrentDictionary<int, double> Cache = new();
+    static readonly ConcurrentDictionary<int, int> People = new();
+    /// <summary>How fast a damaged outpost repairs, as a share of each structure per hour.</summary>
+    public const double RepairPerHour = 0.04;
+    public static readonly TimeSpan AssaultCooldown = TimeSpan.FromHours(3);
+
+    /// <summary>Real players settled in a sector (bots don't count). The outpost grows with them.</summary>
+    public static int Settlers(int sector) => Math.Max(1, People.GetValueOrDefault(sector, 1));
+    /// <summary>Outpost strength for a sector of n settlers: more health (shared by everyone who attacks), harder hits, more troops.</summary>
+    public static (double hp, double dps, double units) Strength(int n) =>
+        (Math.Min(4, 1 + 0.35 * (n - 1)), Math.Min(2, 1 + 0.12 * (n - 1)), Math.Min(1.8, 1 + 0.1 * (n - 1)));
 
     /// <summary>Sectors the Caretaker can be pushed out of: Region 1 land open to settlers.</summary>
     public static bool Applies(int sector) => sector is >= 1 and <= 50 && !Economy.Closed.Contains(sector);
@@ -54,8 +64,9 @@ public class Presence(World world, IHubContext<GameHub> hub) : BackgroundService
             presence = Math.Round(sp.Presence), target = Math.Round(sp.Target), tithe = Math.Round(Tithe(sector) * 100, 1), concessions = sp.Concessions,
             free = sp.Presence <= 0.5, petitionCost = PetitionCost, petitionParcels = PetitionParcels, myParcels = mine,
             petitionAt = sp.LastPetitionAt + PetitionEvery > now ? sp.LastPetitionAt + PetitionEvery : (DateTime?)null,
-            assaultAt = sp.LastAssaultAt + AssaultEvery > now ? sp.LastAssaultAt + AssaultEvery : (DateTime?)null,
+            assaultAt = (DateTime?)null,
             assaultFuel = AssaultFuel,
+            outpost = new { t1 = Math.Round(sp.OutpostT1 * 100), t2 = Math.Round(sp.OutpostT2 * 100), hq = Math.Round(sp.OutpostHq * 100), settlers = Settlers(sector), strength = Math.Round(Strength(Settlers(sector)).hp, 2), attackers = Contribs(sp).Count },
         };
     }
 
@@ -95,24 +106,39 @@ public class Presence(World world, IHubContext<GameHub> hub) : BackgroundService
         return r;
     }
 
-    /// <summary>After an assault on the outpost: a win pushes the Caretaker back for good.</summary>
+    /// <summary>The outpost fell: the Caretaker is pushed back for good and a fresh, whole outpost stands at the new presence.</summary>
     public static void Assaulted(GameDb db, SectorPresence sp, bool won)
     {
         sp.LastAssaultAt = DateTime.UtcNow;
         if (!won) return;
         sp.Concessions += AssaultConcession;
         sp.Presence = Math.Max(0, sp.Presence - AssaultConcession);
+        sp.OutpostT1 = sp.OutpostT2 = sp.OutpostHq = 1;
+        sp.Contributors = null;
         Cache[sp.Sector] = sp.Presence;
     }
 
-    /// <summary>The Caretaker's outpost: towers that hit hard and sentries in place of soldiers. Built to be lost to.</summary>
-    public static ArenaSim.Defense Outpost(double presence)
+    public static Dictionary<Guid, double> Contribs(SectorPresence sp) =>
+        (sp.Contributors ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split(':')).Where(x => x.Length == 2 && Guid.TryParse(x[0], out _))
+            .ToDictionary(x => Guid.Parse(x[0]), x => double.TryParse(x[1], System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0);
+    public static void AddContribution(SectorPresence sp, Guid player, double points)
+    {
+        var c = Contribs(sp);
+        c[player] = c.GetValueOrDefault(player) + points;
+        sp.Contributors = string.Join(";", c.Select(kv => kv.Key + ":" + kv.Value.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
+    /// <summary>The Caretaker's outpost: towers that hit hard and sentries in place of soldiers. Built to be lost to alone,
+    /// and it grows with the sector: more settlers means more health to chew through together, harder hits and more troops.</summary>
+    public static ArenaSim.Defense Outpost(double presence, int settlers = 1)
     {
         var k = 0.3 + 0.7 * presence / 100;
+        var (hp, dps, units) = Strength(settlers);
+        int U(double n) => (int)Math.Round(n * k * units);
         return new ArenaSim.Defense(
-            Patrol: new() { ["sentry"] = (int)Math.Round(3 * k), ["tank"] = (int)Math.Round(2 * k), ["gunner"] = (int)Math.Round(4 * k) },
-            Garrison: new() { ["sentry"] = (int)Math.Round(5 * k), ["launcher"] = (int)Math.Round(4 * k), ["gunner"] = (int)Math.Round(9 * k) },
-            TowerHp: 3200 * k, HqHp: 6500 * k, TowerDps: 44 * k, GarrisonRate: 0.6 + 0.4 * k);
+            Patrol: new() { ["sentry"] = U(3), ["tank"] = U(2), ["gunner"] = U(4) },
+            Garrison: new() { ["sentry"] = U(5), ["launcher"] = U(4), ["gunner"] = U(9) },
+            TowerHp: 3200 * k * hp, HqHp: 6500 * k * hp, TowerDps: 44 * k * dps, GarrisonRate: 0.6 + 0.4 * k);
     }
 
     Task Changed(int sector) => hub.Clients.Group(World.Group(sector)).SendAsync("presence", new { sector, presence = Math.Round(Of(sector)) });
@@ -133,11 +159,15 @@ public class Presence(World world, IHubContext<GameHub> hub) : BackgroundService
                 await world.Locked(async db =>
                 {
                     var parcels = await db.Parcels.Where(p => p.Sector <= 50).Select(p => new { p.Sector, p.OwnerId, p.Buildings }).ToListAsync();
+                    var humans = (await db.Players.Where(p => !p.IsBot).Select(p => p.Id).ToListAsync()).ToHashSet();
                     var tiles = await db.HomeTiles.Join(db.Players, t => t.PlayerId, p => p.Id, (t, p) => new { p.HomeSector }).ToListAsync();
                     foreach (var sp in await db.SectorPresence.ToListAsync())
                     {
                         var here = parcels.Where(p => p.Sector == sp.Sector).ToList();
                         var settlers = here.Select(p => p.OwnerId).Distinct().Count();
+                        People[sp.Sector] = here.Where(p => p.OwnerId is { } o && humans.Contains(o)).Select(p => p.OwnerId).Distinct().Count();
+                        sp.OutpostT1 = Math.Min(1, sp.OutpostT1 + RepairPerHour * hours); sp.OutpostT2 = Math.Min(1, sp.OutpostT2 + RepairPerHour * hours); sp.OutpostHq = Math.Min(1, sp.OutpostHq + RepairPerHour * hours);
+                        if (sp.OutpostT1 >= 1 && sp.OutpostT2 >= 1 && sp.OutpostHq >= 1) sp.Contributors = null;
                         var buildings = here.Sum(p => string.IsNullOrEmpty(p.Buildings) ? 0 : p.Buildings.Split(',').Length) + tiles.Count(t => t.HomeSector == sp.Sector);
                         sp.Target = Target(settlers, here.Count, buildings, sp.Concessions);
                         var before = sp.Presence;

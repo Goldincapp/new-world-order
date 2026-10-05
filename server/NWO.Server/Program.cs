@@ -232,17 +232,20 @@ api.MapPost("/admin/grant", async (HttpContext ctx, World world, IHubContext<Gam
 });
 
 // Admin: simulate base assaults against a base of a given size, with a simple scripted attacker.
-api.MapPost("/admin/arena/simulate", (HttpContext ctx, int hq, int barracks, string? doctrine, int? trained, int? runs, double? outpost) =>
+api.MapPost("/admin/arena/simulate", (HttpContext ctx, int hq, int barracks, string? doctrine, int? trained, int? runs, double? outpost, int? settlers, bool? chain) =>
 {
     if (!Admin.Allowed(ctx)) return Results.Unauthorized();
     var p = new Player { HqLevel = hq, DefenseDoctrine = doctrine ?? "balanced" };
     for (var i = 0; i < barracks; i++) p.HomeTiles.Add(new HomeTile { Type = "barracks" });
     var tr = new Dictionary<string, int> { ["gunner"] = trained ?? 0 };
     var results = new List<object>();
+    // chain=true: the outpost keeps its damage between runs, as it does in the game; reports how many assaults it took
+    var carry = new[] { 1.0, 1.0, 1.0 };
     for (var run = 0; run < (runs ?? 10); run++)
     {
         var rng = new Random(run);
-        var a = new ArenaSim("sim", "base", outpost is { } op ? Presence.Outpost(op) : Defense.For(p), outpost is null ? tr : new(), BattleSim.StartingTroops, null, run);
+        var a = new ArenaSim("sim", "base", outpost is { } op ? Presence.Outpost(op, settlers ?? 1) : Defense.For(p), outpost is null ? tr : new(), BattleSim.StartingTroops, null, run);
+        if (chain == true) for (var q = 0; q < 3; q++) a.Structures[q].Hp = a.Structures[q].Max * Math.Max(q == 2 ? 0.02 : 0, carry[q]);
         string[] pool = ["gunner", "launcher", "tank", "launcher", "heli", "militia"];
         while (!a.Done)
         {
@@ -259,7 +262,8 @@ api.MapPost("/admin/arena/simulate", (HttpContext ctx, int hq, int barracks, str
             a.Step(0.1);
             a.Shots.Clear();
         }
-        results.Add(new { a.Won, a.Stars, minutes = Math.Round(a.T / 60, 2), a.Why });
+        if (chain == true) { for (var q = 0; q < 3; q++) carry[q] = Math.Max(0, a.Structures[q].Hp) / a.Structures[q].Max; if (a.Won) carry = [1.0, 1.0, 1.0]; }
+        results.Add(new { a.Won, a.Stars, minutes = Math.Round(a.T / 60, 2), a.Why, left = chain == true ? carry.Select(x => Math.Round(x, 2)).ToArray() : null });
     }
     return Results.Ok(new { wins = results.Count(r => ((dynamic)r).Won), avgStars = results.Average(r => (double)((dynamic)r).Stars), results });
 });

@@ -21,6 +21,11 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
     /// <summary>Who owned an Ashlands parcel when its seizure started, so a win only transfers if nothing changed.</summary>
     static readonly ConcurrentDictionary<long, (int i, int j, Guid owner)> SeizeTargets = new();
     static readonly ConcurrentDictionary<long, Guid> RaidTargets = new();
+    static readonly ConcurrentDictionary<long, double[]> OutpostStarts = new();
+    /// <summary>After a settler's base is beaten, it can't be attacked again for a while. Bots recover faster.</summary>
+    static readonly TimeSpan PlayerShield = TimeSpan.FromHours(8);
+    /// <summary>New settlers can't be attacked by their neighbours until they've had time to build.</summary>
+    static TimeSpan NewcomerShield => Admin.DevTools ? TimeSpan.FromMinutes(10) : TimeSpan.FromHours(24);
     public const double BaseRaidFuel = 40;
     static readonly TimeSpan RaidShield = TimeSpan.FromMinutes(30);
 
@@ -51,6 +56,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         ArenaSim? arena = null;
         (int i, int j, Guid owner)? target = null;
         Guid? raidTarget = null;
+        double[]? outpostStart = null;
         var r = await world.Locked(async db =>
         {
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
@@ -94,16 +100,24 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     if (!Presence.Applies(sector)) return new Result(false, "There's no Caretaker outpost to assault here.");
                     var sp = await db.SectorPresence.FindAsync(sector);
                     if (sp is null || sp.Presence <= 0.5) return new Result(false, "The Caretaker has already left this sector.");
-                    if (sp.LastAssaultAt + Presence.AssaultEvery > now) return new Result(false, $"The outpost was attacked recently and is on alert. Try again in {(int)Math.Ceiling((sp.LastAssaultAt + Presence.AssaultEvery - now).TotalMinutes)} minutes.");
                     fuel = Presence.AssaultFuel;
-                    arena = new ArenaSim($"Assault on the Caretaker outpost · Sector {sector}", "Caretaker outpost", Presence.Outpost(sp.Presence), new(), BattleSim.StartingTroops, deck, Random.Shared.Next());
-                    Presence.Assaulted(db, sp, false);
-                    Caretaker.Remember(db, me, -8, "war", $"Attacked the Caretaker's outpost in Sector {sector}");
+                    arena = new ArenaSim($"Assault on the Caretaker outpost · Sector {sector}", "Caretaker outpost", Presence.Outpost(sp.Presence, Presence.Settlers(sector)), new(), BattleSim.StartingTroops, deck, Random.Shared.Next());
+                    // the outpost carries the damage earlier assaults did
+                    var fr = new[] { sp.OutpostT1, sp.OutpostT2, Math.Max(0.02, sp.OutpostHq) };
+                    for (var q = 0; q < 3; q++) arena.Structures[q].Hp = arena.Structures[q].Max * fr[q];
+                    outpostStart = fr;
+                    sp.LastAssaultAt = now;
+                    Caretaker.Remember(db, me, -5, "war", $"Attacked the Caretaker's outpost in Sector {sector}");
                     break;
                 case "raidbase":
                     var victim = await db.Players.Include(x => x.HomeTiles).Include(x => x.Parcels).FirstOrDefaultAsync(x => x.Name == rivalKey);
                     if (victim is null || victim.Id == playerId) return new Result(false, "Pick another settlement to raid.");
-                    if (!victim.IsBot) return new Result(false, "For now only bot settlements can be raided.");
+                    if (!victim.IsBot)
+                    {
+                        if (victim.HomeSector != me.HomeSector || !me.Parcels.Any(x => x.IsHome)) return new Result(false, $"You can only attack settlers who live in your own sector. {victim.Name} lives in Sector {victim.HomeSector}.");
+                        if (victim.CreatedAt + NewcomerShield > now) return new Result(false, $"{victim.Name} only just arrived. The Caretaker protects newcomers for {(int)Math.Ceiling((victim.CreatedAt + NewcomerShield - now).TotalMinutes)} more minutes.");
+                        if (victim.LastRaidedAt + PlayerShield > now) return new Result(false, $"{victim.Name}'s base was beaten recently. Their walls are manned for {(int)Math.Ceiling((victim.LastRaidedAt + PlayerShield - now).TotalMinutes)} more minutes.");
+                    }
                     if (me.AllianceId is not null && victim.AllianceId == me.AllianceId) return new Result(false, $"{victim.Name} is in your alliance.");
                     if (victim.LastRaidedAt + RaidShield > now) return new Result(false, $"{victim.Name} was raided recently. Their walls are manned for {(int)Math.Ceiling((victim.LastRaidedAt + RaidShield - now).TotalMinutes)} more minutes.");
                     fuel = BaseRaidFuel;
@@ -130,6 +144,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, battle);
         if (target is { } t0) SeizeTargets[live.Id] = t0;
         if (raidTarget is { } rt) RaidTargets[live.Id] = rt;
+        if (outpostStart is { } os) OutpostStarts[live.Id] = os;
         Active[playerId] = live;
         return r with { Battle = new { id = live.Id, title = battle.Title, enemy = battle.Enemy, deck = battle.Deck, rival = sim?.Opponent?.Name, arena = arena is not null, state = battle.State() } };
     }
@@ -185,27 +200,54 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
     {
         Active.TryRemove(b.PlayerId, out _);
         var s = b.Sim;
-        Cooldowns[$"{b.PlayerId}:{b.Kind}:{b.Sector}"] = DateTime.UtcNow + (b.Kind == "raid" ? TimeSpan.FromMinutes(20) : TimeSpan.FromMinutes(5));
+        Cooldowns[$"{b.PlayerId}:{b.Kind}:{b.Sector}"] = DateTime.UtcNow + (b.Kind == "outpost" ? (Admin.DevTools ? TimeSpan.FromMinutes(5) : Presence.AssaultCooldown) : b.Kind == "raid" ? TimeSpan.FromMinutes(20) : TimeSpan.FromMinutes(5));
         var rows = new List<string[]> { new[] { "Result", s.Why } };
         string? announce = null;
         object? player = null;
         if (b.Kind == "outpost")
         {
-            var stars = (s as ArenaSim)?.Stars ?? 0;
+            var ar = s as ArenaSim;
+            var stars = ar?.Stars ?? 0;
+            OutpostStarts.TryRemove(b.Id, out var st);
             rows.Add(["Stars", new string('★', stars) + new string('☆', 3 - stars)]);
             await world.Locked(async db =>
             {
                 var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == b.PlayerId);
                 var sp = await db.SectorPresence.FindAsync(b.Sector);
-                if (s.Won && sp is not null)
+                if (sp is null) return true;
+                // What this assault knocked off each structure comes off the outpost for everyone
+                double points = 0;
+                if (ar is not null && st is not null)
                 {
-                    Presence.Assaulted(db, sp, true);
-                    Ledger.Add(db, me, "cash", 1500, "Salvage from a Caretaker outpost");
-                    rows.Add(["Caretaker", $"Pushed back {Presence.AssaultConcession}% for good. Presence in Sector {b.Sector}: {Math.Round(sp.Presence)}%"]);
-                    rows.Add(["Salvage", "+1,500 cash"]);
-                    announce = $"{me.Name} beat the Caretaker's outpost in Sector {b.Sector}. Its hold there is weakening.";
+                    var left = ar.Structures.Take(3).Select(x => Math.Max(0, x.Hp) / x.Max).ToArray();
+                    var cut = Enumerable.Range(0, 3).Select(q => Math.Max(0, st[q] - left[q])).ToArray();
+                    sp.OutpostT1 = Math.Max(0, sp.OutpostT1 - cut[0]); sp.OutpostT2 = Math.Max(0, sp.OutpostT2 - cut[1]); sp.OutpostHq = Math.Max(0, sp.OutpostHq - cut[2]);
+                    points = cut[0] + cut[1] + 2 * cut[2];
+                    if (points > 0.001) Presence.AddContribution(sp, me.Id, points);
                 }
-                else rows.Add(["Caretaker", "It holds. Develop the sector and it will leave on its own"]);
+                if (s.Won)
+                {
+                    var helpers = Presence.Contribs(sp);
+                    helpers.TryAdd(me.Id, 0.01);
+                    Presence.Assaulted(db, sp, true);
+                    Ledger.Add(db, me, "cash", 1500, "Salvage from a Caretaker outpost: the final blow");
+                    var names = new List<string>();
+                    foreach (var (id, _) in helpers)
+                    {
+                        var h = id == me.Id ? me : await db.Players.FindAsync(id);
+                        if (h is null) continue;
+                        Ledger.Add(db, h, "cash", 1000, $"Share of the salvage: the Caretaker outpost in Sector {b.Sector}");
+                        names.Add(h.Name);
+                    }
+                    rows.Add(["Caretaker", $"Pushed back {Presence.AssaultConcession}% for good. Presence in Sector {b.Sector}: {Math.Round(sp.Presence)}%"]);
+                    rows.Add(["Salvage", $"+2,500 cash for you · +1,000 for each of the {names.Count} settlers who wore it down"]);
+                    announce = names.Count > 1 ? $"The settlers of Sector {b.Sector} took the Caretaker's outpost together: {string.Join(", ", names)}." : $"{me.Name} took the Caretaker's outpost in Sector {b.Sector}. Its hold there is weakening.";
+                }
+                else
+                {
+                    rows.Add(["Outpost left", $"Towers {Math.Round(sp.OutpostT1 * 100)}% and {Math.Round(sp.OutpostT2 * 100)}% · HQ {Math.Round(sp.OutpostHq * 100)}%"]);
+                    rows.Add(["Together", $"The damage stays. Anyone in Sector {b.Sector} can keep at it before it repairs ({Presence.RepairPerHour * 100:0}% an hour). Everyone who helps shares the salvage"]);
+                }
                 player = Dto.Me(me);
                 return true;
             });
@@ -213,13 +255,14 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         else if (b.Kind == "raidbase")
         {
             RaidTargets.TryRemove(b.Id, out var vid);
+            string? conquered = null, victimNote = null; Guid? victimId = null; object? conqueredView = null, victimMe = null;
             var ar = s as ArenaSim;
             var stars = ar?.Stars ?? (s.Won ? 3 : 0);
             rows.Add(["Stars", new string('★', stars) + new string('☆', 3 - stars)]);
             await world.Locked(async db =>
             {
                 var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == b.PlayerId);
-                var v = await db.Players.FirstOrDefaultAsync(p => p.Id == vid);
+                var v = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstOrDefaultAsync(p => p.Id == vid);
                 // The defender loses the trained defenders that died
                 if (v is not null && ar is not null && ar.TrainedLost.Count > 0)
                 {
@@ -229,18 +272,39 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                 }
                 if (s.Won && v is not null)
                 {
+                    if (stars >= 3)
+                    {
+                        var take = await db.Parcels.Where(x => x.OwnerId == v.Id && !x.IsHome && x.Sector == v.HomeSector).ToListAsync();
+                        var parcel = take.OrderByDescending(x => (x.Buildings ?? "").Length).ThenBy(_ => Random.Shared.Next()).FirstOrDefault();
+                        if (parcel is not null)
+                        {
+                            v.Parcels.Remove(parcel); parcel.Owner = me; parcel.OwnerId = me.Id; parcel.ClaimedAt = DateTime.UtcNow; conqueredView = World.ParcelView(parcel.Sector, parcel.I, parcel.J, parcel);
+                            rows.Add(["Conquered", $"Parcel {parcel.I},{parcel.J} in Sector {parcel.Sector} is yours now" + (string.IsNullOrEmpty(parcel.Buildings) ? "" : ", buildings and all")]);
+                            conquered = $"{parcel.I},{parcel.J}";
+                        }
+                        else rows.Add(["Conquered", $"{v.Name} has no land here beyond their home base, which can never be taken"]);
+                    }
                     var pct = stars >= 3 ? 0.2 : stars == 2 ? 0.15 : 0.1;
                     var cash = Math.Floor(Math.Min(4000, v.Cash * pct)); var oil = Math.Floor(Math.Min(300, v.Oil * pct)); var grain = Math.Floor(Math.Min(300, v.Grain * pct));
                     foreach (var (res, amt) in new[] { ("cash", cash), ("oil", oil), ("grain", grain) })
                         if (amt >= 1) { Ledger.Add(db, v, res, -amt, $"Raided by {me.Name}"); Ledger.Add(db, me, res, amt, $"Raid loot: {v.Name}"); }
                     v.LastRaidedAt = DateTime.UtcNow;
-                    Caretaker.Remember(db, me, -2, "war", $"Raided {v.Name}'s base");
+                    Caretaker.Remember(db, me, v.IsBot ? -2 : -4, "war", $"Attacked {v.Name}'s base");
+                    if (!v.IsBot) Caretaker.Remember(db, v, 0, "war", $"{me.Name} beat your base" + (conquered is null ? "" : $" and took parcel {conquered}"));
+                    victimId = v.IsBot ? null : v.Id; victimMe = v.IsBot ? null : Dto.Me(v);
+                    victimNote = $"{me.Name} beat your base ({stars}★) and took {cash:N0} cash, {oil:N0} oil and {grain:N0} grain" + (conquered is null ? "." : $", and parcel {conquered}.") + $" Your walls are manned for the next {PlayerShield.TotalHours:0} hours.";
                     rows.Add(["Loot", $"+{cash:N0} cash, +{oil:N0} oil, +{grain:N0} grain"]);
-                    announce = $"{me.Name} raided {v.Name}'s base in Sector {v.HomeSector}.";
+                    announce = conquered is null ? $"{me.Name} raided {v.Name}'s base in Sector {v.HomeSector}." : $"{me.Name} conquered land from {v.Name} in Sector {v.HomeSector}.";
                 }
                 player = Dto.Me(me);
                 return true;
             });
+            if (victimId is { } vId && victimNote is not null)
+            {
+                await hub.Clients.Clients(GameHub.ConnectionsOf(vId)).SendAsync("chat", new { channel = "global", name = "Alert", text = victimNote, at = DateTime.UtcNow });
+                if (victimMe is not null) await hub.Clients.Clients(GameHub.ConnectionsOf(vId)).SendAsync("me", victimMe);
+            }
+            if (conqueredView is not null) await hub.Clients.Group(World.Group(b.Sector)).SendAsync("parcel", conqueredView);
         }
         else if (b.Kind == "seize")
         {

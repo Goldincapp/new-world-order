@@ -237,5 +237,5 @@ public class BattleSim : IBattle
     };
 
     public static string Losses(Dictionary<string, int> l) =>
-        l.Count == 0 ? "none" : string.Join(", ", l.Select(kv => $"{kv.Value} {Types[kv.Key].Name.ToLower()}{(kv.Value > 1 ? "s" : "")}"));
+        l.Count == 0 ? "none" : string.Join(", ", l.Select(kv => $"{kv.Value} {(Types.TryGetValue(kv.Key, out var ut) ? ut : ArenaSim.TypeOf(kv.Key)).Name.ToLower()}{(kv.Value > 1 ? "s" : "")}"));
 }

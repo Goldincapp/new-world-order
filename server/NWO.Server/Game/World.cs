@@ -17,7 +17,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
 
     public record Result(bool Ok, string? Error = null, object? Player = null);
 
-    static object ParcelView(int sector, int i, int j, Parcel? p) => new
+    internal static object ParcelView(int sector, int i, int j, Parcel? p) => new
     {
         sector, i, j,
         res = p?.Resource ?? SectorTemplate.Resource(sector, i, j),

@@ -289,6 +289,12 @@ public class SectorPresence
     public int PetitionConcessions { get; set; }
     public DateTime LastPetitionAt { get; set; }
     public DateTime LastAssaultAt { get; set; }
+    /// <summary>What's left of the outpost's two towers and HQ (1 = whole). Damage stays between assaults, so settlers can wear it down together; it repairs slowly.</summary>
+    public double OutpostT1 { get; set; } = 1;
+    public double OutpostT2 { get; set; } = 1;
+    public double OutpostHq { get; set; } = 1;
+    /// <summary>Who has damaged the current outpost and how much: "playerId:points;...". Paid out when it falls.</summary>
+    public string? Contributors { get; set; }
 }
 
 /// <summary>A player-given name for a sector, earned by holding a tenth of its land.</summary>

@@ -15,7 +15,7 @@ public class ArenaSim : IBattle
     const double Tick = 0.35, Aggro = 3.6;
 
     public static readonly BattleSim.UnitType Sentry = new("Caretaker sentry", 3, 320, 24, 2.8, 1.3, "air", 1.2, 1.1, 1, 0.9);
-    static BattleSim.UnitType TypeOf(string t) => t == "sentry" ? Sentry : BattleSim.Types[t];
+    public static BattleSim.UnitType TypeOf(string t) => t == "sentry" ? Sentry : BattleSim.Types[t];
 
     public class Unit
     {
