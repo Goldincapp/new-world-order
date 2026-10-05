@@ -101,6 +101,27 @@ public class ArenaSim : IBattle
         return null;
     }
 
+    /// <summary>Play the attacking side with a simple script until the battle ends: steady deployments, strikes on the nearest structure.</summary>
+    public void AutoPlay(Random rng)
+    {
+        string[] pool = ["gunner", "launcher", "tank", "launcher", "heli", "militia"];
+        while (!Done)
+        {
+            if (rng.NextDouble() < 0.25)
+            {
+                var t = pool[rng.Next(pool.Length)];
+                if (Cp >= 6 && Troops.GetValueOrDefault("strike") > 0 && rng.NextDouble() < 0.2)
+                {
+                    var target = Structures.Where(x => x.Alive).OrderBy(x => x.X).FirstOrDefault();
+                    if (target is not null) Strike(target.X, target.Z);
+                }
+                else Deploy(t, -3 - rng.NextDouble() * 3, (rng.NextDouble() - 0.5) * 5);
+            }
+            Step(0.1);
+            Shots.Clear();
+        }
+    }
+
     public string? Strike(double x, double z)
     {
         if (Done) return "The battle is over.";

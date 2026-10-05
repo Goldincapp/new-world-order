@@ -139,13 +139,25 @@ public class Alliances(World world, IHubContext<GameHub> hub)
         var req = await db.AllianceInvites.FirstOrDefaultAsync(i => i.AllianceId == aid && i.PlayerId == t.Id && i.Kind == "request");
         if (req is not null && t.AllianceId is null) return await AcceptInto(db, a, t, me.Name);
         db.AllianceInvites.Add(new AllianceInvite { AllianceId = aid, PlayerId = t.Id, PlayerName = t.Name, Kind = "invite", By = me.Name });
-        if (t.IsBot && t.AllianceId is null && Random.Shared.NextDouble() < 0.7)
+        if (t.IsBot && Bots.AcceptsInvite(t.Id, Random.Shared))
         {
+            // An AI neighbour leaves its own crew to join you
+            if (t.AllianceId is { } old)
+            {
+                var oldA = await db.Alliances.FindAsync(old);
+                if (oldA is not null && oldA.LeaderId == t.Id)
+                {
+                    var heir = await db.Players.Where(p => p.AllianceId == old && p.Id != t.Id).OrderBy(p => p.AllianceJoinedAt).FirstOrDefaultAsync();
+                    if (heir is not null) { heir.AllianceRole = "leader"; oldA.LeaderId = heir.Id; }
+                }
+                t.AllianceId = null; t.AllianceRole = null;
+            }
             await db.SaveChangesAsync();
             var inv = await db.AllianceInvites.FirstAsync(i => i.AllianceId == aid && i.PlayerId == t.Id && i.Kind == "invite");
             db.AllianceInvites.Remove(inv);
             return await AcceptInto(db, a, t, me.Name);
         }
+        if (t.IsBot) return (new Result(true, Summary: Bots.Style(t.Id) == "raider" ? $"{t.Name} is a raider and won't take orders from anyone. The invite stands if they change their mind." : $"Invitation sent to {t.Name}. They're thinking it over."), null);
         return (new Result(true, Summary: $"Invitation sent to {t.Name}."), async () => { await Notify(t.Id, $"{me.Name} invited you to join {a.Name} [{a.Tag}]. Open Alliance to answer."); await Changed(aid); });
     });
 

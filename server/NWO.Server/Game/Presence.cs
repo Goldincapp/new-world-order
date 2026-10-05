@@ -118,6 +118,31 @@ public class Presence(World world, IHubContext<GameHub> hub) : BackgroundService
         Cache[sp.Sector] = sp.Presence;
     }
 
+    /// <summary>Apply what an assault did to the outpost (damage stays for everyone). If it fell, push the Caretaker back
+    /// and pay everyone who helped: 1,000 each, plus 1,500 for the final blow. Returns the helpers' names when it fell.</summary>
+    public static async Task<List<string>?> ApplyAssault(GameDb db, SectorPresence sp, Player attacker, ArenaSim ar, double[] start)
+    {
+        var left = ar.Structures.Take(3).Select(x => Math.Max(0, x.Hp) / x.Max).ToArray();
+        var cut = Enumerable.Range(0, 3).Select(q => Math.Max(0, start[q] - left[q])).ToArray();
+        sp.OutpostT1 = Math.Max(0, sp.OutpostT1 - cut[0]); sp.OutpostT2 = Math.Max(0, sp.OutpostT2 - cut[1]); sp.OutpostHq = Math.Max(0, sp.OutpostHq - cut[2]);
+        var points = cut[0] + cut[1] + 2 * cut[2];
+        if (points > 0.001) AddContribution(sp, attacker.Id, points);
+        if (!ar.Won) return null;
+        var helpers = Contribs(sp);
+        helpers.TryAdd(attacker.Id, 0.01);
+        Assaulted(db, sp, true);
+        Ledger.Add(db, attacker, "cash", 1500, "Salvage from a Caretaker outpost: the final blow");
+        var names = new List<string>();
+        foreach (var (id, _) in helpers)
+        {
+            var h = id == attacker.Id ? attacker : await db.Players.FindAsync(id);
+            if (h is null) continue;
+            Ledger.Add(db, h, "cash", 1000, $"Share of the salvage: the Caretaker outpost in Sector {sp.Sector}");
+            names.Add(h.Name);
+        }
+        return names;
+    }
+
     public static Dictionary<Guid, double> Contribs(SectorPresence sp) =>
         (sp.Contributors ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split(':')).Where(x => x.Length == 2 && Guid.TryParse(x[0], out _))
             .ToDictionary(x => Guid.Parse(x[0]), x => double.TryParse(x[1], System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : 0);

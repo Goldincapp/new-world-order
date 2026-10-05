@@ -5,19 +5,50 @@ using NWO.Server.Data;
 namespace NWO.Server.Game;
 
 /// <summary>
-/// Computer-run settlers that make the world feel lived in while it fills up with real players.
-/// Each has a home base, some land, a little research and often an alliance. They slowly claim and build,
-/// talk now and then, and their bases can be raided. NWO_BOTS sets how many (default 24, 0 turns them off).
+/// AI settlers: neighbours in every open Region 1 sector that play alongside real players. Each has a home base, land,
+/// research and usually an alliance, and one of three natures:
+///  ally   - joins sieges on the Caretaker's outpost once a real neighbour has started one, and accepts alliance invites;
+///  raider - attacks the bases of real players in its sector now and then (after their newcomer protection);
+///  trader - keeps to itself and grows.
+/// Every AI base can be attacked like a player's. NWO_BOTS_PER_SECTOR sets how many per sector (default 3, 0 turns them off).
 /// </summary>
 public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
 {
-    public static int Count => int.TryParse(Environment.GetEnvironmentVariable("NWO_BOTS"), out var n) ? Math.Clamp(n, 0, 60) : 24;
+    public static int PerSector => int.TryParse(Environment.GetEnvironmentVariable("NWO_BOTS_PER_SECTOR"), out var n) ? Math.Clamp(n, 0, 8) : 3;
+    static int OpenSectors => Enumerable.Range(1, 50).Count(s => !Economy.Closed.Contains(s));
+    public static int Count => PerSector * OpenSectors;
+
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, string> Styles = new();
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime> NextMove = new();
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, DateTime> LastHitByAi = new();
+    /// <summary>ally, raider or trader. Each sector's AI settlers get one of each before any doubles up.</summary>
+    public static string Style(Guid id) => Styles.GetValueOrDefault(id, "trader");
+    public static bool AcceptsInvite(Guid id, Random rng) => Style(id) switch { "ally" => rng.NextDouble() < 0.9, "trader" => rng.NextDouble() < 0.5, _ => false };
+    static readonly string[] Natures = ["ally", "raider", "trader"];
+    static async Task RefreshStyles(GameDb db)
+    {
+        var bots = await db.Players.Where(p => p.IsBot).Select(p => new { p.Id, p.HomeSector, p.CreatedAt }).ToListAsync();
+        foreach (var g in bots.GroupBy(b => b.HomeSector))
+        {
+            var k = 0;
+            foreach (var b in g.OrderBy(b => b.CreatedAt).ThenBy(b => b.Id)) Styles[b.Id] = Natures[(k++ + g.Key) % 3];
+        }
+    }
 
     static readonly string[] Names =
     [
         "Rook_7", "Vesna", "Halloran", "Kade.M", "Tamsin", "Brask", "Oriel", "Juno_K", "Petrak", "Wren", "Solvei", "Marsh",
         "Ilsa.V", "Corwin", "Dagny", "Fenn", "Greta_O", "Hollis", "Ivo", "Jessa", "Lark", "Mirek", "Nell_B", "Osric",
         "Pim", "Quill", "Rasha", "Stellan", "Toma", "Ulf_R", "Varga", "Yara", "Zoltan", "Asha_9", "Brin", "Cato",
+        "Aldric", "Bettina", "Calder", "Delphine", "Emrys", "Faye_T", "Gideon", "Hesper", "Isolde", "Jorah", "Kestrel", "Lucan",
+        "Maren", "Nikos", "Odette", "Pell", "Quinta", "Roan", "Sabine", "Tobias_K", "Una", "Valko", "Wilda", "Xan",
+        "Yusuf", "Zelda_R", "Anouk", "Bram", "Cosima", "Dov", "Elke", "Florin", "Gisela", "Hamid", "Inge", "Jasper",
+        "Katya", "Leif", "Mila_S", "Nadir", "Orla", "Piet", "Renske", "Saul", "Tilde", "Ugo", "Vera_M", "Wim",
+        "Ximena", "Yorick", "Zara_P", "Arlo", "Bex", "Caspian", "Dara", "Ewan", "Frida", "Gus", "Hana_J", "Idris",
+        "Jonas", "Kira", "Lorcan", "Magda", "Noor", "Otto", "Pia", "Rufus", "Siv", "Teo", "Ulla", "Vince",
+        "Willa", "Xavi", "Yrsa", "Zeno", "Abel_W", "Bryn", "Clio", "Dietz", "Esme", "Fritz", "Gwen", "Hugo",
+        "Ines", "Joss", "Kai_L", "Lena", "Moss", "Nils", "Opal", "Prue", "Rhea", "Sten", "Tess", "Viggo",
+        "Wynn", "Ada_Q", "Benno", "Cyra", "Dax", "Edda", "Finch", "Greer", "Harald", "Ivy_N", "Jules", "Klaus",
     ];
 
     static readonly (string name, string tag, bool open)[] BotAlliances =
@@ -31,6 +62,7 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
     {
         var want = Count;
         var have = await db.Players.CountAsync(p => p.IsBot);
+        if (have >= want) { await RefreshStyles(db); return; }
         var rng = new Random();
         var taken = (await db.Players.Select(p => p.Name.ToLower()).ToListAsync()).ToHashSet();
         foreach (var name in Names.Where(n => !taken.Contains(n.ToLower())).Take(Math.Max(0, want - have)))
@@ -88,6 +120,7 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
             if (leader) a.LeaderId = loose[k].Id;
             await db.SaveChangesAsync();
         }
+        await RefreshStyles(db);
     }
 
     /// <summary>Every couple of minutes one bot does something: collects, claims and builds, donates, researches. Bots don't chat.</summary>
@@ -101,9 +134,11 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
             {
                 await world.Locked(async db =>
                 {
-                    var bots = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).Where(p => p.IsBot).ToListAsync();
-                    if (bots.Count == 0) return true;
-                    var b = bots[rng.Next(bots.Count)];
+                    await RefreshStyles(db);
+                    var all = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).Where(p => p.IsBot).ToListAsync();
+                    if (all.Count == 0) return true;
+                    foreach (var b in all.OrderBy(_ => rng.Next()).Take(Math.Max(1, all.Count / 25)))
+                    {
                     var now = DateTime.UtcNow;
                     b.LastSeenAt = now;
                     Economy.Collect(db, b, now, "Collected production");
@@ -138,11 +173,120 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
                             b.ResearchId = t.Id; b.ResearchEndsAt = now + time; b.ResearchHelpers = null;
                         }
                     }
+                    }
                     return true;
                 });
             }
             catch (Exception e) { Console.WriteLine($"Bot tick failed: {e.Message}"); }
-            await Task.Delay(TimeSpan.FromSeconds(90 + rng.Next(60)), stop);
+            try { if (rng.NextDouble() < 0.4) await RaiderMove(rng); } catch (Exception e) { Console.WriteLine($"Raider move failed: {e.Message}"); }
+            try { if (rng.NextDouble() < 0.5) await AllyMove(rng); } catch (Exception e) { Console.WriteLine($"Ally move failed: {e.Message}"); }
+            await Task.Delay(TimeSpan.FromSeconds(60 + rng.Next(40)), stop);
         }
+    }
+
+    static readonly TimeSpan RaiderRest = TimeSpan.FromHours(8), AllyRest = TimeSpan.FromHours(4), AiHitGap = TimeSpan.FromHours(12);
+
+    /// <summary>A raider attacks a real neighbour's base: the battle is played out on the server against the player's real defences.</summary>
+    async Task RaiderMove(Random rng)
+    {
+        ArenaSim? a = null; Guid raiderId = default, victimId = default;
+        await world.Locked(async db =>
+        {
+            var now = DateTime.UtcNow;
+            DateTime arrivedBy = now - Battles.NewcomerShield, beatenBy = now - Battles.PlayerShield;
+            var humans = await db.Players.Include(p => p.HomeTiles).Where(p => !p.IsBot && p.CreatedAt < arrivedBy && p.LastRaidedAt < beatenBy).ToListAsync();
+            humans = humans.Where(h => h.HomeTiles.Count > 0 && LastHitByAi.GetValueOrDefault(h.Id) + AiHitGap < now).ToList();
+            if (humans.Count == 0) return true;
+            var v = humans[rng.Next(humans.Count)];
+            var raiders = await db.Players.Where(p => p.IsBot && p.HomeSector == v.HomeSector).ToListAsync();
+            var r = raiders.Where(b => Style(b.Id) == "raider" && NextMove.GetValueOrDefault(b.Id) < now && (b.AllianceId is null || b.AllianceId != v.AllianceId)).OrderBy(_ => rng.Next()).FirstOrDefault();
+            if (r is null) return true;
+            NextMove[r.Id] = now + RaiderRest; LastHitByAi[v.Id] = now;
+            a = new ArenaSim($"{r.Name} attacks {v.Name}'s base", $"{v.Name}'s base", Defense.For(v), Defense.Trained(v), BattleSim.StartingTroops, null, rng.Next());
+            a.CaretakerSides(r.Standing, v.Standing, false);
+            raiderId = r.Id; victimId = v.Id;
+            return true;
+        });
+        if (a is null) return;
+        a.AutoPlay(rng);
+        string? note = null, news = null; object? victimMe = null;
+        await world.Locked(async db =>
+        {
+            var v = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstOrDefaultAsync(p => p.Id == victimId);
+            var r = await db.Players.FindAsync(raiderId);
+            if (v is null || r is null) return true;
+            var lost = a.TrainedLost.Count > 0 ? string.Join(", ", a.TrainedLost.Select(kv => $"{kv.Value} {kv.Key}{(kv.Value > 1 ? "s" : "")}")) : "none";
+            if (a.TrainedLost.Count > 0)
+            {
+                var tr = Defense.Trained(v);
+                foreach (var (k, n) in a.TrainedLost) tr[k] = Math.Max(0, tr.GetValueOrDefault(k) - n);
+                Defense.SetTrained(v, tr);
+            }
+            if (a.Won)
+            {
+                var pct = a.Stars >= 3 ? 0.15 : a.Stars == 2 ? 0.1 : 0.06;
+                var cash = Math.Floor(Math.Min(2500, v.Cash * pct)); var oil = Math.Floor(Math.Min(200, v.Oil * pct)); var grain = Math.Floor(Math.Min(200, v.Grain * pct));
+                foreach (var (res, amt) in new[] { ("cash", cash), ("oil", oil), ("grain", grain) })
+                    if (amt >= 1) { Ledger.Add(db, v, res, -amt, $"Raided by {r.Name}"); Ledger.Add(db, r, res, amt, $"Raid loot: {v.Name}"); }
+                v.LastRaidedAt = DateTime.UtcNow;
+                Caretaker.Remember(db, v, 0, "war", $"{r.Name} raided your base");
+                note = $"{r.Name}, a raider in your sector, broke into your base ({a.Stars}★) and took {cash:N0} cash, {oil:N0} oil and {grain:N0} grain. Defenders lost: {lost}. Your walls are manned for the next {Battles.PlayerShield.TotalHours:0} hours. Hit back from their base on the Sector map.";
+                news = $"{r.Name} raided {v.Name}'s base in Sector {v.HomeSector}.";
+            }
+            else
+            {
+                Caretaker.Remember(db, v, 1, "war", $"Drove {r.Name}'s raiders off your base");
+                note = $"{r.Name}, a raider in your sector, attacked your base and was driven off. Defenders lost: {lost}.";
+            }
+            victimMe = Dto.Me(v);
+            return true;
+        });
+        if (note is not null)
+        {
+            await hub.Clients.Clients(GameHub.ConnectionsOf(victimId)).SendAsync("chat", new { channel = "global", name = "Alert", text = note, at = DateTime.UtcNow });
+            if (victimMe is not null) await hub.Clients.Clients(GameHub.ConnectionsOf(victimId)).SendAsync("me", victimMe);
+        }
+        if (news is not null) await hub.Clients.All.SendAsync("chat", new { channel = "global", name = "News", text = news, at = DateTime.UtcNow });
+    }
+
+    /// <summary>An ally joins a siege a real neighbour has started on the Caretaker's outpost, adding its damage to theirs.</summary>
+    async Task AllyMove(Random rng)
+    {
+        ArenaSim? a = null; double[]? start = null; Guid allyId = default; int sector = 0;
+        await world.Locked(async db =>
+        {
+            var now = DateTime.UtcNow;
+            var sieges = (await db.SectorPresence.Where(x => x.Contributors != null && x.Presence > 0.5).ToListAsync()).Where(x => Presence.Applies(x.Sector)).ToList();
+            if (sieges.Count == 0) return true;
+            var humans = (await db.Players.Where(p => !p.IsBot).Select(p => p.Id).ToListAsync()).ToHashSet();
+            sieges = sieges.Where(x => Presence.Contribs(x).Keys.Any(humans.Contains)).ToList();
+            if (sieges.Count == 0) return true;
+            var sp = sieges[rng.Next(sieges.Count)];
+            var allies = await db.Players.Where(p => p.IsBot && p.HomeSector == sp.Sector).ToListAsync();
+            var al = allies.Where(b => Style(b.Id) == "ally" && NextMove.GetValueOrDefault(b.Id) < now).OrderBy(_ => rng.Next()).FirstOrDefault();
+            if (al is null) return true;
+            NextMove[al.Id] = now + AllyRest;
+            a = new ArenaSim($"{al.Name} assaults the Caretaker outpost", "Caretaker outpost", Presence.Outpost(sp.Presence, Presence.Settlers(sp.Sector)), new(), BattleSim.StartingTroops, null, rng.Next());
+            start = [sp.OutpostT1, sp.OutpostT2, Math.Max(0.02, sp.OutpostHq)];
+            for (var q = 0; q < 3; q++) a.Structures[q].Hp = a.Structures[q].Max * start[q];
+            allyId = al.Id; sector = sp.Sector;
+            return true;
+        });
+        if (a is null || start is null) return;
+        a.AutoPlay(rng);
+        string? line = null, news = null;
+        await world.Locked(async db =>
+        {
+            var sp = await db.SectorPresence.FindAsync(sector);
+            var al = await db.Players.FindAsync(allyId);
+            if (sp is null || al is null) return true;
+            var names = await Presence.ApplyAssault(db, sp, al, a, start);
+            if (names is not null) news = $"The settlers of Sector {sector} took the Caretaker's outpost together: {string.Join(", ", names)}.";
+            else line = $"{al.Name} joined the siege on the Caretaker's outpost. It now stands at towers {Math.Round(sp.OutpostT1 * 100)}% and {Math.Round(sp.OutpostT2 * 100)}%, HQ {Math.Round(sp.OutpostHq * 100)}%.";
+            return true;
+        });
+        if (line is not null) await hub.Clients.Group(World.Group(sector)).SendAsync("chat", new { channel = "global", name = "News", text = line, at = DateTime.UtcNow });
+        if (news is not null) await hub.Clients.All.SendAsync("chat", new { channel = "global", name = "News", text = news, at = DateTime.UtcNow });
+        await hub.Clients.Group(World.Group(sector)).SendAsync("presence", new { sector, presence = Math.Round(Presence.Of(sector)) });
     }
 }

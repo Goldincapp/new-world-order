@@ -189,6 +189,54 @@ api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm)
     return Results.Ok(new { wiped = players });
 });
 
+// Admin: the real (non-AI) players, newest first.
+api.MapGet("/admin/players", async (HttpContext ctx, GameDb db) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    var list = await db.Players.Where(p => !p.IsBot).OrderByDescending(p => p.LastSeenAt)
+        .Select(p => new { p.Name, p.HomeSector, p.CreatedAt, p.LastSeenAt, cash = Math.Floor(p.Cash), parcels = p.Parcels.Count, buildings = p.HomeTiles.Count }).ToListAsync();
+    return Results.Ok(list);
+});
+
+// Admin: delete one player completely, as if they never started. Their land returns to the wild; they sign up again.
+api.MapPost("/admin/reset-player", async (HttpContext ctx, World world, string name, string? confirm) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    if (confirm != "RESET") return Results.BadRequest(new { error = "Add ?confirm=RESET to delete this player for good." });
+    var done = await world.Locked(async db =>
+    {
+        var p = await db.Players.FirstOrDefaultAsync(x => x.Name == name && !x.IsBot);
+        if (p is null) return false;
+        var id = p.Id;
+        await db.HomeTiles.Where(x => x.PlayerId == id).ExecuteDeleteAsync();
+        await db.Records.Where(x => x.PlayerId == id).ExecuteDeleteAsync();
+        await db.Ledger.Where(x => x.PlayerId == id).ExecuteDeleteAsync();
+        await db.Orders.Where(x => x.PlayerId == id).ExecuteDeleteAsync();
+        await db.Shipments.Where(x => x.PlayerId == id).ExecuteDeleteAsync();
+        await db.Shipments.Where(x => x.HeldById == id).ExecuteUpdateAsync(u => u.SetProperty(x => x.HeldById, (Guid?)null));
+        await db.Shipments.Where(x => x.AuditPlayerId == id).ExecuteUpdateAsync(u => u.SetProperty(x => x.AuditPlayerId, (Guid?)null));
+        await db.Contracts.Where(x => x.TakenById == id).ExecuteUpdateAsync(u => u.SetProperty(x => x.TakenById, (Guid?)null));
+        await db.AllianceInvites.Where(x => x.PlayerId == id).ExecuteDeleteAsync();
+        await db.Candidates.Where(x => x.PlayerId == id).ExecuteDeleteAsync();
+        await db.Ballots.Where(x => x.VoterId == id).ExecuteDeleteAsync();
+        await db.LawVotes.Where(x => x.VoterId == id).ExecuteDeleteAsync();
+        await db.Coups.Where(x => x.LeaderId == id).ExecuteDeleteAsync();
+        await db.SectorNames.Where(x => x.OwnerId == id).ExecuteDeleteAsync();
+        await db.Nations.Where(x => x.PresidentId == id).ExecuteUpdateAsync(u => u.SetProperty(x => x.PresidentId, (Guid?)null));
+        await db.Nations.Where(x => x.FounderId == id).ExecuteUpdateAsync(u => u.SetProperty(x => x.FounderId, (Guid?)null));
+        await db.Parcels.Where(x => x.OwnerId == id).ExecuteDeleteAsync();
+        if (p.AllianceId is { } aid)
+        {
+            var a = await db.Alliances.FindAsync(aid);
+            var heir = await db.Players.Where(x => x.AllianceId == aid && x.Id != id).OrderBy(x => x.AllianceJoinedAt).FirstOrDefaultAsync();
+            if (a is not null && a.LeaderId == id) { if (heir is null) db.Alliances.Remove(a); else { heir.AllianceRole = "leader"; a.LeaderId = heir.Id; } }
+        }
+        db.Players.Remove(p);
+        return true;
+    });
+    return done ? Results.Ok(new { reset = name }) : Results.NotFound(new { error = $"No player called {name}." });
+});
+
 // Admin: open the Ashlands without beating the Sentinel, for testing. Skips the gatebreakers' head start.
 api.MapPost("/admin/region2/open", async (HttpContext ctx, World world) =>
 {
@@ -246,22 +294,7 @@ api.MapPost("/admin/arena/simulate", (HttpContext ctx, int hq, int barracks, str
         var rng = new Random(run);
         var a = new ArenaSim("sim", "base", outpost is { } op ? Presence.Outpost(op, settlers ?? 1) : Defense.For(p), outpost is null ? tr : new(), BattleSim.StartingTroops, null, run);
         if (chain == true) for (var q = 0; q < 3; q++) a.Structures[q].Hp = a.Structures[q].Max * Math.Max(q == 2 ? 0.02 : 0, carry[q]);
-        string[] pool = ["gunner", "launcher", "tank", "launcher", "heli", "militia"];
-        while (!a.Done)
-        {
-            if (rng.NextDouble() < 0.25)
-            {
-                var t = pool[rng.Next(pool.Length)];
-                if (a.Cp >= 6 && a.Troops["strike"] > 0 && rng.NextDouble() < 0.2)
-                {
-                    var target = a.Structures.Where(x => x.Alive).OrderBy(x => x.X).FirstOrDefault();
-                    if (target is not null) a.Strike(target.X, target.Z);
-                }
-                else a.Deploy(t, -3 - rng.NextDouble() * 3, (rng.NextDouble() - 0.5) * 5);
-            }
-            a.Step(0.1);
-            a.Shots.Clear();
-        }
+        a.AutoPlay(rng);
         if (chain == true) { for (var q = 0; q < 3; q++) carry[q] = Math.Max(0, a.Structures[q].Hp) / a.Structures[q].Max; if (a.Won) carry = [1.0, 1.0, 1.0]; }
         results.Add(new { a.Won, a.Stars, minutes = Math.Round(a.T / 60, 2), a.Why, left = chain == true ? carry.Select(x => Math.Round(x, 2)).ToArray() : null });
     }

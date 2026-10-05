@@ -23,9 +23,9 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
     static readonly ConcurrentDictionary<long, Guid> RaidTargets = new();
     static readonly ConcurrentDictionary<long, double[]> OutpostStarts = new();
     /// <summary>After a settler's base is beaten, it can't be attacked again for a while. Bots recover faster.</summary>
-    static readonly TimeSpan PlayerShield = TimeSpan.FromHours(8);
+    public static readonly TimeSpan PlayerShield = TimeSpan.FromHours(8);
     /// <summary>New settlers can't be attacked by their neighbours until they've had time to build.</summary>
-    static TimeSpan NewcomerShield => Admin.DevTools ? TimeSpan.FromMinutes(10) : TimeSpan.FromHours(24);
+    public static TimeSpan NewcomerShield => Admin.DevTools ? TimeSpan.FromMinutes(10) : TimeSpan.FromHours(24);
     public const double BaseRaidFuel = 40;
     static readonly TimeSpan RaidShield = TimeSpan.FromMinutes(30);
 
@@ -216,29 +216,9 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                 var sp = await db.SectorPresence.FindAsync(b.Sector);
                 if (sp is null) return true;
                 // What this assault knocked off each structure comes off the outpost for everyone
-                double points = 0;
-                if (ar is not null && st is not null)
+                var names = ar is not null && st is not null ? await Presence.ApplyAssault(db, sp, me, ar, st) : null;
+                if (s.Won && names is not null)
                 {
-                    var left = ar.Structures.Take(3).Select(x => Math.Max(0, x.Hp) / x.Max).ToArray();
-                    var cut = Enumerable.Range(0, 3).Select(q => Math.Max(0, st[q] - left[q])).ToArray();
-                    sp.OutpostT1 = Math.Max(0, sp.OutpostT1 - cut[0]); sp.OutpostT2 = Math.Max(0, sp.OutpostT2 - cut[1]); sp.OutpostHq = Math.Max(0, sp.OutpostHq - cut[2]);
-                    points = cut[0] + cut[1] + 2 * cut[2];
-                    if (points > 0.001) Presence.AddContribution(sp, me.Id, points);
-                }
-                if (s.Won)
-                {
-                    var helpers = Presence.Contribs(sp);
-                    helpers.TryAdd(me.Id, 0.01);
-                    Presence.Assaulted(db, sp, true);
-                    Ledger.Add(db, me, "cash", 1500, "Salvage from a Caretaker outpost: the final blow");
-                    var names = new List<string>();
-                    foreach (var (id, _) in helpers)
-                    {
-                        var h = id == me.Id ? me : await db.Players.FindAsync(id);
-                        if (h is null) continue;
-                        Ledger.Add(db, h, "cash", 1000, $"Share of the salvage: the Caretaker outpost in Sector {b.Sector}");
-                        names.Add(h.Name);
-                    }
                     rows.Add(["Caretaker", $"Pushed back {Presence.AssaultConcession}% for good. Presence in Sector {b.Sector}: {Math.Round(sp.Presence)}%"]);
                     rows.Add(["Salvage", $"+2,500 cash for you · +1,000 for each of the {names.Count} settlers who wore it down"]);
                     announce = names.Count > 1 ? $"The settlers of Sector {b.Sector} took the Caretaker's outpost together: {string.Join(", ", names)}." : $"{me.Name} took the Caretaker's outpost in Sector {b.Sector}. Its hold there is weakening.";

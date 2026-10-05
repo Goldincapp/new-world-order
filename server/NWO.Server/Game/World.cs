@@ -23,6 +23,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         res = p?.Resource ?? SectorTemplate.Resource(sector, i, j),
         owner = p?.Owner?.Name,
         bot = p?.Owner?.IsBot ?? false,
+        style = p?.Owner is { IsBot: true } o ? Bots.Style(o.Id) : null,
         home = p?.IsHome ?? false,
         b = p is null ? Array.Empty<string>() : Economy.BuildingsOn(p).ToArray(),
     };
