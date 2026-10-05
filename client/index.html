@@ -1120,7 +1120,7 @@ function densePath(pts,step){const out=[];for(let i=1;i<pts.length;i++){const a=
   const ex=Math.abs((fc+0.5)-Math.round(fc+0.5)),ez=Math.abs((fr+0.5)-Math.round(fr+0.5));
   cc.multiplyScalar((0.85+0.25*NZ.fbm(x*1.3,z*1.3))*(NEWGFX?1.05:1.35));col[i*3]=cc.r;col[i*3+1]=cc.g;col[i*3+2]=cc.b;}
  g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();
- const pterr=new THREE.Mesh(g,NEWGFX?new THREE.MeshLambertMaterial({vertexColors:true,flatShading:true}):new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95}));
+ const pterr=new THREE.Mesh(g,NEWGFX?new THREE.MeshLambertMaterial({vertexColors:true}):new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.95}));
  window.__pterr=pterr;pterr.receiveShadow=true;pterr.castShadow=true;province.add(pterr);
  secCaps.forEach(m=>m.visible=false);
  const pfSet=new Set(pfogs.map(o=>o.s));
@@ -1137,7 +1137,7 @@ function skirt(group,hw,hd,baseY,hills,seed){const g=new THREE.PlaneGeometry(90,
   let y;if(d<0.01)y=baseY-2.5;else{const n=NZ.fbm(x*0.12+seed,z*0.12),r=NZ.ridged(x*0.07+seed,z*0.07);y=baseY-0.08+NZ.ss(0,4,d)*(hills*0.6+n*1.2)+NZ.ss(12,32,d)*r*6;}
   a.setY(i,y);const hn=y-baseY;c.copy(gA).lerp(gB,NZ.fbm(x*0.5,z*0.5));c.lerp(fo,NZ.ss(0.45,0.62,NZ.fbm(x*0.3+3,z*0.3)));c.lerp(rk,NZ.ss(1.6,3,hn));c.lerp(sn,NZ.ss(4,5.5,hn));
   c.multiplyScalar(NEWGFX?1:1.2*(1-NZ.ss(6,40,d)*0.45));col[i*3]=c.r;col[i*3+1]=c.g;col[i*3+2]=c.b;}
- g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();const m=new THREE.Mesh(g,NEWGFX?new THREE.MeshLambertMaterial({vertexColors:true,flatShading:true}):new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));m.receiveShadow=true;group.add(m);return m;}
+ g.setAttribute('color',new THREE.BufferAttribute(col,3));g.computeVertexNormals();const m=new THREE.Mesh(g,NEWGFX?new THREE.MeshLambertMaterial({vertexColors:true}):new THREE.MeshStandardMaterial({vertexColors:true,roughness:1}));m.receiveShadow=true;group.add(m);return m;}
 skirt(county,N/2+0.02,N/2+0.02,0.4,0.5,3);skirt(hq,HS/2+0.02,HS/2+0.02,0.1,0.6,9);
 paintGlobe();
 
@@ -2457,8 +2457,8 @@ function kitInst(group,key,list,opt){if(!list.length)return null;opt=opt||{};con
  im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.castShadow=!!opt.shadow;im.receiveShadow=true;group.add(im);return im;}
 /** Water with depth: teal shallows to deep blue, drifting glints, foam at the shore. Depth comes from a small texture of the board's heights. */
 const WATERU={uT:{value:0}};
-function waterSurface(S,TH,level){const d=new Uint8Array(S*S*4);for(let k=0;k<S*S;k++){const v=Math.max(0,Math.min(1,(level-TH[k])/0.24));d[k*4]=v*255;d[k*4+3]=255;}
- const tex=new THREE.DataTexture(d,S,S);tex.magFilter=tex.minFilter=THREE.LinearFilter;tex.needsUpdate=true;
+function waterSurface(S,HS,level){const Rz=S*4,d=new Uint8Array(Rz*Rz*4);for(let j=0;j<Rz;j++)for(let i=0;i<Rz;i++){const k=j*Rz+i,v=Math.max(0,Math.min(1,(level-HS(-S/2+(i+0.5)/Rz*S,-S/2+(j+0.5)/Rz*S))/0.24));d[k*4]=v*255;d[k*4+3]=255;}
+ const tex=new THREE.DataTexture(d,Rz,Rz);tex.magFilter=tex.minFilter=THREE.LinearFilter;tex.needsUpdate=true;
  const mt=new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:true,uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uDepth:{value:null},uS:{value:S},sh:{value:new THREE.Color(0x3cc4cc)},dp:{value:new THREE.Color(0x15507e)},sky:{value:new THREE.Color(0xbfe4f4)}}]),
   vertexShader:'varying vec3 vW;\n#include <fog_pars_vertex>\nvoid main(){vW=(modelMatrix*vec4(position,1.)).xyz;vec4 mvPosition=viewMatrix*vec4(vW,1.);gl_Position=projectionMatrix*mvPosition;\n#include <fog_vertex>\n}',
   fragmentShader:'uniform sampler2D uDepth;uniform float uS,uT;uniform vec3 sh,dp,sky;varying vec3 vW;\n#include <fog_pars_fragment>\nvoid main(){float dep=texture2D(uDepth,vW.xz/uS+.5).r;vec3 col=mix(sh,dp,smoothstep(0.15,1.5,dep));'+
@@ -2498,6 +2498,34 @@ function buildTerrain(S,H,C){const N=2*S+1,pos=new Float32Array(N*N*3),cols=new 
  m.userData.terrainKey=p=>{const i=Math.round(p.x+(S-1)/2),j=Math.round(p.z+(S-1)/2);return i>=0&&j>=0&&i<S&&j<S?i+','+j:null;};
  // a skirt of earth under the edges so the surface doesn't float
  const base=new THREE.Mesh(new THREE.BoxGeometry(S,0.3,S),new THREE.MeshStandardMaterial({color:NEWGFX?0x8a6a48:0x3a2e22,roughness:1}));base.position.y=0.02;m.add(base);return m;}
+/** Height anywhere on the board: smooth between parcel centres (exact at each centre) plus gentle rolling noise. */
+function bigSampler(S,TH,sector){const half=(S-1)/2;return (x,z)=>{const fx=Math.max(0,Math.min(S-1,x+half)),fz=Math.max(0,Math.min(S-1,z+half)),i0=Math.min(S-2,Math.floor(fx)),j0=Math.min(S-2,Math.floor(fz));
+ let tx=fx-i0,tz=fz-j0;tx=tx*tx*(3-2*tx);tz=tz*tz*(3-2*tz);const h=(i,j)=>TH[j*S+i],b=(h(i0,j0)*(1-tx)+h(i0+1,j0)*tx)*(1-tz)+(h(i0,j0+1)*(1-tx)+h(i0+1,j0+1)*tx)*tz;
+ let r=b+(NZ.fbm(x*0.13+sector*3.7,z*0.13)-0.48)*0.16;const shore=NZ.ss(-0.01,0.08,b)*NZ.ss(0.24,0.15,b);r+=shore*(NZ.fbm(x*0.6+9,z*0.6+sector)-0.48)*0.5;return b>0.235?Math.max(r,0.215):r;};}
+const SPLAT={gr:[1,0,0],sc:[1,0,0],ba:[0.75,0.25,0],fe:[0.55,0.45,0],ro:[0.1,0.15,0.75],oi:[0.1,0.9,0],ru:[0.25,0.45,0.3],wa:[0,1,0],pa:[0,1,0],ha:[0.15,0.85,0]};
+function buildTerrain2(S,HS,codeAt,sector){const R=LOW?3:4,N=S*R+1,pos=new Float32Array(N*N*3),cols=new Float32Array(N*N*3),spl=new Float32Array(N*N*3),half=(S-1)/2,step=1/R;
+ const ca=new THREE.Color(),cb=new THREE.Color(),acc=new THREE.Color(),rock=new THREE.Color(0x8a8178),cc={};const col2=(code,x,z)=>{const two=LANDCOL2[code];const t=NZ.ss(0.3,0.7,NZ.fbm(x*0.16+sector*7.3,z*0.16)+(NZ.fbm(x*1.1,z*1.1)-0.5)*0.25);return ca.setHex(two[0]).lerp(cb.setHex(two[1]),t);};
+ for(let b=0;b<N;b++)for(let a=0;a<N;a++){const v=b*N+a,x=-S/2+a*step,z=-S/2+b*step;pos[v*3]=x;pos[v*3+1]=HS(x,z);pos[v*3+2]=z;
+  // blend the four nearest parcels' palettes and splat weights, smoothly
+  const fx=Math.max(0,Math.min(S-1,x+half)),fz=Math.max(0,Math.min(S-1,z+half)),i0=Math.min(S-2,Math.floor(fx)),j0=Math.min(S-2,Math.floor(fz));let tx=fx-i0,tz=fz-j0;tx=tx*tx*(3-2*tx);tz=tz*tz*(3-2*tz);
+  acc.setRGB(0,0,0);let w0=0,w1=0,w2=0;[[i0,j0,(1-tx)*(1-tz)],[i0+1,j0,tx*(1-tz)],[i0,j0+1,(1-tx)*tz],[i0+1,j0+1,tx*tz]].forEach(([i,j,w])=>{if(w<=0)return;const code=codeAt(i,j),c=col2(code,x,z),sp=SPLAT[code]||[1,0,0];acc.r+=c.r*w;acc.g+=c.g*w;acc.b+=c.b*w;w0+=sp[0]*w;w1+=sp[1]*w;w2+=sp[2]*w;});
+  acc.multiplyScalar(0.94+0.12*NZ.fbm(x*0.9+5,z*0.9));cols[v*3]=acc.r;cols[v*3+1]=acc.g;cols[v*3+2]=acc.b;spl[v*3]=w0;spl[v*3+1]=w1;spl[v*3+2]=w2;}
+ // darker hollows, rock on the steep bits
+ const Y=v=>pos[v*3+1],c=new THREE.Color();for(let b=0;b<N;b++)for(let a=0;a<N;a++){const v=b*N+a,l=a>0?v-1:v,r=a<N-1?v+1:v,u=b>0?v-N:v,d=b<N-1?v+N:v,avg=(Y(l)+Y(r)+Y(u)+Y(d))/4;
+  const slope=Math.hypot(Y(r)-Y(l),Y(d)-Y(u))/(2*step),ao=Math.max(0.8,Math.min(1.05,1-(avg-Y(v))*10)),rk=NZ.ss(0.35,0.8,slope);
+  c.setRGB(cols[v*3],cols[v*3+1],cols[v*3+2]).lerp(rock,rk*0.8).multiplyScalar(ao);cols[v*3]=c.r;cols[v*3+1]=c.g;cols[v*3+2]=c.b;
+  const t=spl[v*3]+spl[v*3+1]+spl[v*3+2]||1;spl[v*3]=spl[v*3]/t*(1-rk);spl[v*3+1]=spl[v*3+1]/t*(1-rk);spl[v*3+2]=spl[v*3+2]/t*(1-rk)+rk;}
+ const idx=[];for(let b=0;b<N-1;b++)for(let a=0;a<N-1;a++){const p=b*N+a;if((a+b)%2)idx.push(p,p+N,p+1,p+1,p+N,p+N+1);else idx.push(p,p+N,p+N+1,p,p+N+1,p+1);}
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.setAttribute('splat',new THREE.BufferAttribute(spl,3));geo.setIndex(idx);geo.computeVertexNormals();
+ const m=new THREE.Mesh(geo,splatMat());m.receiveShadow=true;
+ m.userData.terrainKey=p=>{const i=Math.round(p.x+(S-1)/2),j=Math.round(p.z+(S-1)/2);return i>=0&&j>=0&&i<S&&j<S?i+','+j:null;};
+ const base=new THREE.Mesh(new THREE.BoxGeometry(S,0.3,S),new THREE.MeshStandardMaterial({color:0x8a6a48,roughness:1}));base.position.y=0.02;m.add(base);return m;}
+/** Vertex-coloured Lambert with three hand-drawn detail textures (grass strokes, sand grain, rock cracks) blended by weight, sampled in world space so no UVs are needed. */
+function splatMat(){const m=new THREE.MeshLambertMaterial({vertexColors:true});
+ m.onBeforeCompile=sh=>{sh.uniforms.tG={value:DT.grass};sh.uniforms.tS={value:DT.sand};sh.uniforms.tR={value:DT.rock};
+  sh.vertexShader='attribute vec3 splat;varying vec3 vSplat;varying vec2 vWXZ;\n'+sh.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSplat=splat;vWXZ=(modelMatrix*vec4(position,1.)).xz;');
+  sh.fragmentShader='uniform sampler2D tG,tS,tR;varying vec3 vSplat;varying vec2 vWXZ;\n'+sh.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n{vec3 dd=texture2D(tG,vWXZ*.35).rgb*vSplat.x+texture2D(tS,vWXZ*.45).rgb*vSplat.y+texture2D(tR,vWXZ*.3).rgb*vSplat.z;diffuseColor.rgb*=mix(vec3(1.),dd*1.5,.75);}');};
+ return m;}
 function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:snap.sector,size:S,biome:snap.biome,settlers:snap.settlers,region:snap.region||1,claimCost:snap.claimCost,open:snap.open,name:snap.name,needToName:snap.needToName,ct:snap.caretaker};setTimeout(renderSec,0);
  if(bigGroup){county.remove(bigGroup);bigGroup.traverse(o=>{if(o.geometry&&o.isInstancedMesh)o.geometry.dispose();});}
  if(!oldCounty){oldCounty=county.children.filter(o=>o!==sel);oldCounty.forEach(o=>o.visible=false);}
@@ -2519,16 +2547,17 @@ function buildBigSector(snap){const S=snap.size,half=(S-1)/2;NET.big={sector:sna
   if(code==='fe')for(let q=0;q<3;q++)crop.push([x,h-0.05,z-0.3+q*0.3]);
   if(code==='wa'&&hash(i*1.1,j*6.1)<0.3)reed.push([x+(hash(i,j)-0.5)*0.7,h-0.05,z+(hash(j,i)-0.5)*0.7]);}
  ground.instanceMatrix.needsUpdate=true;ground.instanceColor.needsUpdate=true;ground.userData={inst:true,keys};
- if(NEWGFX){const terr=buildTerrain(S,TH,TC);bigGroup.add(terr);picks.push(terr);}else{bigGroup.add(ground);picks.push(ground);}
+ if(NEWGFX){const HS=bigSampler(S,TH,snap.sector);NET.bigH=HS;Object.values(cells).forEach(c=>c.top=HS(c.x,c.z));[trees,rocks,ruins,rigs,dead,bush,crop,reed].forEach(l=>l.forEach(p=>p[1]=HS(p[0],p[2])));
+  const terr=buildTerrain2(S,HS,(i,j)=>snap.rows[j].substr(i*2,2),snap.sector);bigGroup.add(terr);picks.push(terr);}else{bigGroup.add(ground);picks.push(ground);}
  const inst=(geo,color,list,place,opts)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial(Object.assign({color,roughness:0.9},opts||{})),list.length);im.castShadow=true;list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);});im.instanceMatrix.needsUpdate=true;bigGroup.add(im);};
  const rot=new THREE.Matrix4(),place=(hk,y0)=>(m,p)=>m.makeRotationY(hash(p[0]*3.1,p[2]*1.7)*6.28).premultiply(new THREE.Matrix4().makeScale(p[3]*hk,p[3]*hk,p[3]*hk)).setPosition(p[0],p[1]+(y0||0),p[2]);
  const trA=trees.filter((p,i)=>hash(p[0],p[2])<0.6),trB=trees.filter((p,i)=>hash(p[0],p[2])>=0.6);
  if(NEWGFX){const T=(l,k,y)=>l.map(p=>[p[0],p[1]+(y||0),p[2],p[3]*k]);kitInst(bigGroup,'pine',T(trA,2.1),{shadow:true});kitInst(bigGroup,'oak',T(trB,1.9),{shadow:true});kitInst(bigGroup,'rock',T(rocks,0.9,-0.03),{solid:true,shadow:true});kitInst(bigGroup,'bush',T(bush,1.5));
   const tufts=[],flw=[],FL=[0xfff4c0,0xffd45e,0xf6a3c8,0xffffff,0xb9a6ff],dens={gr:9,sc:5,ba:3,ru:1.2,ro:0.8,oi:0.6,fe:0.6},tint={gr:0xffffff,sc:0xd8f0c8,ba:0xf0e2a0,ru:0xe8e0b0,ro:0xd8d8b0,oi:0xf8e0a0,fe:0xf0e8a0};
   Object.values(cells).forEach(c=>{const nd=(dens[c.code]||0)*(LOW?0.5:1);for(let q=0;q<nd;q++){if(q+1>nd&&hash(c.i*1.7+q,c.j*2.3)>nd%1)break;const x=c.x+(hash(c.i*3.1+q*1.3,c.j*0.7)-0.5)*0.95,z=c.z+(hash(c.i*0.9,c.j*2.9+q*1.7)-0.5)*0.95;
-   if(hash(x*7.7,z*3.3)<(c.code==='gr'?0.08:0.03))flw.push([x,c.top,z,0.8+hash(x,z)*0.5,FL[Math.floor(hash(z,x)*FL.length)]]);else tufts.push([x,c.top,z,0.7+hash(z*2,x)*0.7,tint[c.code]]);}});
+   if(hash(x*7.7,z*3.3)<(c.code==='gr'?0.08:0.03))flw.push([x,NET.bigH(x,z),z,0.8+hash(x,z)*0.5,FL[Math.floor(hash(z,x)*FL.length)]]);else tufts.push([x,NET.bigH(x,z),z,0.7+hash(z*2,x)*0.7,tint[c.code]]);}});
   kitInst(bigGroup,'tuft',tufts);kitInst(bigGroup,'flower',flw);
-  if(Object.values(cells).some(c=>c.code==='wa'))bigGroup.add(waterSurface(S,TH,0.2));}
+  if(Object.values(cells).some(c=>c.code==='wa'))bigGroup.add(waterSurface(S,NET.bigH,0.2));}
  else if(!(instModel('pine',bigGroup,trA,place(1.5))&&instModel('pine2',bigGroup,trB,place(1.2))))inst(new THREE.ConeGeometry(0.5,1.2,6),0x2a4a2a,trees,(m,p)=>m.makeScale(p[3],p[3],p[3]).setPosition(p[0],p[1]+p[3]*0.6,p[2]));
  if(NEWGFX){}else if(!instModel('rock',bigGroup,rocks,place(0.7,-0.02)))inst(new THREE.DodecahedronGeometry(0.5,0),0x7a776e,rocks,(m,p)=>m.makeScale(p[3],p[3]*0.7,p[3]).setPosition(p[0],p[1]+p[3]*0.25,p[2]),{flatShading:true});
  inst(new THREE.BoxGeometry(1,1,1),NEWGFX?0xb0a490:0x6a645a,ruins,(m,p)=>m.makeScale(p[3],p[4],p[5]).setPosition(p[0],p[1]+p[4]/2,p[2]));
