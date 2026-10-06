@@ -977,6 +977,8 @@ const ownCol={you:0xffc933,ally:0xe7c46a,rival:0x7fb0ff,sale:0xc9a2ff,care:0x8f9
 const ownName={you:'You',ally:'Aurelian Alliance',rival:'Blue Party (rival)',sale:'For sale',care:'Caretaker (AI)',none:'Aurelian citizens'};
 const sc=(c,r)=>[(c-(NC-1)/2)*S,(r-(NR-1)/2)*S];
 const secCaps=[],pBeacons=[];
+/** The demo province's made-up owners; once you're signed in they give way to your real home sector. */
+const PDEMO={loops:[],labels:[],you:new THREE.Group(),yours:null,at:0};
 function ppump(x,z,rot){const g=new THREE.Group();g.position.set(x,PT,z);g.rotation.y=rot;g.scale.setScalar(0.34);province.add(g);
  add(new RoundedBoxGeometry(0.75,0.1,0.34,2,0.03),0x3a3a40,0,0.05,0,g);add(boxG,0x2b2b30,-0.05,0.33,0,g).scale.set(0.08,0.5,0.08);
  const pv=new THREE.Group();pv.position.set(-0.05,0.58,0);g.add(pv);add(new RoundedBoxGeometry(0.9,0.08,0.1,1,0.02),0xc98a2a,0,0,0,pv);add(new RoundedBoxGeometry(0.12,0.26,0.15,1,0.03),0xc98a2a,0.45,-0.07,0,pv);beams.push(pv);}
@@ -999,8 +1001,8 @@ function decor(b,x,z,n){
 for(let r=0;r<NR;r++)for(let c=0;c<NC;c++){const [x,z]=sc(c,r),b=BIO[r][c],o=OWN[c+','+r]||'none',n=c*NR+r+1;
  const m=add(new RoundedBoxGeometry(S-0.16,0.2,S-0.16,2,0.05),bioCol[b],x,PT-0.1,z);m.userData={n,c,r,b,o};secCaps.push(m);
  const h=S/2-0.1,y=PT+0.012,pts=[[x-h,z-h],[x+h,z-h],[x+h,z+h],[x-h,z+h]].map(p=>new THREE.Vector3(p[0],y,p[1]));
- province.add(new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:ownCol[o],transparent:true,opacity:o==='none'?0.06:0.32})));
- if(o==='you'){[[x,z-h,2*h,0.07],[x,z+h,2*h,0.07],[x-h,z,0.07,2*h],[x+h,z,0.07,2*h]].forEach(q=>{const bx=new THREE.Mesh(boxG,gold);bx.position.set(q[0],PT+0.03,q[1]);bx.scale.set(q[2],0.05,q[3]);province.add(bx);});}
+ const ll=new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:ownCol[o],transparent:true,opacity:o==='none'?0.06:0.32}));province.add(ll);PDEMO.loops.push(ll);
+ if(o==='you'){[[x,z-h,2*h,0.07],[x,z+h,2*h,0.07],[x-h,z,0.07,2*h],[x+h,z,0.07,2*h]].forEach(q=>{const bx=new THREE.Mesh(boxG,gold);bx.position.set(q[0]-x,0,q[1]-z);bx.scale.set(q[2],0.05,q[3]);PDEMO.you.add(bx);});PDEMO.you.position.set(x,PT+0.03,z);province.add(PDEMO.you);}
  decor(b,x,z,n);}
 const riverC=new THREE.CatmullRomCurve3(Array.from({length:13},(_,i)=>new THREE.Vector3(-PWd/2+i*PWd/12,0,1.6+Math.sin(i*0.9)*0.55)));
 const rv=add(new THREE.TubeGeometry(riverC,160,0.24,8,false),0x1d4d62,0,PT+0.012,0,null,{transparent:true,opacity:0.92,roughness:0.12,metalness:0.25},true);rv.scale.y=0.08;
@@ -1014,19 +1016,26 @@ add(new THREE.CylinderGeometry(0.015,0.015,0.6,6),0x222222,mx+0.6,PT+0.3,mz);add
 const pFire=add(new THREE.SphereGeometry(0.07,8,6),0xff7a2a,mx,PT+0.07,mz-0.5,null,{emissive:0xff5a10,emissiveIntensity:1.8},true);
 const pl=(t,d,x,y,z,s)=>label(t,d,x,y,z,s,province,true);
 const [yx,yz]=sc(2,1),[rx,rz]=sc(3,2),[sx2,sz2]=sc(4,2);
-pl('Sector 12 · yours','#ffc933',yx,1.5,yz,1.05);pl('Vellmoor capital · Sector 8','#e7c46a',cx8,2.3,cz8,0.95);pl('Sector 18 · Blue Party','#7fb0ff',rx,1.0,rz,0.85);
-pl('Sector 23 · for sale','#c9a2ff',sx2,1.0,sz2,0.85);pl('Militia · Sector 30','#ff3b2f',mx,1.0,mz,0.85);pl('Oil fields','#c98a2a',sc(4.5,1)[0],1.0,sc(4.5,1)[1],0.8);pl('Pipeline to the capital','#8a9099',0.2,0.8,cz8-1.6,0.75);
+PDEMO.yours=pl('Sector 12 · yours','#ffc933',yx,1.5,yz,1.05);PDEMO.labels.push(pl('Vellmoor capital · Sector 8','#e7c46a',cx8,2.3,cz8,0.95),pl('Sector 18 · Blue Party','#7fb0ff',rx,1.0,rz,0.85),
+pl('Sector 23 · for sale','#c9a2ff',sx2,1.0,sz2,0.85));pl('Militia · Sector 30','#ff3b2f',mx,1.0,mz,0.85);pl('Oil fields','#c98a2a',sc(4.5,1)[0],1.0,sc(4.5,1)[1],0.8);pl('Pipeline to the capital','#8a9099',0.2,0.8,cz8-1.6,0.75);
 pl('Ashmark province','#e7c46a',0,1.2,-PDp/2-1.6,1.1);pl('Coldharbor province','#e7c46a',PWd/2+2.2,1.2,0,1.1);pl('Oldwater province','#e7c46a',0,1.2,PDp/2+1.6,1.1);pl('Blue Republic border','#7fb0ff',-PWd/2-2.4,1.2,0,1.1);
 const pfogs=[];for(let a=0;a<70;a++){const ang=a/70*Math.PI*2,rr=1.08+hash(a,3)*0.12;const x=Math.cos(ang)*(PWd/2+2.2)*rr,z=Math.sin(ang)*(PDp/2+2.2)*rr;
  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:fogT,transparent:true,opacity:0.85,depthWrite:false}));const sz=3.4+hash(a,a)*1.4;sp.scale.set(sz,sz*0.6,1);sp.position.set(x,0.4+hash(a,7)*0.5,z);sp.renderOrder=8;province.add(sp);pfogs.push({s:sp,by:sp.position.y,bx:x,ph:hash(a,1)*6});}
 let lastSector=12;
+/** Signed in: mark your real home sector, drop the demo's invented owners. Sector n sits at column (n-1)/rows, row (n-1)%rows. */
+function provinceForMe(){if(!(window.NET&&NET.me)||PDEMO.at===NET.me.homeSector)return;const n=NET.me.homeSector;if(n<1||n>NC*NR)return;PDEMO.at=n;
+ const c=Math.floor((n-1)/NR),r=(n-1)%NR,[x,z]=sc(c,r);PDEMO.you.position.set(x,PT+0.03,z);
+ PDEMO.loops.forEach(l=>{l.material.color.setHex(ownCol.none);l.material.opacity=0.08;});PDEMO.labels.forEach(l=>l.visible=false);
+ if(PDEMO.yours){province.remove(PDEMO.yours);}PDEMO.yours=pl('Sector '+n+' · your home','#ffc933',x,1.5,z,1.05);lastSector=n;}
 function sectorInfo(u){const names={forest:'Forest',hills:'Highlands',lake:'Lakeland',farm:'Farmland',town:'Town',yours:'Oil, farms and town',oil:'Oil fields',city:'Province capital',grass:'Grassland'};
  const prod={forest:'Timber',hills:'Stone, iron ore',lake:'Fish, fresh water',farm:'Grain',town:'Tax, workers',yours:'Oil, grain, tax',oil:'Crude oil',city:'Tax, services',grass:'Timber, grain'};
  const btn={you:['Enter sector','Collect all'],ally:['Enter sector','Trade'],rival:['Scout and attack','Enter sector'],sale:['Enter sector','Buy land here'],care:u.n===30?['Attack militia','Enter sector']:['Enter sector','Send settlers'],none:['Enter sector','Buy land here']};
+ if(window.NET&&NET.me){lastSector=u.n;const mine=u.n===NET.me.homeSector,closed=OPEN_CLOSED.has(u.n);
+  showCard('Sector '+u.n,mine?'Your home sector':closed?'Caretaker land':'Region 1',[['Settlers',closed?'Closed to settlers':mine?'You and your neighbours':'Open to settlers'],['Land','34 x 34 parcels'],['Inside','Enter to see who lives here, the Caretaker\'s hold and what\'s for the taking']],closed?['Close']:['Enter sector']);return;}
  lastSector=u.n;showCard('Sector '+u.n,names[u.b],[['Owner',ownName[u.o]],['Produces',prod[u.b]],['Security',u.n===30?(sec30<50?sec30+' (militia active)':sec30+' (cleared)'):(u.o==='care'?'22 (militia active)':(u.o==='rival'?'58':'74'))],['Parcels',u.o==='you'?'196 · 31 yours':'196']],btn[u.o]);}
 
 function toSector(n){if(window.NET&&NET.conn&&NET.me&&!OPEN_CLOSED.has(n)){openSectorMap(n);return;}if(n!==12){enterVisit(n);return;}go('county',V3(0,0,0),V3(2,33,2),'Entered Sector '+n+' · Vellmoor province');}
-function sectorToProvince(){const [x,z]=sc(2,1);go('province',V3(x,PT,z),V3(x,2.4,z+1.3),'Vellmoor province');}
+function sectorToProvince(){provinceForMe();const hs=window.NET&&NET.me?NET.me.homeSector:12,[x,z]=sc(Math.floor((hs-1)/NR),(hs-1)%NR);go('province',V3(x,PT,z),V3(x,2.4,z+1.3),'Vellmoor province');}
 function sectorToHome(){if(window.NET&&NET.me&&NET.me.home&&NET.me.home.hi){const m0=mode;mode='hq';const h=home();mode=m0;go('hq',h[0],h[1],'Home base');return;}go('hq',V3(0,0,0),V3(3,29,3),'Home base');}
 function homeToSector(){const h=(window.NET&&NET.big&&cells[NET.homeKey])||cells['6,12'];go('county',V3(h.x,h.top,h.z),V3(h.x,h.top+2.6,h.z+1.5),'Sector 12');}
 
@@ -1174,7 +1183,7 @@ function showCard(title,sub,rows,btns,slotsUsed){
  card.querySelectorAll('[data-a]').forEach(b=>b.onclick=e=>act(b.dataset.a,e));}
 let current=null;
 function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
- if(window.NET&&NET.me&&homeAct(a))return;
+ if(window.NET&&!NET.me&&(a==='Try again'||a==='Play offline')){card.hidden=true;if(a==='Try again')comeBack();else{NET.offline=true;openBrief();}return;}if(window.NET&&NET.me&&homeAct(a))return;
  if(mode==='visit'&&visitAct(a))return;
  if(a==='Collect'&&window.NET&&NET.me){api('/collect',{}).then(r=>{applyMe(r.player);const c2=r.collected;floatText('+'+fmtN(c2.oil)+' oil',x-10,y-30);toast('Collected '+fmtN(c2.cash)+' cash, '+fmtN(c2.oil)+' oil, '+fmtN(c2.grain)+' grain');}).catch(er=>toast(er.message));return;}
  if(a==='Collect'){const c=current;let k='oil',n=24;if(c&&c.feat==='refinery'){k='fuel';n=10;}else if(c&&c.feat!=='pump'){n=6;}
@@ -2265,7 +2274,7 @@ try{NET.token=localStorage.getItem('nwo.token');}catch(e){}
 async function api(path,body){const r=await fetch(API_BASE+'/api'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(NET.token?{Authorization:'Bearer '+NET.token}:{})},body:body?JSON.stringify(body):undefined});
  const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||('Server error '+r.status)),{status:r.status});return j;}
 $('pLand').onclick=()=>{if(window.NET&&NET.me)landCard();};$('pLand').onkeydown=e=>{if(e.key==='Enter'&&window.NET&&NET.me)landCard();};
-function applyMe(p){NET.me=p;try{const n=(p.parcels||[]).length,el=$('vLand');if(el){if(el.textContent!==String(n)&&el.textContent!=='0'){$('pLand').classList.add('bump');setTimeout(()=>$('pLand').classList.remove('bump'),160);}el.textContent=n;}}catch(_){}setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBase();},0);Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
+function applyMe(p){NET.me=p;try{provinceForMe();}catch(_){}try{const n=(p.parcels||[]).length,el=$('vLand');if(el){if(el.textContent!==String(n)&&el.textContent!=='0'){$('pLand').classList.add('bump');setTimeout(()=>$('pLand').classList.remove('bump'),160);}el.textContent=n;}}catch(_){}setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBase();},0);Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
  $('meName').textContent=p.name;$('meSub').textContent=p.nation+' · Sector '+p.homeSector;$('meAv').textContent=p.homeSector;
  OFFLINE.oil=p.pending.oil;OFFLINE.grain=p.pending.grain;OFFLINE.cash=p.pending.cash;OFFLINE.fuel=p.pending.fuel;collected=!(p.pending.oil||p.pending.grain||p.pending.cash||p.pending.fuel);
  const h=briefEl.querySelector('.bh h3');if(h)h.textContent=(NET.fresh?'Welcome, ':'Welcome back, ')+p.name;
@@ -2279,18 +2288,27 @@ async function connectLive(){if(!window.signalR||!NET.token)return;
   const hist=await api('/chat/global');$('bAlly').hidden=false;['bLeases','bStats'].forEach(id=>{if($(id))$(id).hidden=true;});
   NET.conn.invoke('AllianceChat').then(list=>{CHAT.alliance.length=0;list.forEach(m=>CHAT.alliance.push({who:m.name===NET.me.name?'You':m.name,tag:'Ally',txt:m.text,me:m.name===NET.me.name}));}).catch(()=>{});
   NET.news=hist.filter(m=>m.name==='News'||m.name==='Caretaker').map(m=>m.text).slice(-8);hist.forEach(m=>CHAT.global.push({who:m.name===NET.me.name?'You':m.name,tag:'Player',txt:m.text,me:m.name===NET.me.name}));}catch(e){console.warn('live connection failed',e);}}
-async function goOnline(){try{const r=await api('/me');applyMe(r.player);if(r.collected){const c=r.collected,parts=[['cash',c.cash],['oil',c.oil],['grain',c.grain],['fuel',c.fuel],['power',c.power]].filter(x=>x[1]>=1).map(x=>fmtN(x[1])+' '+x[0]);if(parts.length){NET.awayMade=parts.join(', ');setTimeout(()=>toast('While you were away your land made '+NET.awayMade+'. It is in your stores'),1500);}}const a=briefEl.querySelector('.bh .note');if(r.awaySeconds>60)NET.away=awayText(r.awaySeconds);api('/sentinel').then(s=>{NET.sentinel=s;}).catch(()=>{});connectLive();return true;}
- catch(e){if(e.status===401){NET.token=null;try{localStorage.removeItem('nwo.token');}catch(_){}}return false;}}
-function openSignup(){card.hidden=true;chatEl.hidden=true;hint.hidden=true;$('signup').hidden=false;$('suErr').textContent='';setTimeout(()=>$('suName').focus(),100);}
+function markPlayed(){try{localStorage.setItem('nwo.played','1');}catch(_){}}
+function hasPlayed(){try{return localStorage.getItem('nwo.played')==='1';}catch(_){return false;}}
+async function goOnline(){try{const r=await api('/me');if(r.token){NET.token=r.token;try{localStorage.setItem('nwo.token',r.token);}catch(_){}}markPlayed();applyMe(r.player);if(r.collected){const c=r.collected,parts=[['cash',c.cash],['oil',c.oil],['grain',c.grain],['fuel',c.fuel],['power',c.power]].filter(x=>x[1]>=1).map(x=>fmtN(x[1])+' '+x[0]);if(parts.length){NET.awayMade=parts.join(', ');setTimeout(()=>toast('While you were away your land made '+NET.awayMade+'. It is in your stores'),1500);}}const a=briefEl.querySelector('.bh .note');if(r.awaySeconds>60)NET.away=awayText(r.awaySeconds);api('/sentinel').then(s=>{NET.sentinel=s;}).catch(()=>{});connectLive();return true;}
+ catch(e){if(e.status===401){NET.token=null;NET.signedOut=true;try{localStorage.removeItem('nwo.token');}catch(_){}return false;}return 'retry';}}
+/** Coming back: sign in quietly, retrying through a server restart or a bad connection instead of showing the sign-up screen. */
+async function comeBack(){for(let k=0;k<6;k++){const ok=await goOnline();if(ok===true){openBrief();return;}if(ok===false)break;
+  if(k===0)toast('Reconnecting to the game server…');await new Promise(r=>setTimeout(r,1500*(k+1)));}
+ if(NET.token){current=null;showCard('Can\'t reach the game server','Your commander is safe on this device',[['What now','The server may be restarting. Try again in a moment'],['Offline','You can look around the demo meanwhile']],['Try again','Play offline']);return;}
+ if(hasPlayed())openSignup();else openIntro();}
+function openSignup(){card.hidden=true;chatEl.hidden=true;hint.hidden=true;$('signup').hidden=false;$('suErr').textContent='';
+ if(hasPlayed()||NET.signedOut){$('suRec').hidden=false;$('suHave').hidden=true;$('suErr').textContent=NET.signedOut?'This device was signed out. Enter your recovery code to get your commander back, or start a new one.':'Welcome back. Enter your recovery code to pick up where you left off.';setTimeout(()=>$('suCode').focus(),100);}
+ else setTimeout(()=>$('suName').focus(),100);}
 async function signup(){const name=$('suName').value.trim();$('suErr').textContent='';$('suGo').disabled=true;
- try{const r=await api('/auth/guest',{name});NET.fresh=true;NET.token=r.token;try{localStorage.setItem('nwo.token',r.token);}catch(_){}applyMe(r.player);$('signup').hidden=true;
+ try{const r=await api('/auth/guest',{name});NET.fresh=true;NET.token=r.token;markPlayed();try{localStorage.setItem('nwo.token',r.token);}catch(_){}applyMe(r.player);$('signup').hidden=true;
   toast('Welcome, '+r.player.name+'. This is your home base in Sector '+r.player.homeSector+'. Everything else, you build');connectLive();setTimeout(()=>go('hq',V3(0,0,0),V3(12,12,12),null),900);}
  catch(e){$('suErr').textContent=e.status?e.message:'Cannot reach the game server. Try again, or play the offline demo.';}
  $('suGo').disabled=false;}
 $('suGo').onclick=signup;
 $('suHave').onclick=()=>{$('suRec').hidden=false;$('suHave').hidden=true;setTimeout(()=>$('suCode').focus(),50);};
 async function recoverSignIn(){const code=$('suCode').value;$('suErr').textContent='';$('suRecGo').disabled=true;
- try{const r=await api('/auth/recover',{code});NET.token=r.token;try{localStorage.setItem('nwo.token',r.token);}catch(_){}applyMe(r.player);$('signup').hidden=true;toast('Welcome back, '+r.player.name+'. Your account now lives on this device');connectLive();setTimeout(sectorToHome,900);}
+ try{const r=await api('/auth/recover',{code});NET.token=r.token;markPlayed();try{localStorage.setItem('nwo.token',r.token);}catch(_){}applyMe(r.player);$('signup').hidden=true;toast('Welcome back, '+r.player.name+'. Your account now lives on this device');connectLive();setTimeout(sectorToHome,900);}
  catch(e){$('suErr').textContent=e.status?e.message:'Cannot reach the game server. Try again.';}
  $('suRecGo').disabled=false;}
 $('suRecGo').onclick=recoverSignIn;$('suCode').addEventListener('keydown',e=>{if(e.key==='Enter')recoverSignIn();});
@@ -2999,6 +3017,7 @@ function warScoreCard(){api('/region2').then(b=>{current=null;const rows=b.playe
   rows.push(['Scoring','+5 a claim, +25 a capture, +10 for every parcel you hold']);
   showCard('Ashlands war score','Who holds Region 2',rows,['Enter the Ashlands','Close']);}).catch(er=>toast(er.message));}
 function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}
+
  if(a.startsWith('Petition the Caretaker')&&NET.big){card.hidden=true;NET.conn.invoke('PetitionCaretaker',NET.big.sector).then(r=>{if(r.player)applyMe(r.player);if(!r.ok){toast(r.error);}else toast('The Caretaker steps back from this sector');NET.noFly=true;watchHome().finally(()=>{NET.noFly=false;});}).catch(er=>toast(er.message));return true;}
  if(a==='Petition (on cooldown)'){toast('The Caretaker heard a petition here in the last day');return true;}
  if(a==='Outpost on alert'){toast('The outpost was attacked recently. Try again later');return true;}
@@ -3036,7 +3055,7 @@ if(location.search.includes('autorise'))setTimeout(()=>{camera.position.set(20,2
 window.nwo={camera,controls,sh:{get needs(){return NEEDSB;},get ships(){return SHIPS;},prog},br:{SHIPS,inspect,INSP,shipCard,NEEDSB,myStopped,get CT(){return CT;}},vis:{buildVisit,vCard,visitAct,get picks(){return vPicks;},get pat(){return vPat;}},get mode(){return mode;},get anim(){return anim;},get diving(){return diving;},dive:()=>diveToSector(),rise:()=>ascendToNation(),toSector:n=>toSector(n),sectorToProvince:()=>sectorToProvince(),sectorToHome:()=>sectorToHome(),homeToSector:()=>homeToSector(),battle:()=>startBattle({title:'Assault on the militia camp: Sector 30',enemy:'Militia camp',sector:30}),get B(){return BT;},step:n=>{for(let i=0;i<n;i++)battleTick(1/30);controls.update();renderer.render(scene,camera);},deploy:(t,z)=>{selUnit=t;battleTap(V3(-6,0,z));},rivalBattle:(key,defend)=>startBattle({title:RIVALS[key].title,rival:key,defend:!!defend,deck:defend?null:['gunner','launcher','tank','heli','strike'],sector:RIVALS[key].sector}),underAttack:()=>underAttack(),scout:k=>scoutCard(k),board:t=>openBoard(t),ships:()=>SHIPS,worldToNation:()=>worldToNation(),nationToWorld:()=>nationToWorld()};
 {const h0=(location.hash||'').slice(1),mm={county:'county',province:'province',battle:'battle',nation:'region',home:'hq',world:'world'};if(mm[h0])setMode(mm[h0]);else{setMode('county');if(h0==='market')openMarket();if(h0==='politics')openPol();if(h0==='track'){setMode('province');setTimeout(()=>trackShip(SHIPS[0]),200);}
 if(h0==='briefing')setTimeout(openBrief,300);
-if(h0==='intro'||(!location.search.includes('shot')&&(h0===''||h0==='county'))){if(NET.token){goOnline().then(ok=>{if(ok)openBrief();else openIntro();});}else openIntro();}
+if(h0==='intro'||(!location.search.includes('shot')&&(h0===''||h0==='county'))){if(h0==='intro')openIntro();else comeBack();}
 if(h0==='gate'){openIntro();introEl.classList.add('gated');}
 {const tm=/^tour(\d+)$/.exec(h0);if(tm){tourStart();tour.i=+tm[1];tourStep();clearTimeout(tour.timer);}}
 if(h0==='record')openRecord();

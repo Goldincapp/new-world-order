@@ -70,7 +70,7 @@ var api = app.MapGroup("/api");
 
 api.MapGet("/health", () => new { ok = true, online = GameHub.OnlineCount() });
 
-api.MapPost("/auth/guest", async (GuestRequest req, GameDb db) =>
+api.MapPost("/auth/guest", async (HttpContext ctx, GuestRequest req, GameDb db) =>
 {
     var name = req.Name?.Trim();
     if (!Auth.ValidName(name)) return Results.BadRequest(new { error = "Names are 3 to 16 letters, numbers, dots, dashes or underscores." });
@@ -86,6 +86,7 @@ api.MapPost("/auth/guest", async (GuestRequest req, GameDb db) =>
         db.Ledger.Add(new LedgerEntry { PlayerId = p.Id, Resource = res, Delta = Ledger.Get(p, res), Balance = Ledger.Get(p, res), Reason = "Starting supplies" });
     await db.SaveChangesAsync();
     await db.Entry(p).Collection(x => x.Parcels).LoadAsync();
+    Auth.Remember(ctx, token);
     return Results.Ok(new { token, player = Dto.Me(p) });
 });
 
@@ -93,6 +94,10 @@ api.MapGet("/me", async (HttpContext ctx, GameDb db, World world) =>
 {
     var who = await Auth.PlayerFrom(ctx, db);
     if (who is null) return Results.Unauthorized();
+    // Refresh the cookie; if the page lost its copy of the token (and only the cookie found us), hand it back
+    var sentToken = Auth.TokenFrom(ctx)!;
+    Auth.Remember(ctx, sentToken);
+    if (ctx.Request.Headers.Authorization.Count > 0) sentToken = null;
     // Coming back banks everything made while away (up to storage), so the work done offline shows up straight away.
     return Results.Ok(await world.Locked(async gdb =>
     {
@@ -103,7 +108,7 @@ api.MapGet("/me", async (HttpContext ctx, GameDb db, World world) =>
         Dictionary<string, double>? collected = null;
         if (away.TotalSeconds >= 60 && Economy.Pending(p, now).Values.Sum() >= 1)
             collected = Economy.Collect(gdb, p, now, "Collected on return");
-        return new { player = Dto.Me(p), awaySeconds = (int)away.TotalSeconds, collected };
+        return new { player = Dto.Me(p), awaySeconds = (int)away.TotalSeconds, collected, token = sentToken };
     }));
 });
 
@@ -130,16 +135,18 @@ api.MapPost("/me/recovery", async (HttpContext ctx, GameDb db) =>
     return Results.Ok(new { code });
 });
 
-api.MapPost("/auth/recover", async (RecoverRequest req, GameDb db) =>
+api.MapPost("/auth/recover", async (HttpContext ctx, RecoverRequest req, GameDb db) =>
 {
     var norm = Auth.NormalizeCode(req.Code);
     if (norm is null) return Results.BadRequest(new { error = "Recovery codes are 12 letters and numbers, like ABCD-EFGH-JKLM." });
     var hash = Auth.Hash(norm);
     var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstOrDefaultAsync(x => x.RecoveryHash == hash);
     if (p is null) return Results.NotFound(new { error = "No commander has that recovery code." });
+    // A new device joins the others; nobody gets signed out
     var token = Auth.NewToken();
-    p.TokenHash = Auth.Hash(token);
+    Auth.AddDevice(p, token);
     await db.SaveChangesAsync();
+    Auth.Remember(ctx, token);
     return Results.Ok(new { token, player = Dto.Me(p) });
 });
 

@@ -44,7 +44,25 @@ public static partial class Auth
         var h = ctx.Request.Headers.Authorization.ToString();
         if (h.StartsWith("Bearer ", StringComparison.Ordinal)) return h[7..];
         var q = ctx.Request.Query["access_token"].ToString();
-        return string.IsNullOrEmpty(q) ? null : q;
+        if (!string.IsNullOrEmpty(q)) return q;
+        return ctx.Request.Cookies.TryGetValue(Cookie, out var c) && !string.IsNullOrEmpty(c) ? c : null;
+    }
+
+    public const string Cookie = "nwo_t";
+    /// <summary>Keep the sign-in in a year-long cookie too, so a browser that clears its storage still remembers who you are.</summary>
+    public static void Remember(HttpContext ctx, string token) =>
+        ctx.Response.Cookies.Append(Cookie, token, new CookieOptions
+        {
+            HttpOnly = true, SameSite = SameSiteMode.Lax, Path = "/", Expires = DateTimeOffset.UtcNow.AddDays(400), IsEssential = true,
+            Secure = !ctx.Request.Host.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase),
+        });
+
+    /// <summary>Add a sign-in for another device, keeping the last few.</summary>
+    public static void AddDevice(Player p, string token)
+    {
+        var list = (p.ExtraTokens ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+        list.Add(Hash(token));
+        p.ExtraTokens = string.Join(",", list.TakeLast(6));
     }
 
     public static async Task<Player?> PlayerFrom(HttpContext ctx, GameDb db, bool withParcels = false)
@@ -54,6 +72,6 @@ public static partial class Auth
         var hash = Hash(token);
         var q = db.Players.AsQueryable();
         if (withParcels) q = q.Include(p => p.Parcels).Include(p => p.HomeTiles);
-        return await q.FirstOrDefaultAsync(p => p.TokenHash == hash);
+        return await q.FirstOrDefaultAsync(p => p.TokenHash == hash || (p.ExtraTokens != null && p.ExtraTokens.Contains(hash)));
     }
 }
