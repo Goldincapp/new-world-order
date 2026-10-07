@@ -15,7 +15,29 @@ docs/        Notes.
 
 ## Run it locally
 
-Needs the .NET 8 SDK (installed per-user at `%LOCALAPPDATA%\Microsoft\dotnet`).
+Needs the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0).
+
+The recommended Windows command keeps development data under `.data/` and verifies that the correct SDK is installed:
+
+```powershell
+.\scripts\dev.ps1
+```
+
+For a faster local profile intended for first-session testing:
+
+```powershell
+.\scripts\dev.ps1 -Playtest
+```
+
+Then open http://localhost:5080. In another terminal, verify the basic account flow with:
+
+```powershell
+.\scripts\smoke.ps1
+```
+
+The first playable milestone and the questions each test should answer are in [`docs/PLAYABLE_ALPHA.md`](docs/PLAYABLE_ALPHA.md).
+
+The direct server command remains available:
 
 ```
 dotnet run --project server/NWO.Server --urls http://localhost:5080
