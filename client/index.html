@@ -309,6 +309,10 @@ html.app .screen{border-radius:0}
 .techNode{border:1px solid #ddd3bf;border-radius:.7em;padding:.5em .6em;background:#fff;display:flex;flex-direction:column;gap:.25em}
 .techNode .tn{font-weight:700}.techNode .te{color:#5a5448;font-size:.92em}.techNode .tc{color:#8a7440;font-size:.85em}.techNode .tb{color:#a04a3a;font-size:.82em}
 .techNode button{align-self:flex-start;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:.3em .9em;font:700 1em/1 'Baloo 2',sans-serif;cursor:pointer}
+.fbEl{max-width:46em;margin:0 auto}.fbEl .kinds{display:flex;gap:.4em;flex-wrap:wrap;margin:.2em 0 .7em}.fbEl .kinds button{border:1px solid #d9d1bf;background:#fff;border-radius:99px;padding:.35em .9em;font:600 1em/1 system-ui,sans-serif;cursor:pointer;color:#2a2a2a}
+.fbEl .kinds button[aria-pressed="true"]{background:#2a2a2a;color:#ffd77a;border-color:#2a2a2a}.fbEl textarea{width:100%;min-height:7em;background:#fff;color:#2a2a2a;border:1px solid #d9d1bf;border-radius:.7em;padding:.6em .7em;font:inherit;resize:vertical;box-sizing:border-box}
+.fbEl .shot{display:flex;gap:.7em;align-items:center;margin:.7em 0}.fbEl .shot img{width:9em;border-radius:.5em;border:1px solid #d9d1bf}.fbEl .send{background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:.5em 1.4em;font:700 1.05em/1 'Baloo 2',sans-serif;cursor:pointer}
+.fbEl .send:disabled{opacity:.5}.fbEl .msg{margin:.6em 0 0;color:#5a5448}.fbEl .msg a{color:#7a5a12}
 .allyEl .arow{display:flex;gap:.6em;align-items:center;justify-content:space-between;border-bottom:1px dashed #e2d9c5;padding:.35em 0;flex-wrap:wrap}.allyEl .arow small{color:#8a8272}
 .allyEl .acts{display:flex;gap:.4em;flex-wrap:wrap;margin:.4em 0}.allyEl button{background:#e9e1cf;color:#2a2a2a;border:0;border-radius:99px;padding:.3em .85em;font:700 .95em/1.1 'Baloo 2',sans-serif;cursor:pointer}
 .allyEl button.go{background:#c9a24a;color:#1a1408}.allyEl button.bad{background:#f1d9d2;color:#8a2a1a}.allyEl input{font:inherit;padding:.4em .6em;border-radius:.5em;border:1px solid #d9d1bf;min-width:7em;background:#fff;color:#2a2a2a}
@@ -375,6 +379,7 @@ html.app .screen{border-radius:0}
           <button class="hbtn" id="bStats" aria-label="Stats"><span class="ms">monitoring</span><span class="l">Stats</span></button>
           <button class="hbtn" id="bAlly" aria-label="Alliance" hidden><span class="ms">shield</span><span class="l">Alliance</span></button>
           <button class="hbtn" id="bAlliance" aria-label="Chat"><span class="ms">forum</span><i id="unread">9</i><span class="l">Chat</span></button>
+          <button class="hbtn" id="bFeedback" aria-label="Send feedback"><span class="ms">rate_review</span><span class="l">Feedback</span></button>
         </div>
         <div class="nav" role="group" aria-label="Game navigation">
           <button id="nCounty" aria-pressed="true"><span class="ms">map</span>Sector</button>
@@ -475,6 +480,7 @@ html.app .screen{border-radius:0}
         <div class="tutbar" id="tutBar" hidden></div>
         <div class="techEl" id="techEl" hidden></div>
         <div class="techEl allyEl" id="allyEl" hidden></div>
+        <div class="techEl fbEl" id="fbEl" hidden role="dialog" aria-label="Send feedback"></div>
         <div class="placebar" id="placeBar" hidden></div>
         <button class="siegebar" id="siegeBar" hidden></button>
         <div class="siegepanel" id="siegePanel" hidden></div>
@@ -2981,6 +2987,28 @@ function renderAlly(){const v=NET.ally,el=$('allyEl');if(!v||el.hidden)return;co
 $('bAlly').onclick=()=>{if($('allyEl').hidden)openAlly();else $('allyEl').hidden=true;};
 /* ---------- The tech tree ---------- */
 function openTech(){const rs=NET.me&&NET.me.research;if(!rs){toast('Research is not available');return;}card.hidden=true;const el=$('techEl');el.hidden=false;renderTech();}
+/* ---------- Feedback: tell the developers what to change, from inside the game ---------- */
+const FB={kind:'idea',shot:null};
+/** A small JPEG of the game as it looks right now (taken before the panel opens, so it shows the scene). */
+function grabShot(){try{composer.render();const src=renderer.domElement,w=Math.min(960,src.width),h=Math.round(src.height*w/src.width),cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(src,0,0,w,h);return cv.toDataURL('image/jpeg',0.62);}catch(_){return null;}}
+function fbContext(){return JSON.stringify({view:mode,sector:window.NET&&NET.big?NET.big.sector:null,home:NET.me&&NET.me.homeSector,graphics:NEWGFX?'new':'classic',screen:innerWidth+'x'+innerHeight+'@'+(devicePixelRatio||1),landscape:innerWidth>innerHeight,device:navigator.userAgent,time:new Date().toISOString()});}
+function openFeedback(){if(!(window.NET&&NET.me)){toast('Sign in to send feedback');return;}FB.shot=grabShot();card.hidden=true;chatEl.hidden=true;const el=$('fbEl');
+ const kinds=[['bug','Something\'s broken'],['idea','An idea'],['balance','Too easy / too hard'],['other','Other']];
+ el.innerHTML='<button class="x" id="fbX" aria-label="Close"><span class="ms">close</span></button><h3>Feedback</h3><p class="note">Tell us what\'s broken, what you\'d change or what you\'d add. It goes straight to the developers, with where you are in the game.</p>'+
+  '<div class="kinds" role="group" aria-label="Kind of feedback">'+kinds.map(k=>'<button data-k="'+k[0]+'" aria-pressed="'+(FB.kind===k[0])+'">'+k[1]+'</button>').join('')+'</div>'+
+  '<textarea id="fbText" maxlength="2000" placeholder="e.g. Placing buildings is fiddly on my phone. Could the arrows be bigger?"></textarea>'+
+  (FB.shot?'<label class="shot"><input type="checkbox" id="fbShot" checked> Attach a screenshot of where I am<img src="'+FB.shot+'" alt="Screenshot preview"></label>':'')+
+  '<button class="send" id="fbSend">Send</button><p class="msg" id="fbMsg"></p>';
+ el.hidden=false;
+ el.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{FB.kind=b.dataset.k;el.querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
+ $('fbX').onclick=()=>{el.hidden=true;};$('fbSend').onclick=sendFeedback;setTimeout(()=>$('fbText').focus(),60);}
+async function sendFeedback(){const t=$('fbText').value.trim(),btn=$('fbSend'),msg=$('fbMsg');if(t.length<3){msg.textContent='Write a few words first.';return;}
+ btn.disabled=true;msg.textContent='Sending…';
+ try{const r=await api('/feedback',{kind:FB.kind,text:t,context:fbContext(),shot:$('fbShot')&&$('fbShot').checked?FB.shot:null});
+  $('fbText').value='';msg.innerHTML='Sent. Thank you!'+(r.issue?' It\'s on the developers\' list: <a href="'+r.issue+'" target="_blank" rel="noopener">see it on GitHub</a>.':' It\'s on the developers\' list.');}
+ catch(e){msg.textContent=e.message||'Couldn\'t send. Try again in a moment.';}
+ btn.disabled=false;}
+$('bFeedback').onclick=()=>{if($('fbEl').hidden)openFeedback();else $('fbEl').hidden=true;};
 function renderTech(){const rs=NET.me.research,el=$('techEl');if(el.hidden)return;
  const ic={energy:'bolt',people:'groups',war:'swords',industry:'factory',trade:'local_shipping'};
  let H='<button class="x" id="techX" aria-label="Close research"><span class="ms">close</span></button><h3>Research lab</h3><p class="note">'+(rs.labs?rs.labs+' lab'+(rs.labs>1?'s':'')+' · each extra lab researches 25% faster':'Build a Research lab in your base to start researching')+' · Specialise: every tech you own in other branches makes the next one 15% dearer</p>';

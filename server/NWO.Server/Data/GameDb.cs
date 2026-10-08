@@ -138,6 +138,26 @@ public class ChatLog
     public string Text { get; set; } = "";
 }
 
+/// <summary>A bug report, idea or balance note sent from the in-game Feedback button. Kept through world wipes.</summary>
+public class Feedback
+{
+    public long Id { get; set; }
+    public DateTime At { get; set; } = DateTime.UtcNow;
+    public Guid? PlayerId { get; set; }
+    public string Name { get; set; } = "";
+    /// <summary>bug, idea, balance or other.</summary>
+    public string Kind { get; set; } = "other";
+    public string Text { get; set; } = "";
+    /// <summary>Where the player was: view, sector, device, graphics setting.</summary>
+    public string? Context { get; set; }
+    /// <summary>Optional screenshot as a JPEG data URL.</summary>
+    public string? Shot { get; set; }
+    /// <summary>new, seen, done or wontdo.</summary>
+    public string Status { get; set; } = "new";
+    public string? Note { get; set; }
+    public string? IssueUrl { get; set; }
+}
+
 /// <summary>One line of the Caretaker's record: what it remembers about a player.</summary>
 public class RecordEntry
 {
@@ -448,6 +468,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
     public DbSet<Parcel> Parcels => Set<Parcel>();
     public DbSet<ChatMessage> Chat => Set<ChatMessage>();
     public DbSet<ChatLog> ChatLog => Set<ChatLog>();
+    public DbSet<Feedback> Feedback => Set<Feedback>();
     public DbSet<RecordEntry> Records => Set<RecordEntry>();
 
     protected override void OnModelCreating(ModelBuilder b)

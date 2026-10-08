@@ -196,6 +196,61 @@ api.MapPost("/admin/wipe", async (HttpContext ctx, World world, string? confirm)
     return Results.Ok(new { wiped = players });
 });
 
+// In-game feedback: a bug, idea or balance note, with where the player was and an optional screenshot.
+api.MapPost("/feedback", async (HttpContext ctx, FeedbackRequest req, GameDb db) =>
+{
+    var p = await Auth.PlayerFrom(ctx, db);
+    if (p is null) return Results.Unauthorized();
+    var kind = FeedbackDesk.Kinds.Contains(req.Kind) ? req.Kind! : "other";
+    var text = (req.Text ?? "").Trim();
+    if (text.Length < 3) return Results.BadRequest(new { error = "Write a few words about what you'd like changed." });
+    if (text.Length > FeedbackDesk.MaxText) text = text[..FeedbackDesk.MaxText];
+    var now = DateTime.UtcNow;
+    var mine = db.Feedback.Where(x => x.PlayerId == p.Id);
+    if (await mine.AnyAsync(x => x.At > now - FeedbackDesk.Gap)) return Results.Json(new { error = "Thanks! Give it a few seconds before sending another." }, statusCode: 429);
+    if (await mine.CountAsync(x => x.At > now.AddDays(-1)) >= FeedbackDesk.PerDay) return Results.Json(new { error = "That's a lot of feedback for one day. Thank you! Send more tomorrow." }, statusCode: 429);
+    var shot = req.Shot is { Length: <= FeedbackDesk.MaxShot } sh && sh.StartsWith("data:image/jpeg;base64,") ? sh : null;
+    var ctxText = req.Context is { } c ? (c.Length > 2000 ? c[..2000] : c) : null;
+    var fb = new Feedback { PlayerId = p.Id, Name = p.Name, Kind = kind, Text = text, Context = ctxText, Shot = shot };
+    db.Feedback.Add(fb);
+    await db.SaveChangesAsync();
+    fb.IssueUrl = await FeedbackDesk.OpenIssue(fb);
+    if (fb.IssueUrl is not null) await db.SaveChangesAsync();
+    return Results.Ok(new { ok = true, id = fb.Id, issue = fb.IssueUrl, github = FeedbackDesk.LinkedToGitHub });
+});
+
+// Admin: the feedback queue, newest first. ?status=new|seen|done|wontdo, ?format=md for a list to hand to an agent.
+api.MapGet("/admin/feedback", async (HttpContext ctx, GameDb db, string? status, string? format) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    var q = db.Feedback.AsQueryable();
+    if (!string.IsNullOrEmpty(status)) q = q.Where(x => x.Status == status);
+    var rows = await q.OrderByDescending(x => x.Id).Select(x => new { x.Id, x.At, x.Name, x.Kind, x.Status, x.Text, x.Context, hasShot = x.Shot != null, x.Note, x.IssueUrl }).ToListAsync();
+    if (format != "md") return Results.Ok(rows);
+    var md = "# Player feedback\n\n" + string.Concat(rows.Select(r => $"## #{r.Id} · {r.Kind} · {r.Status}\n{r.Name}, {r.At:yyyy-MM-dd HH:mm} UTC{(r.hasShot ? " · screenshot saved" : "")}\n\n{r.Text}\n\n_Where:_ {r.Context}\n\n"));
+    return Results.Text(md, "text/markdown");
+});
+
+api.MapGet("/admin/feedback/{id:long}/shot", async (HttpContext ctx, GameDb db, long id) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    var shot = await db.Feedback.Where(x => x.Id == id).Select(x => x.Shot).FirstOrDefaultAsync();
+    if (shot is null) return Results.NotFound();
+    return Results.File(Convert.FromBase64String(shot[(shot.IndexOf(',') + 1)..]), "image/jpeg");
+});
+
+// Admin: mark feedback as seen, done or won't do, with an optional note.
+api.MapPost("/admin/feedback/{id:long}", async (HttpContext ctx, GameDb db, long id, string status, string? note) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    if (status is not ("new" or "seen" or "done" or "wontdo")) return Results.BadRequest(new { error = "status is new, seen, done or wontdo" });
+    var fb = await db.Feedback.FindAsync(id);
+    if (fb is null) return Results.NotFound();
+    fb.Status = status; if (note is not null) fb.Note = note;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { fb.Id, fb.Status });
+});
+
 // Admin: the real (non-AI) players, newest first.
 api.MapGet("/admin/players", async (HttpContext ctx, GameDb db) =>
 {
@@ -342,6 +397,7 @@ api.MapGet("/chat/{channel}", async (string channel, GameDb db) =>
 app.Run();
 
 record GuestRequest(string? Name);
+record FeedbackRequest(string? Kind, string? Text, string? Context, string? Shot);
 record RecoverRequest(string? Code);
 
 static class Dto
