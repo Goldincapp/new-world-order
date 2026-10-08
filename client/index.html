@@ -1375,7 +1375,7 @@ function setMode(m){mode=m;setTimeout(()=>{if(window.NET&&NET.me&&NET.me.home&&N
  else if(true){hemi.color.set(0xc4d2ea);hemi.groundColor.set(0x4a3d2c);hemi.intensity=2.0;sun.color.set(0xffdcb8);sun.intensity=2.7;sun.position.set(-8,14,7);}
  else{hemi.color.set(0xdff3ff);hemi.groundColor.set(0xb89a70);hemi.intensity=1.7;sun.color.set(0xfff4e0);sun.intensity=2.4;sun.position.set(8,15,6);}
  window.__lightBase={sun:sun.intensity,hemi:hemi.intensity,col:sun.color.clone()};if(typeof BG_DARK!=='undefined')scene.background=m==='world'?BG_WORLD:(m==='region'&&!BRIGHT_NATION?BG_OLD:BG_DARK);if(window.__setTilt)window.__setTilt(m);
- controls.autoRotate=false;const flat=m==='hq'||m==='county'||m==='visit'||m==='province'||m==='region';controls.enableRotate=!flat&&m!=='battle';controls.screenSpacePanning=false;controls.mouseButtons={LEFT:flat?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:flat?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN};controls.touches={ONE:flat?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};controls.enablePan=m!=='battle'&&m!=='world';controls.maxPolarAngle=m==='world'?Math.PI:(m==='region'?1.05:1.25);controls.maxDistance=m==='world'?12:(m==='hq'?60:(m==='region'?26:(m==='province'?42:34)));
+ controls.autoRotate=false;const flat=m==='hq'||m==='county'||m==='visit'||m==='province'||m==='region';controls.enableRotate=m!=='battle';controls.screenSpacePanning=false;controls.mouseButtons={LEFT:flat?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:flat?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN};controls.touches={ONE:flat?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};controls.enablePan=m!=='battle'&&m!=='world';controls.maxPolarAngle=m==='world'?Math.PI:(m==='region'?1.05:1.25);controls.maxDistance=m==='world'?12:(m==='hq'?60:(m==='region'?26:(m==='province'?42:34)));
  controls.minDistance=m==='world'?2.9:2.5;if(m==='siege'){$('bhud').hidden=false;$('hud').classList.add('inbattle');controls.enableRotate=false;controls.enablePan=false;controls.enableZoom=true;controls.maxDistance=42;controls.minDistance=10;}if(m==='county'&&window.NET&&NET.big){controls.maxDistance=SEAM()&&NAT.root?NAT_OUT+80:66;scene.fog=NEWGFX?new THREE.Fog(FOGC,62,150):new THREE.Fog(FOGC,48,105);}controls.zoomToCursor=m==='region'||m==='province';
  const h=home();flyTo(h[0],h[1],()=>controls.minDistance=h[2]);
  [['tCounty','county'],['tProvince','province'],['tNation','region'],['tHome','hq'],['tWorld','world']].forEach(p=>$(p[0]).setAttribute('aria-pressed',String(p[1]===m)));
@@ -2715,6 +2715,18 @@ function natToRegion(){const d=NAT.data,u=controls.target.x-NAT.root.position.x,
 function regionToNat(){const d=NAT.data,lon=controls.target.x/0.2508+18.5,lat=48-controls.target.z/0.39,u=(lon*d.cos-d.minX)*d.ppd-0.5,v=(-lat-d.minY)*d.ppd-0.5;
  const off=camera.position.clone().sub(controls.target).multiplyScalar(1/natK());zoomFade();setMode('county');anim=null;
  if(NAT.root)NAT.root.visible=true;controls.maxDistance=NAT_OUT+80;controls.target.set(u+NAT.root.position.x,0,v+NAT.root.position.z);camera.position.copy(controls.target).add(off);controls.update();}
+
+/* ---------- Two-finger twist spins the map 360° around what you're looking at (Home, Sector, Province, Nation).
+   The World globe already turns with one finger. Pinch and two-finger pan keep working alongside the twist. ---------- */
+const TWIST_MODES=new Set(['hq','county','visit','province','region']);
+function spinView(d){const o=camera.position.clone().sub(controls.target);o.applyAxisAngle(V3(0,1,0),d);camera.position.copy(controls.target).add(o);camera.lookAt(controls.target);controls.update();}
+{const el=renderer.domElement;let tw=null;const ang=t=>Math.atan2(t[1].clientY-t[0].clientY,t[1].clientX-t[0].clientX);
+ el.addEventListener('touchstart',e=>{tw=e.touches.length===2?ang(e.touches):null;},{passive:true});
+ el.addEventListener('touchmove',e=>{if(e.touches.length!==2||tw===null)return;const a=ang(e.touches);let d=a-tw;if(d>Math.PI)d-=2*Math.PI;if(d<-Math.PI)d+=2*Math.PI;tw=a;
+  if(!TWIST_MODES.has(mode)||anim||(window.HB&&HB.dragging))return;spinView(d);},{passive:true});
+ el.addEventListener('touchend',e=>{if(e.touches.length<2)tw=null;},{passive:true});
+ // keyboard on a computer: Q and E turn the map too
+ addEventListener('keydown',e=>{if(!TWIST_MODES.has(mode)||anim||/INPUT|TEXTAREA/.test((document.activeElement||{}).tagName||''))return;if(e.key==='q'||e.key==='Q')spinView(0.12);if(e.key==='e'||e.key==='E')spinView(-0.12);});}
 
 /** The Province button on the seamless map: rise up to see the whole nation. */
 function natOverviewView(){const d=NAT.data,S=d.size;const tx=controls.target.x,tz=controls.target.z;flyTo(V3(tx,0,tz),V3(tx,Math.max(d.width,d.height)*0.55,tz+Math.max(d.width,d.height)*0.42));}
