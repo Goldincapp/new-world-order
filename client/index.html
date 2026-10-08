@@ -1374,7 +1374,7 @@ function setMode(m){mode=m;setTimeout(()=>{if(window.NET&&NET.me&&NET.me.home&&N
  else{hemi.color.set(0xdff3ff);hemi.groundColor.set(0xb89a70);hemi.intensity=1.7;sun.color.set(0xfff4e0);sun.intensity=2.4;sun.position.set(8,15,6);}
  window.__lightBase={sun:sun.intensity,hemi:hemi.intensity,col:sun.color.clone()};if(typeof BG_DARK!=='undefined')scene.background=m==='world'?BG_WORLD:(m==='region'?BG_OLD:BG_DARK);if(window.__setTilt)window.__setTilt(m);
  controls.autoRotate=false;const flat=m==='hq'||m==='county'||m==='visit'||m==='province'||m==='region';controls.enableRotate=!flat&&m!=='battle';controls.screenSpacePanning=false;controls.mouseButtons={LEFT:flat?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:flat?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN};controls.touches={ONE:flat?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};controls.enablePan=m!=='battle'&&m!=='world';controls.maxPolarAngle=m==='world'?Math.PI:(m==='region'?1.05:1.25);controls.maxDistance=m==='world'?12:(m==='hq'?60:(m==='region'?26:(m==='province'?42:34)));
- controls.minDistance=m==='world'?2.9:2.5;if(m==='siege'){$('bhud').hidden=false;$('hud').classList.add('inbattle');controls.enableRotate=false;controls.enablePan=false;controls.enableZoom=true;controls.maxDistance=42;controls.minDistance=10;}if(m==='county'&&window.NET&&NET.big){controls.maxDistance=66;scene.fog=NEWGFX?new THREE.Fog(FOGC,62,150):new THREE.Fog(FOGC,48,105);}controls.zoomToCursor=m==='region'||m==='province';
+ controls.minDistance=m==='world'?2.9:2.5;if(m==='siege'){$('bhud').hidden=false;$('hud').classList.add('inbattle');controls.enableRotate=false;controls.enablePan=false;controls.enableZoom=true;controls.maxDistance=42;controls.minDistance=10;}if(m==='county'&&window.NET&&NET.big){controls.maxDistance=SEAM()&&NAT.root?NAT_OUT+80:66;scene.fog=NEWGFX?new THREE.Fog(FOGC,62,150):new THREE.Fog(FOGC,48,105);}controls.zoomToCursor=m==='region'||m==='province';
  const h=home();flyTo(h[0],h[1],()=>controls.minDistance=h[2]);
  [['tCounty','county'],['tProvince','province'],['tNation','region'],['tHome','hq'],['tWorld','world']].forEach(p=>$(p[0]).setAttribute('aria-pressed',String(p[1]===m)));
  [['nCounty','county'],['nProvince','province'],['nNation','region'],['nHome','hq'],['nWorld','world']].forEach(p=>$(p[0]).setAttribute('aria-pressed',String(p[1]===m)));
@@ -2697,13 +2697,31 @@ async function natTick(){if(!SEAM()||mode!=='county'||!NAT.cur||NAT.busy||anim)r
  // drop boards more than two squares away
  NAT.boards.forEach(B=>{if(B!==NAT.cur&&(Math.abs(B.c-c)>2||Math.abs(B.r-r)>2)){disposeBoard(B);const i=picks.indexOf(B.picks[0]);if(i>=0)picks.splice(i,1);}});}
 setInterval(natTick,150);
+/* ---------- From the nation map to the Nation view and back, without a seam ----------
+   Both maps use the same old-world projection, so Aurelia sits in the same place in each, the Nation view at about 1/115
+   of the size. Zoom out past the whole nation and the camera hands over to the Nation view framed exactly where you were;
+   zoom into Aurelia there and it hands back. A quick soft fade hides the change of scene. */
+const NAT_OUT=450,NAT_IN=3.6;setTimeout(()=>{window.__nat2={toRegion:()=>natToRegion(),toNat:()=>regionToNat(),inAur:(x,z)=>inAurelia(x,z)};},0);
+const natK=()=>{const d=NAT.data;return 0.5*(0.2508/(d.ppd*d.cos)+0.39/d.ppd);};
+function zoomFade(){let el=$('zoomFade');if(!el){el=document.createElement('div');el.id='zoomFade';el.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:5;background:#bcdcec;opacity:0';screen.appendChild(el);}
+ el.style.transition='none';el.style.opacity='0.85';void el.offsetWidth;el.style.transition='opacity .45s ease-out';el.style.opacity='0';}
+/** Is a point on the Nation view inside Aurelia (roughly its bounding box)? */
+function inAurelia(rx,rz){const lon=rx/0.2508+18.5,lat=48-rz/0.39;return lon>5.6&&lon<15.3&&lat>47.1&&lat<55.2;}
+function natToRegion(){const d=NAT.data,u=controls.target.x-NAT.root.position.x,v=controls.target.z-NAT.root.position.z,lon=((u+0.5)/d.ppd+d.minX)/d.cos,lat=-((v+0.5)/d.ppd+d.minY);
+ const off=camera.position.clone().sub(controls.target).multiplyScalar(natK());zoomFade();setMode('region');anim=null;
+ controls.target.set(LX(lon),RT,LZ(lat));camera.position.copy(controls.target).add(off);controls.update();}
+function regionToNat(){const d=NAT.data,lon=controls.target.x/0.2508+18.5,lat=48-controls.target.z/0.39,u=(lon*d.cos-d.minX)*d.ppd-0.5,v=(-lat-d.minY)*d.ppd-0.5;
+ const off=camera.position.clone().sub(controls.target).multiplyScalar(1/natK());zoomFade();setMode('county');anim=null;
+ if(NAT.root)NAT.root.visible=true;controls.maxDistance=NAT_OUT+80;controls.target.set(u+NAT.root.position.x,0,v+NAT.root.position.z);camera.position.copy(controls.target).add(off);controls.update();}
+
 /** The Province button on the seamless map: rise up to see the whole nation. */
 function natOverviewView(){const d=NAT.data,S=d.size;const tx=controls.target.x,tz=controls.target.z;flyTo(V3(tx,0,tz),V3(tx,Math.max(d.width,d.height)*0.55,tz+Math.max(d.width,d.height)*0.42));}
 
 function buildBigSector(snap){if(NAT.root&&!(SEAM()&&NAT.data.sec[snap.sector]))NAT.root.visible=false;if(SEAM()&&NAT.data.sec[snap.sector]){natShow(snap);
   sun.shadow.camera.left=sun.shadow.camera.bottom=-20;sun.shadow.camera.right=sun.shadow.camera.top=20;sun.shadow.camera.updateProjectionMatrix();
-  if(mode==='county'){controls.maxDistance=Math.max(NAT.data.width,NAT.data.height)*1.1;if(!diving&&!NET.noFly){const hm=home();flyTo(hm[0],hm[1]);}}
+  if(mode==='county'){controls.maxDistance=NAT_OUT+80;if(!diving&&!NET.noFly){const hm=home();flyTo(hm[0],hm[1]);}}
   if(/[?&]ov/.test(location.search)&&!NET.ovDone){NET.ovDone=true;setTimeout(()=>{briefEl.hidden=true;anim=null;controls.target.set(0,0,0);camera.position.set(20,30,24);controls.update();},3000);}
+  {const ev=(location.search.match(/[?&]nat=(edge|edgereg)/)||[])[1];if(ev&&!NET.natDone){NET.natDone=true;setTimeout(()=>{briefEl.hidden=true;anim=null;const o=V3(0,0.55,0.42).normalize();camera.position.copy(controls.target).addScaledVector(o,NAT_OUT-5);controls.update();if(ev==="edgereg")natToRegion();setInterval(()=>window.__composer.render(),500);},4500);}}
   {const nv=(location.search.match(/[?&]nat=(far|mid)/)||[])[1];if(nv&&!NET.natDone){NET.natDone=true;setTimeout(()=>{briefEl.hidden=true;anim=null;const D=Math.max(NAT.data.width,NAT.data.height);if(nv==='far'){controls.target.set(-NAT.root.position.x-NAT.data.width/2+NAT.root.position.x*0+NAT.data.width/2+NAT.root.position.x,0,NAT.root.position.z+NAT.data.height/2);camera.position.set(controls.target.x,D*0.9,controls.target.z+D*0.55);}else{controls.target.set(0,0,0);camera.position.set(0,45,40);}controls.update();},4000);}}
   return;}const S=snap.size,half=(S-1)/2;NET.big={sector:snap.sector,size:S,biome:snap.biome,settlers:snap.settlers,region:snap.region||1,claimCost:snap.claimCost,open:snap.open,name:snap.name,needToName:snap.needToName,ct:snap.caretaker};setTimeout(renderSec,0);
  if(bigGroup){county.remove(bigGroup);bigGroup.traverse(o=>{if(o.geometry&&o.isInstancedMesh)o.geometry.dispose();});}
@@ -3264,14 +3282,15 @@ renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),0.05),t=clock.
   if(seam){const d=NAT.data,rx=NAT.root.position.x,rz=NAT.root.position.z;controls.target.x=Math.max(rx-d.margin,Math.min(rx+d.width+d.margin,controls.target.x));controls.target.z=Math.max(rz-d.margin,Math.min(rz+d.height+d.margin,controls.target.z));
    if(scene.fog){scene.fog.near=Math.max(40,dNow*0.9);scene.fog.far=Math.max(120,dNow*2.6);}}
   else if(NET.big){const L=NET.big.size/2;controls.target.x=Math.max(-L,Math.min(L,controls.target.x));controls.target.z=Math.max(-L,Math.min(L,controls.target.z));}
-  if(!anim&&!diving){if(!seam&&dNow>(NET.big?62:31.5))sectorToProvince();else{const h=(NET.big&&cells[NET.homeKey])||cells['6,12'];if(dNow<3.1&&Math.hypot(controls.target.x-h.x,controls.target.z-h.z)<1.3)sectorToHome();}}}
+  if(!anim&&!diving&&seam&&dNow>NAT_OUT){natToRegion();}
+  else if(!anim&&!diving){if(!seam&&dNow>(NET.big?62:31.5))sectorToProvince();else{const h=(NET.big&&cells[NET.homeKey])||cells['6,12'];if(dNow<3.1&&Math.hypot(controls.target.x-h.x,controls.target.z-h.z)<1.3)sectorToHome();}}}
  if(mode==='visit'){visitTick(dt,t);if(!anim&&!diving&&dNow>31.5)visitToProvince();}
  if(mode==='battle')battleTick(dt);
  if(mode==='siege')siegeFrame(dt,t);
  if(mode==='province'||followShip)updShips();
  if(mode==='hq'&&!anim&&!diving&&dNow>Math.max(28.5,home()[1].distanceTo(home()[0])*1.3))homeToSector();
  if(mode==='world'&&!anim&&!diving&&dNow<3.3)worldToNation();
- if(mode==='region'&&!anim&&!diving&&dNow>25)nationToWorld();
+ if(mode==='region'&&!anim&&!diving&&camera.position.distanceTo(controls.target)>25)nationToWorld();
  if(mode==='province'){const q3=(t*0.035)%1,ap=pRoadX.getPointAt(0.05+q3*0.65);army.position.set(ap.x,(window.__HP?window.__HP(ap.x,ap.z-0.2):0.09)+0.02,ap.z-0.2);army.rotation.y=Math.PI/2;armyL.position.set(ap.x+0.3,1.05,ap.z);}
  if(mode==='county'){const rp2=(t*0.04+0.5)%2,ru2=rp2<1?rp2:2-rp2,rpt=curve.getPointAt(ru2),rtg=curve.getTangentAt(ru2);if(rp2>=1)rtg.negate();rival.position.copy(rpt);rival.lookAt(tmp.copy(rpt).add(rtg));rivalL.position.set(rpt.x,rpt.y+0.75,rpt.z);}
  if(mode==='province'){if(!followShip){controls.target.x=Math.max(-16,Math.min(16,controls.target.x));controls.target.z=Math.max(-8,Math.min(8,controls.target.z));}
@@ -3280,7 +3299,7 @@ renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),0.05),t=clock.
   const q2=(t*0.06+0.5)%2,u2=q2<1?q2:2-q2;pT2.position.copy(pRoadZ.getPointAt(u2));pT2.position.y=(window.__HP?window.__HP(pT2.position.x,pT2.position.z):0.09)+0.02;pT2.rotation.y=q2<1?0:Math.PI;
   pBeacons.forEach((b,i)=>b.material.opacity=0.2+0.14*Math.sin(t*1.6+i));if(window.__HP)droneTick(pDrones,window.__HP,t,dt,0.45);pFire.scale.setScalar(0.8+0.4*Math.sin(t*11));
   pfogs.forEach(o=>{o.s.position.y=o.by+Math.sin(t*0.35+o.ph)*0.06;o.s.position.x=o.bx+Math.sin(t*0.12+o.ph)*0.15;});}
- if(mode==='region'){const dd=camera.position.distanceTo(controls.target),k=Math.min(1,Math.max(0,(8.5-dd)/3.5));pmesh.material.opacity=k*0.95;provLabels.forEach(l=>l.material.opacity=k);const poiK=Math.min(1,Math.max(0,(14.5-dd)/3));natL.forEach((l,i)=>l.material.opacity=(i<8?1:poiK)*(1-k*0.85));secRing.material.opacity=k;secRing.scale.setScalar(1+0.25*Math.sin(t*4));if(window.__dbg&&(frameCount++%30===0))console.log('DBG region dd',dd.toFixed(2),'anim',!!anim,'diving',diving);if(!anim&&!diving&&dd<2.6)diveToSector();}
+ if(mode==='region'){const dd=camera.position.distanceTo(controls.target),live=SEAM()&&!!NET.big&&!!NAT.root,k=live?0:Math.min(1,Math.max(0,(8.5-dd)/3.5));pmesh.material.opacity=k*0.95;provLabels.forEach(l=>l.material.opacity=k);const poiK=Math.min(1,Math.max(0,(14.5-dd)/3));natL.forEach((l,i)=>l.material.opacity=(i<8?1:poiK)*(1-k*0.85));secRing.material.opacity=k;secRing.scale.setScalar(1+0.25*Math.sin(t*4));if(window.__dbg&&(frameCount++%30===0))console.log('DBG region dd',dd.toFixed(2),'anim',!!anim,'diving',diving);if(live){if(!anim&&!diving&&dd<NAT_IN&&inAurelia(controls.target.x,controls.target.z))regionToNat();}else if(!anim&&!diving&&dd<2.6)diveToSector();}
  if(mode==='hq'){aimSpot2(t);hqBlades.rotation.z-=dt*1.2;torches.forEach((o,i)=>{const k=0.8+0.3*Math.sin(t*9+i*1.7)+0.15*Math.sin(t*23+i);o.f.scale.setScalar(k);if(o.pl)o.pl.intensity=2.2*k;});}
  if(mode==='region'){controls.target.x=Math.max(-7,Math.min(7,controls.target.x));controls.target.z=Math.max(-6,Math.min(6,controls.target.z));
   rShips.forEach(sh=>{const u=(t*0.018+sh.o)%1,p=seaC.getPointAt(u),tg=seaC.getTangentAt(u);sh.s.position.copy(p);sh.s.rotation.y=Math.atan2(-tg.z,tg.x);});

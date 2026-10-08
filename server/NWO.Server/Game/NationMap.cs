@@ -143,6 +143,8 @@ public static class NationMap
         return System.Text.Json.JsonSerializer.Serialize(new
         {
             size = S, width = Width, height = Height, margin = Margin, aw, ah,
+            // the projection, so the client can line this map up with the world and nation maps
+            ppd = ParcelsPerDegree, cos = CosLat, minX = MinX, minY = MinY,
             sectors = Sectors.Select(n => new { n, gx = Origins[n].gx, gy = Origins[n].gy, closed = Economy.Closed.Contains(n), biome = SectorTemplate.Biome(n) }),
             poly = Poly.Select(p => new[] { Math.Round(p.x, 1), Math.Round(p.y, 1) }),
             towns = Geography.TownSpots(),
