@@ -55,6 +55,7 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .me b{display:block;line-height:1.05}
 .res{display:flex;gap:calc(1*var(--u));margin-left:auto;flex-wrap:nowrap}
 .pill{display:flex;align-items:center;gap:calc(.8*var(--u));background:var(--hud);border:1px solid var(--hud-line);border-radius:99px;padding:calc(.9*var(--u)) calc(1.8*var(--u)) calc(.7*var(--u)) calc(1.2*var(--u));font-variant-numeric:tabular-nums;transition:transform .15s}
+.pill[role=button]{cursor:pointer}.pill[role=button]:focus-visible{outline:2px solid #ffd34d;outline-offset:2px}
 .pill .ms{font-size:1.25em}
 .pill.bump{transform:scale(1.12)}
 .pill.land{cursor:pointer}.pill.land .ms{color:#9fdc7a}.pill.power .ms{color:#ffe066}.pill.cash .ms{color:#8fe3a0}.pill.oil .ms{color:#c9c9c9}.pill.fuel .ms{color:#ff9a7a}.pill.grain .ms{color:#f2cd4b}.pill.gold .ms{color:var(--gold)}
@@ -316,6 +317,7 @@ html.app .screen{border-radius:0}
 .allyEl .arow{display:flex;gap:.6em;align-items:center;justify-content:space-between;border-bottom:1px dashed #e2d9c5;padding:.35em 0;flex-wrap:wrap}.allyEl .arow small{color:#8a8272}
 .allyEl .acts{display:flex;gap:.4em;flex-wrap:wrap;margin:.4em 0}.allyEl button{background:#e9e1cf;color:#2a2a2a;border:0;border-radius:99px;padding:.3em .85em;font:700 .95em/1.1 'Baloo 2',sans-serif;cursor:pointer}
 .allyEl button.go{background:#c9a24a;color:#1a1408}.allyEl button.bad{background:#f1d9d2;color:#8a2a1a}.allyEl input{font:inherit;padding:.4em .6em;border-radius:.5em;border:1px solid #d9d1bf;min-width:7em;background:#fff;color:#2a2a2a}
+.allyEl button:disabled{cursor:not-allowed;opacity:.55}.allyEl .explain{background:#f3ecdc;border:1px solid #ddd0b4;border-radius:.75em;padding:.65em .8em;margin:.5em 0}.allyEl .formHelp{margin:.25em 0 .55em;color:#6f6759}.allyEl .formError{color:#9a2418;font-weight:700;min-height:1.2em;margin:.35em 0}
 .allyEl h4{margin:.9em 0 .25em;font:700 1.05em/1.2 'Baloo 2',sans-serif}.allyEl .dot{display:inline-block;width:.55em;height:.55em;border-radius:50%;background:#bbb;margin-right:.3em}.allyEl .dot.on{background:#3cb371}
 .allyEl .two{display:grid;grid-template-columns:1fr 1fr;gap:1.2em}@media (orientation:portrait){html.app .allyEl .two{grid-template-columns:1fr}}
 .techNode.done{background:#eaf3e2;border-color:#9cc48a}.techNode.busy{background:#fff6dc;border-color:#e0bf5a}.techNode.locked{opacity:.62}
@@ -365,12 +367,12 @@ button.guide-target::after{content:attr(data-guide-label);position:absolute;left
         <div class="top">
           <div class="me"><div class="av" id="meAv">12</div><div><b id="meName">You</b><small id="meSub">Aurelia · Tycoon</small></div></div>
           <div class="res">
-            <div class="pill cash" id="pCash"><span class="ms">payments</span><span id="vCash">48,200</span></div>
-            <div class="pill oil" id="pOil"><span class="ms">oil_barrel</span><span id="vOil">1,240</span></div>
-            <div class="pill fuel" id="pFuel"><span class="ms">local_gas_station</span><span id="vFuel">380</span></div>
-            <div class="pill grain" id="pGrain"><span class="ms">agriculture</span><span id="vGrain">900</span></div>
-            <div class="pill gold" id="pGold"><span class="ms">paid</span><span id="vGold">120</span></div>
-            <div class="pill power" id="pPower"><span class="ms">bolt</span><span id="vPower">0</span></div>
+            <div class="pill cash" id="pCash" role="button" tabindex="0" aria-label="Cash. Tap for help"><span class="ms">payments</span><span id="vCash">48,200</span></div>
+            <div class="pill oil" id="pOil" role="button" tabindex="0" aria-label="Oil. Tap for help"><span class="ms">oil_barrel</span><span id="vOil">1,240</span></div>
+            <div class="pill fuel" id="pFuel" role="button" tabindex="0" aria-label="Fuel. Tap for help"><span class="ms">local_gas_station</span><span id="vFuel">380</span></div>
+            <div class="pill grain" id="pGrain" role="button" tabindex="0" aria-label="Grain. Tap for help"><span class="ms">agriculture</span><span id="vGrain">900</span></div>
+            <div class="pill gold" id="pGold" role="button" tabindex="0" aria-label="Gold. Tap for help"><span class="ms">paid</span><span id="vGold">120</span></div>
+            <div class="pill power" id="pPower" role="button" tabindex="0" aria-label="Power. Tap for help"><span class="ms">bolt</span><span id="vPower">0</span></div>
             <div class="pill land" id="pLand" role="button" tabindex="0" aria-label="Your land"><span class="ms">crop_square</span><span id="vLand">0</span></div>
           </div>
         </div>
@@ -1166,6 +1168,16 @@ paintGlobe();
 /* ---------- Game state + HUD ---------- */
 const res={cash:48200,oil:1240,fuel:380,grain:900,gold:120};
 const fmt=n=>Math.round(n).toLocaleString('en-US');
+const RESOURCE_HELP={
+ cash:['Cash','Your everyday money. Spend it to claim land, construct buildings, research upgrades, trade, and take political actions.',['Main sources','Land and buildings, deliveries, trading, and rewards']],
+ oil:['Oil','A raw trade good made by oil land, pumps, and rigs. Sell it on the market or use it to complete delivery contracts.',['Best source','Claim oil land and build an Oil rig on it']],
+ fuel:['Fuel','Your military action supply. Battles, raids, and land seizures consume fuel; some delivery contracts also request it.',['Main sources','Generators, the market, and rewards']],
+ grain:['Grain','Food and a trade good. Farms and fertile land produce it; contracts and the market turn surplus grain into cash.',['Best source','Build Farms on fertile grain land']],
+ gold:['Gold','A rare advanced currency. Higher research tiers, founding a nation, and coups can require it.',['Main sources','Goals, major battles, and special rewards']],
+ power:['Power','Electricity stored for expanding your home base. Solar panels, Solar farms, and Wind turbines produce it.',['Used for','Larger walls and more room for home-base buildings']],
+};
+function resourceCard(k){const r=RESOURCE_HELP[k];if(!r)return;showCard(r[0],fmt(res[k]||0)+' available',[['What it is',r[1]],r[2],['Tip','Tap any resource counter at the top to open this explanation.']],['Close']);}
+Object.keys(RESOURCE_HELP).forEach(k=>{const el=$('p'+k[0].toUpperCase()+k.slice(1));if(!el)return;el.onclick=()=>resourceCard(k);el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();resourceCard(k);}};});
 /** Your land: how many parcels, where, and what they hold. */
 function landCard(){const ps=(NET.me&&NET.me.parcels)||[];const by={};ps.forEach(p=>{(by[p.sector]=by[p.sector]||[]).push(p);});
  const rows=Object.keys(by).sort((a,b)=>by[b].length-by[a].length).map(k=>{const l=by[k],kinds={};l.forEach(p=>{const r=p.home?'home':(p.resource||'none');kinds[r]=(kinds[r]||0)+1;});
@@ -3144,7 +3156,7 @@ function defenseCard(){NET.conn.invoke('GetDefense').then(d=>{current=null;const
 /* ---------- Alliances ---------- */
 function openAlly(){card.hidden=true;$('allyEl').hidden=false;loadAlly();}
 function loadAlly(){NET.conn.invoke('GetAlliance').then(v=>{NET.ally=v;renderAlly();}).catch(er=>toast(er.message));}
-function allyCall(p){return p.then(r=>{if(!r.ok){toast(r.error);return;}if(r.player)applyMe(r.player);if(r.summary)toast(r.summary);loadAlly();}).catch(er=>toast(er.message));}
+function allyCall(p){return p.then(r=>{if(!r.ok){toast(r.error);loadAlly();return;}if(r.player)applyMe(r.player);if(r.summary)toast(r.summary);loadAlly();}).catch(er=>toast(er.message));}
 function renderAlly(){const v=NET.ally,el=$('allyEl');if(!v||el.hidden)return;const m=v.mine;
  let H='<button class="x" id="allyX" aria-label="Close alliance"><span class="ms">close</span></button>';
  if(m){const off=m.role==='leader'||m.role==='officer',lead=m.role==='leader';
@@ -3161,10 +3173,10 @@ function renderAlly(){const v=NET.ally,el=$('allyEl');if(!v||el.hidden)return;co
    if(m.invited.length)H+='<h4>Invited</h4>'+m.invited.map(r=>'<div class="arow"><span>'+esc(r.name)+'</span><small>by '+esc(r.by)+'</small></div>').join('');}
   if(lead)H+='<h4>Settings</h4><div class="acts"><input id="aDesc" style="flex:1" maxlength="200" value="'+esc(m.description||'')+'"><label class="note" style="display:flex;gap:.3em;align-items:center"><input type="checkbox" id="aOpen"'+(m.open?' checked':'')+' style="min-width:0"> Open to all</label><button id="aSave">Save</button></div>';
   H+='</div></div>';}
- else{H+='<h3>Alliances</h3><p class="note">Join forces: a shared bank, a private chat, help with research, and allies can\'t take each other\'s land</p>';
+ else{H+='<h3>Alliances</h3><div class="explain"><b>What is an alliance?</b><br>A player team. Members get private chat, a shared cash/fuel bank, and can help each other finish research sooner. Alliance members cannot raid or take land from one another. The limit is '+v.maxMembers+' members.</div>';
   if(v.invites.length)H+='<h4>Invitations</h4>'+v.invites.map(i=>'<div class="arow"><span><b>'+esc(i.alliance)+'</b> <small>invited by '+esc(i.by)+'</small></span><span><button class="go" data-inv="'+i.id+'" data-yes="1">Join</button><button data-inv="'+i.id+'" data-yes="0">Decline</button></span></div>').join('');
-  H+='<div class="two"><div><h4>Find an alliance</h4>'+(v.browse.length?v.browse.map(a=>'<div class="arow"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <small>'+a.members+' members · '+(a.open?'open':'invite only')+' · '+esc(a.description||'')+'</small></span><span>'+(a.requested?'<small>Requested</small>':'<button class="go" data-join="'+a.id+'">'+(a.open?'Join':'Ask to join')+'</button>')+'</span></div>').join(''):'<p class="note">No alliances yet. Found the first one</p>')+'</div>';
-  H+='<div><h4>Found an alliance · '+fmt(v.createCost)+' cash</h4><div class="acts"><input id="aName" maxlength="24" placeholder="Alliance name" style="flex:1"><input id="aTag" maxlength="5" placeholder="TAG" style="width:5em;min-width:0;text-transform:uppercase"></div><label class="note" style="display:flex;gap:.3em;align-items:center"><input type="checkbox" id="aNewOpen" checked style="min-width:0"> Anyone can join (untick for invite only)</label><div class="acts"><button class="go" id="aCreate">Found it</button></div></div></div>';}
+  H+='<div class="two"><div><h4>Find an alliance</h4><p class="formHelp"><b>Open</b> means Join adds you immediately. <b>Invite only</b> sends a request to its officers.</p>'+(v.browse.length?v.browse.map(a=>'<div class="arow"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <small>'+a.members+' / '+a.max+' members · '+(a.full?'FULL':a.open?'SPACE AVAILABLE · open':'SPACE AVAILABLE · invite only')+' · '+esc(a.description||'')+'</small></span><span>'+(a.full?'<button disabled>Full</button>':a.requested?'<small>Request sent</small>':'<button class="go" data-join="'+a.id+'" data-open="'+(a.open?'1':'0')+'">'+(a.open?'Join now':'Ask to join')+'</button>')+'</span></div>').join(''):'<p class="note">No alliances yet. Found the first one</p>')+'</div>';
+  H+='<div><h4>Create your own · '+fmt(v.createCost)+' cash</h4><p class="formHelp"><b>Name:</b> 3–24 characters, beginning with a letter. Example: Northern Traders.<br><b>Tag:</b> a separate 2–5 letter/number abbreviation with no spaces. Example: NT.</p><div class="acts"><input id="aName" maxlength="24" autocomplete="off" aria-label="Alliance name, 3 to 24 characters" placeholder="Name, e.g. Northern Traders" style="flex:1"><input id="aTag" maxlength="5" autocomplete="off" aria-label="Alliance tag, 2 to 5 letters or numbers" placeholder="Tag, e.g. NT" style="width:8em;min-width:0;text-transform:uppercase"></div><div class="formError" id="aFormError" aria-live="polite"></div><label class="note" style="display:flex;gap:.3em;align-items:center"><input type="checkbox" id="aNewOpen" checked style="min-width:0"> Open: players can join immediately</label><div class="acts"><button class="go" id="aCreate">Create alliance</button></div></div></div>';}
  el.innerHTML=H;$('allyX').onclick=()=>{el.hidden=true;hint.hidden=false;};
  const q=(id,fn)=>{if($(id))$(id).onclick=fn;},amt=()=>+(($('aAmt')||{}).value||0);
  q('aHelp',()=>allyCall(NET.conn.invoke('HelpAlliance')));q('aLeave',()=>{if(confirm('Leave the alliance?'))allyCall(NET.conn.invoke('LeaveAlliance'));});
@@ -3173,11 +3185,15 @@ function renderAlly(){const v=NET.ally,el=$('allyEl');if(!v||el.hidden)return;co
  q('aPayC',()=>allyCall(NET.conn.invoke('GrantFromAlliance',$('aTo').value.trim(),'cash',amt())));q('aPayF',()=>allyCall(NET.conn.invoke('GrantFromAlliance',$('aTo').value.trim(),'fuel',amt())));
  q('aInvGo',()=>allyCall(NET.conn.invoke('InviteToAlliance',$('aInv').value.trim())));
  q('aSave',()=>allyCall(NET.conn.invoke('EditAlliance',$('aDesc').value,$('aOpen').checked)));
- q('aCreate',()=>allyCall(NET.conn.invoke('CreateAlliance',$('aName').value.trim(),$('aTag').value.trim(),$('aNewOpen').checked)));
+ q('aCreate',()=>{const n=$('aName').value.trim(),t=$('aTag').value.trim(),er=$('aFormError');let msg='',bad=null;
+  if(n.length<3||n.length>24||!/^[\p{L}]/u.test(n)||/[^\p{L}\p{N} .'-]/u.test(n)){msg='Name must start with a letter and be 3–24 characters. Use letters, numbers, spaces, hyphens, apostrophes, or periods.';bad=$('aName');}
+  else if(t.length<2||t.length>5||/[^\p{L}\p{N}]/u.test(t)){msg='Tag must be 2–5 letters or numbers with no spaces, like NT or NWO.';bad=$('aTag');}
+  if(msg){er.textContent=msg;bad.focus();pointGuideAt(bad);return;}er.textContent='';allyCall(NET.conn.invoke('CreateAlliance',n,t,$('aNewOpen').checked));});
  el.querySelectorAll('[data-mem]').forEach(b=>b.onclick=()=>{const n=b.dataset.mem,a=b.dataset.act;if(a==='kick'){if(confirm('Remove '+n+'?'))allyCall(NET.conn.invoke('KickFromAlliance',n));}else if(a!=='leader'||confirm('Hand leadership to '+n+'?'))allyCall(NET.conn.invoke('SetAllianceRole',n,a));});
  el.querySelectorAll('[data-req]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('AnswerAlliance',+b.dataset.req,b.dataset.yes==='1')));
  el.querySelectorAll('[data-inv]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('AnswerAlliance',+b.dataset.inv,b.dataset.yes==='1')));
- el.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('RequestAlliance',+b.dataset.join)));}
+ el.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('RequestAlliance',+b.dataset.join)));
+ if(guideActing==='alliance'&&!m){const join=el.querySelector('button[data-join][data-open="1"]')||el.querySelector('button[data-join]');if(join){pointGuideAt(join,'Tap to join');toast('Choose a team marked SPACE AVAILABLE. Open teams let you join immediately.');}else{pointGuideAt($('aName'));toast('All listed teams are full. Create one: enter a name, then a separate short tag.');}}}
 $('bAlly').onclick=()=>{if($('allyEl').hidden)openAlly();else $('allyEl').hidden=true;};
 /* ---------- The tech tree ---------- */
 function openTech(){const rs=NET.me&&NET.me.research;if(!rs){toast('Research is not available');return;}card.hidden=true;const el=$('techEl');el.hidden=false;renderTech();}
