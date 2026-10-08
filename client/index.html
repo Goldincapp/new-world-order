@@ -378,7 +378,7 @@ html.app .screen{border-radius:0}
           <button class="hbtn" id="bRecord" aria-label="Caretaker record"><span class="ms">visibility</span><span class="l">Record</span></button>
           <button class="hbtn" id="bStats" aria-label="Stats"><span class="ms">monitoring</span><span class="l">Stats</span></button>
           <button class="hbtn" id="bAlly" aria-label="Alliance" hidden><span class="ms">shield</span><span class="l">Alliance</span></button>
-          <button class="hbtn" id="bAlliance" aria-label="Chat"><span class="ms">forum</span><i id="unread">9</i><span class="l">Chat</span></button>
+          <button class="hbtn" id="bAlliance" aria-label="Chat"><span class="ms">forum</span><i id="unread" hidden>0</i><span class="l">Chat</span></button>
           <button class="hbtn" id="bFeedback" aria-label="Send feedback"><span class="ms">rate_review</span><span class="l">Feedback</span></button>
         </div>
         <div class="nav" role="group" aria-label="Game navigation">
@@ -1406,21 +1406,21 @@ setInterval(()=>{if(window.NET&&NET.conn)return;const buy=Math.random()<0.5,q=[1
 setInterval(()=>{res.oil+=3;res.grain+=1;res.cash+=8;renderRes();},4000);
 
 /* ---------- Living world: chat, ticker, notifications, other players ---------- */
-const chatEl=$('chat'),msgsEl=$('msgs'),polEl=$('pol');let chan='global',unread=9;
+const chatEl=$('chat'),msgsEl=$('msgs'),polEl=$('pol');let chan='global',unread=0;
 const CHAT={global:[],nation:[],alliance:[]};
 const POOL={global:[['Kestrel','Northern Union','Anyone selling fuel under 43?'],['Mara_V','Aurelia','Election in 2 days. Vote Iron Front.'],['General Vask','Steppe Dominion','The Crimson Pact will fall.'],['Tidewater','Aurelia','Hiring escorts for the strait run, 800 per trip'],['Solano','Iron Crown','Strait toll stays at 3%. Pay or sail around.'],['Olive_7','Southern Accord','Grain for steel, big volumes, message me'],['RedBanner','Crimson Pact','Need munitions on the eastern front, paying well'],['Harbour','Isle Compact','Our navy escorts convoys. Fees apply.'],['Wolf','Desert Wolves','Nice convoy you have there...']],
  nation:[['Coldharbor_Gov','Governor','Sector 12 needs housing. The state pays 1,200 per block.'],['Brann','Citizen','Pumps in Sector 12 are running dry, someone deliver fuel'],['Ash_1','Citizen','76 of us in Sector 12 still need work'],['Mara_V','Iron Front','Your tariffs are killing our exporters'],['Coldharbor_Gov','Governor','Coldharbor needs a new rail link'],['Ash_1','Citizen','Fuel is 45 at the pump in Ashmark!'],['Tidewater','Harbour Union','Harbour Union backs the fuel cap'],['Brann','Citizen','Militia spotted near Sector 30']],
  alliance:[['Tidewater','Officer','Convoy leaves Sector 12 at 18:00, need 2 more escorts'],['Kess','Member','I can send 20 tanks'],['Aur_Lead','Leader','Rally on Sector 18 tomorrow. Blue Party is weak there'],['Nyx','Member','Donated 5,000 steel to the alliance city']]};
 const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-function pushMsg(ch,who,tag,txt,me){CHAT[ch].push({who,tag,txt,me});if(CHAT[ch].length>40)CHAT[ch].shift();if(!chatEl.hidden&&ch===chan)renderChat();else if(!me){unread++;$('unread').textContent=unread;}}
+function pushMsg(ch,who,tag,txt,me){CHAT[ch].push({who,tag,txt,me});if(CHAT[ch].length>40)CHAT[ch].shift();if(!chatEl.hidden&&ch===chan)renderChat();else if(!me){unread++;$('unread').textContent=unread;$('unread').hidden=false;}}
 function renderChat(){msgsEl.innerHTML=CHAT[chan].map(m=>'<div class="msg'+(m.me?' me':'')+'"><button class="who" data-who="'+esc(m.who)+'" data-tag="'+esc(m.tag)+'">'+esc(m.who)+'</button><span class="ch">'+esc(m.tag)+'</span><br>'+esc(m.txt)+'</div>').join('');
  msgsEl.scrollTop=msgsEl.scrollHeight;msgsEl.querySelectorAll('.who').forEach(b=>b.onclick=()=>profile(b.dataset.who,b.dataset.tag));}
-function profile(who,tag){const h=Math.floor(hash(who.length,who.charCodeAt(0))*1000);showCard(who,tag,[['Nation',tag==='Citizen'||tag==='Governor'||tag==='Officer'||tag==='Member'||tag==='Leader'||tag==='Iron Front'||tag==='Harbour Union'?'Aurelia':tag],['Level',String(8+h%20)],['Alliance',h%3?'Aurelian Alliance':'None'],['Parcels',String(4+h%60)]],['Send message','Trade']);}
-Object.keys(POOL).forEach(ch=>POOL[ch].slice(0,4).forEach(m=>CHAT[ch].push({who:m[0],tag:m[1],txt:m[2]})));
-let pi=4;setInterval(()=>{const chs=['global','global','nation','alliance'],ch=chs[pi%4],p=POOL[ch][pi%POOL[ch].length];pushMsg(ch,p[0],p[1],p[2]);pi++;},3800);
+function profile(who,tag){if(window.NET&&NET.me){showCard(who,tag==='Ally'?'Alliance member':'Player',[['Talk','Reply in chat, or find their base on the Sector map']],['Close']);return;}const h=Math.floor(hash(who.length,who.charCodeAt(0))*1000);showCard(who,tag,[['Nation',tag==='Citizen'||tag==='Governor'||tag==='Officer'||tag==='Member'||tag==='Leader'||tag==='Iron Front'||tag==='Harbour Union'?'Aurelia':tag],['Level',String(8+h%20)],['Alliance',h%3?'Aurelian Alliance':'None'],['Parcels',String(4+h%60)]],['Send message','Trade']);}
+/* the scripted chatter is only for the offline demo: signed-in players see real messages only */
+let pi=0;setInterval(()=>{if(!(window.NET&&NET.offline))return;if(pi===0)Object.keys(POOL).forEach(ch=>POOL[ch].slice(0,4).forEach(m=>CHAT[ch].push({who:m[0],tag:m[1],txt:m[2]})));if(pi<4){pi=4;return;}const chs=['global','global','nation','alliance'],ch=chs[pi%4],p=POOL[ch][pi%POOL[ch].length];pushMsg(ch,p[0],p[1],p[2]);pi++;},3800);
 function setChan(c){chan=c;[['cGlobal','global'],['cNation','nation'],['cAlliance','alliance']].forEach(q=>$(q[0]).setAttribute('aria-pressed',String(q[1]===c)));$('chatIn').placeholder=c==='global'?'Say something to the world':(c==='nation'?'Message Aurelia':'Message your alliance');renderChat();}
 $('cGlobal').onclick=()=>setChan('global');$('cNation').onclick=()=>setChan('nation');$('cAlliance').onclick=()=>setChan('alliance');
-$('bAlliance').onclick=()=>{if(chatEl.hidden){card.hidden=true;hint.hidden=true;chatEl.hidden=false;unread=0;$('unread').textContent='0';renderChat();}else{chatEl.hidden=true;hint.hidden=false;}};
+$('bAlliance').onclick=()=>{if(chatEl.hidden){card.hidden=true;hint.hidden=true;chatEl.hidden=false;unread=0;$('unread').textContent='0';$('unread').hidden=true;renderChat();}else{chatEl.hidden=true;hint.hidden=false;}};
 $('cx2').onclick=()=>{chatEl.hidden=true;hint.hidden=false;};
 $('chatForm').addEventListener('submit',e=>{e.preventDefault();const v=$('chatIn').value.trim();if(!v){toast('Type a message first');return;}if(NET.conn&&NET.conn.state==='Connected'){NET.conn.invoke('SendChat',chan,v).catch(er=>toast('Message not sent'));$('chatIn').value='';return;}
  pushMsg(chan,'You','Aurelia · President',v,true);$('chatIn').value='';renderChat();

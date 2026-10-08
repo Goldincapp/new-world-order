@@ -209,7 +209,7 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
         });
         if (a is null) return;
         a.AutoPlay(rng);
-        string? note = null, news = null; object? victimMe = null;
+        string? note = null; object? victimMe = null;
         await world.Locked(async db =>
         {
             var v = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstOrDefaultAsync(p => p.Id == victimId);
@@ -231,7 +231,6 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
                 v.LastRaidedAt = DateTime.UtcNow;
                 Caretaker.Remember(db, v, 0, "war", $"{r.Name} raided your base");
                 note = $"{r.Name}, a raider in your sector, broke into your base ({a.Stars}★) and took {cash:N0} cash, {oil:N0} oil and {grain:N0} grain. Defenders lost: {lost}. Your walls are manned for the next {Battles.PlayerShield.TotalHours:0} hours. Hit back from their base on the Sector map.";
-                news = $"{r.Name} raided {v.Name}'s base in Sector {v.HomeSector}.";
             }
             else
             {
@@ -246,7 +245,6 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
             await hub.Clients.Clients(GameHub.ConnectionsOf(victimId)).SendAsync("chat", new { channel = "global", name = "Alert", text = note, at = DateTime.UtcNow });
             if (victimMe is not null) await hub.Clients.Clients(GameHub.ConnectionsOf(victimId)).SendAsync("me", victimMe);
         }
-        if (news is not null) await hub.Clients.All.SendAsync("chat", new { channel = "global", name = "News", text = news, at = DateTime.UtcNow });
     }
 
     /// <summary>An ally joins a siege a real neighbour has started on the Caretaker's outpost, adding its damage to theirs.</summary>
@@ -274,18 +272,16 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
         });
         if (a is null || start is null) return;
         a.AutoPlay(rng);
-        string? line = null, news = null;
+        string? news = null;
         await world.Locked(async db =>
         {
             var sp = await db.SectorPresence.FindAsync(sector);
             var al = await db.Players.FindAsync(allyId);
             if (sp is null || al is null) return true;
             var names = await Presence.ApplyAssault(db, sp, al, a, start);
-            if (names is not null) news = $"The settlers of Sector {sector} took the Caretaker's outpost together: {string.Join(", ", names)}.";
-            else line = $"{al.Name} joined the siege on the Caretaker's outpost. It now stands at towers {Math.Round(sp.OutpostT1 * 100)}% and {Math.Round(sp.OutpostT2 * 100)}%, HQ {Math.Round(sp.OutpostHq * 100)}%.";
+            if (names is not null) news = $"The settlers of Sector {sector} took the Caretaker's outpost together.";
             return true;
         });
-        if (line is not null) await hub.Clients.Group(World.Group(sector)).SendAsync("chat", new { channel = "global", name = "News", text = line, at = DateTime.UtcNow });
         if (news is not null) await hub.Clients.All.SendAsync("chat", new { channel = "global", name = "News", text = news, at = DateTime.UtcNow });
         await hub.Clients.Group(World.Group(sector)).SendAsync("presence", new { sector, presence = Math.Round(Presence.Of(sector)) });
     }
