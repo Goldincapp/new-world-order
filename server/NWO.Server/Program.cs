@@ -9,6 +9,8 @@ var builder = WebApplication.CreateBuilder(args);
 var dbPath = Environment.GetEnvironmentVariable("NWO_DB") ?? "nwo.db";
 builder.Services.AddDbContext<GameDb>(o => o.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddSignalR();
+// The nation map and the client are big text files: send them compressed
+builder.Services.AddResponseCompression(o => { o.EnableForHttps = true; o.MimeTypes = Microsoft.AspNetCore.ResponseCompression.ResponseCompressionDefaults.MimeTypes.Concat(["application/json", "text/html", "application/javascript"]); });
 builder.Services.AddSingleton<World>();
 builder.Services.AddSingleton<Market>();
 builder.Services.AddSingleton<Caretaker>();
@@ -53,6 +55,7 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+app.UseResponseCompression();
 app.UseCors();
 
 // In development the server also hosts the phone client, so everything runs from one address.
@@ -163,6 +166,9 @@ api.MapPost("/me/restart", async (HttpContext ctx, GameDb db, World world) =>
 });
 
 api.MapGet("/sentinel", (Siege siege) => siege.Status());
+
+// The whole of Region 1 as one map in the shape of Aurelia: layout, border and every sector's land.
+api.MapGet("/nation", () => Results.Text(NationMap.Json(), "application/json"));
 
 api.MapGet("/sectors/names", async (GameDb db) => Results.Ok(await SectorNames.All(db)));
 

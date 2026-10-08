@@ -92,12 +92,28 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 
 ## 4. The world
 
-- **Region 1 (sectors 1 to 50)**, shown as Vellmoor province on a 10-column × 5-row grid. Sector *n* sits at column `(n-1)/5`, row `(n-1)%5`.
+- **Region 1 is one seamless map in the shape of Aurelia,** which is the outline of Germany on the old world map (`NationMap.cs`).
+  - **Sectors:** the 50 sectors are 34×34-parcel squares laid over that outline (45 parcels per degree), numbered in reading order from the north-west. Sector 8, the capital, is the square holding old Berlin.
+  - **Border wilds:** parcels outside the border can't be claimed. Strips of the country that no square covers are border wilds.
   - **Closed sectors:** 3, 5, 8, 18, 30, 44 and 46. Sector 8 is the capital, 18 and 44 are rival garrisons, and 3, 5, 30 and 46 are Caretaker land.
   - **The other 43 are open to settlers.**
-- **Each sector is a 34×34 parcel grid**, generated from the sector number (same for everyone). Mostly barren, with pockets of other land.
-  - **Land codes:** `ba` barren, `sc` scrub, `gr` grassland, `fe` fertile, `ro` rocky, `oi` oil sands, `ru` ruins, `wa` water, `pa` road, `ha` sector hall.
+- **The land follows the real geography** (`Geography.cs`), so players recognise where their land would be in the real world:
+  - **Water:** real rivers (Rhine, Elbe, Danube, Main and others) and lakes are water.
+  - **Mountains:** mountain ranges raise the land (height 0 to 9, snow on the Alps) and are rocky or wooded.
+  - **Areas:** farm plains, forests, heath and oil areas set the mix of land.
+  - **Old towns:** the old towns stand as ruins where they really were.
+  - **Roads:** a road network joins the towns, and every sector hall joins the network.
+  - **No real names:** players never see real place names. The names in `Geography.cs` are only for reading the code.
+- **Each sector is a 34×34 parcel grid**, mostly barren, with pockets of other land generated from its place on the map.
+  - **Land codes:** `ba` barren, `sc` scrub, `gr` grassland, `fe` fertile, `ro` rocky, `oi` oil sands, `ru` ruins, `wa` water, `pa` road, `ha` sector hall, `xx` beyond the border (and `xs` sea in the atlas).
   - **Resources under a parcel:** oil, grain, timber, ore, stone, housing, salvage or none.
+- **`GET /api/nation`** returns the layout, the border, where the towns stand, and an atlas of every parcel's land code and height for the whole nation plus a 20-parcel margin of sea and foreign land (about 43 KB compressed).
+- **The client's Sector view is the whole nation.**
+  - **Boards:** nearby 34×34 squares (boards) are built in full and stream in and out as you pan.
+  - **Far view:** a low-detail mesh of the whole map shows the nation from far away.
+  - **Active sector:** the sector under the camera becomes the active one (its parcels, cards and live updates).
+  - **Province button:** it rises to the whole-nation view.
+  - **Code and other views:** see the `NAT` block in `client/index.html`. Classic graphics and the Ashlands still use the single-sector board.
 - **Region 2, the Ashlands:** sectors 101 to 120 (4×5). They open after the Sentinel falls.
 - **Nations:** Aurelia owns Region 1. Its delivery and market taxes go to Aurelia, which players govern. Players can found up to 8 more nations from Ashlands footholds.
 

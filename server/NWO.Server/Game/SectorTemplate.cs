@@ -4,7 +4,9 @@ namespace NWO.Server.Game;
 /// The land of each sector: a 34 by 34 grid of parcels, generated from the sector's number and its land type,
 /// so every sector is different but always the same for everyone. Mostly barren ground that is worth little
 /// until someone builds on it, with pockets of farmland, scrub, rock, oil sands and ruins.
-/// Codes: ba barren, sc scrub, gr grassland, fe fertile, ro rocky, oi oil sands, ru ruins, wa water, pa road, ha sector hall.
+/// Codes: ba barren, sc scrub, gr grassland, fe fertile, ro rocky, oi oil sands, ru ruins, wa water, pa road, ha sector hall,
+/// xx outside Aurelia's border. Region 1 is generated from each parcel's position on the whole nation map (see NationMap),
+/// so forests, fields, lakes and roads carry on across sector edges.
 /// </summary>
 public static class SectorTemplate
 {
@@ -24,11 +26,21 @@ public static class SectorTemplate
     public static string Biome(int sector)
     {
         if (Region2.Contains(sector)) return Region2.Biome(sector);
+        if (NationMap.Has(sector)) return MapBiome(sector);
         int c = (sector - 1) / 5, r = (sector - 1) % 5;
         return Biomes[r][c];
     }
 
     static readonly Dictionary<int, string[,]> Cache = new();
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<int, string> BiomeCache = new();
+    /// <summary>A Region 1 sector's character, read from its land: whatever there's most of besides barren ground and roads.</summary>
+    static string MapBiome(int sector) => BiomeCache.GetOrAdd(sector, n =>
+    {
+        var g = Grid(n); var count = new Dictionary<string, int>();
+        foreach (var c in g) if (c is not ("ba" or "pa" or "ha" or "xx")) count[c] = count.GetValueOrDefault(c) + 1;
+        var top = count.OrderByDescending(kv => kv.Value).FirstOrDefault().Key;
+        return top switch { "sc" => "forest", "ro" => "hills", "fe" or "gr" => "farm", "wa" => "lake", "oi" => "oil", "ru" => count["ru"] > 200 ? "city" : "town", _ => "farm" };
+    });
 
     public static string[,] Grid(int sector)
     {
@@ -59,11 +71,73 @@ public static class SectorTemplate
     };
 
     public static bool Claimable(int sector, int i, int j) =>
-        i >= 0 && j >= 0 && i < Size && j < Size && Code(sector, i, j) is not ("wa" or "pa" or "ha");
+        i >= 0 && j >= 0 && i < Size && j < Size && Code(sector, i, j) is not ("wa" or "pa" or "ha" or "xx");
 
     // ---------- Generation ----------
 
-    static string[,] Generate(int sector)
+    static string[,] Generate(int sector) => NationMap.Has(sector) ? GenerateOnMap(sector) : GenerateLocal(sector);
+
+    /// <summary>How much of each kind of land a biome has; whatever is left stays barren (about half).</summary>
+    static (string code, double share)[] Shares(string b) => b switch
+    {
+        "farm" => [("wa", .03), ("fe", .18), ("gr", .12), ("sc", .04), ("ro", .03), ("oi", .02), ("ru", .03)],
+        "forest" => [("wa", .04), ("sc", .22), ("gr", .08), ("fe", .04), ("ro", .05), ("oi", .01), ("ru", .03)],
+        "hills" => [("wa", .02), ("ro", .22), ("sc", .08), ("gr", .05), ("fe", .02), ("oi", .03), ("ru", .03)],
+        "lake" => [("wa", .16), ("gr", .10), ("fe", .07), ("sc", .08), ("ro", .03), ("oi", .01), ("ru", .03)],
+        "oil" or "yours" => [("wa", .02), ("oi", .20), ("ro", .06), ("gr", .05), ("fe", .03), ("sc", .04), ("ru", .05)],
+        "town" => [("wa", .03), ("ru", .14), ("gr", .10), ("fe", .06), ("sc", .05), ("ro", .03), ("oi", .02)],
+        "city" => [("wa", .02), ("ru", .24), ("gr", .06), ("fe", .03), ("sc", .03), ("ro", .04), ("oi", .02)],
+        _ => [("wa", .03), ("gr", .16), ("fe", .07), ("sc", .08), ("ro", .04), ("oi", .02), ("ru", .04)],
+    };
+    /// <summary>The order land kinds are laid down in, the same everywhere so neighbouring sectors agree at their edges.</summary>
+    static readonly string[] Layers = ["wa", "ro", "oi", "fe", "gr", "sc", "ru"];
+
+    /// <summary>Fbm values sorted, to turn "this share of the land" into a noise threshold.</summary>
+    static readonly double[] FbmSorted = Enumerable.Range(0, 20000).Select(k => Fbm(Hash(k, 1.3) * 400, Hash(k, 7.9) * 400)).OrderBy(v => v).ToArray();
+    static double Threshold(double share) => FbmSorted[Math.Clamp((int)((1 - share) * FbmSorted.Length), 0, FbmSorted.Length - 1)];
+
+    /// <summary>Land at any spot inside Aurelia from its real geography: rivers and lakes are water; otherwise each kind of land
+    /// follows its own noise field over the whole nation, with how much of it there is set by what's really there
+    /// (mountains, forests, farm plains, oil fields, the ruins of old cities).</summary>
+    public static string LandAt(int x, int y)
+    {
+        double px = x + 0.5, py = y + 0.5;
+        if (Geography.Roads.Contains((x, y))) return "pa";
+        if (Geography.Water(px, py)) return "wa";
+        var mix = Geography.Mix(px, py, Geography.Elevation(px, py));
+        var left = 1.0; var layer = 0;
+        foreach (var k in Layers)
+        {
+            layer++;
+            var share = mix.GetValueOrDefault(k);
+            var eff = Math.Clamp(share / Math.Max(0.05, left), 0, 0.95);
+            left -= share;
+            var scale = k == "ru" ? 2.2 : k == "wa" ? 0.7 : 1.0;
+            var v = Fbm(x / 6.0 * scale + layer * 13.7, y / 6.0 * scale + layer * 7.1);
+            if (eff > 0 && v > Threshold(eff)) return k;
+        }
+        return "ba";
+    }
+
+    /// <summary>Land for a Region 1 sector, from its place on the nation map, with its hall.</summary>
+    static string[,] GenerateOnMap(int sector)
+    {
+        var (gx, gy) = NationMap.Origin(sector);
+        var g = new string[Size, Size];
+        for (var j = 0; j < Size; j++)
+            for (var i = 0; i < Size; i++)
+                g[i, j] = NationMap.Inside(gx + i, gy + j) ? LandAt(gx + i, gy + j) : "xx";
+        // Roads come from the nation's road network (see Geography.Roads); the hall stands in the middle
+        var (hi, hj) = Hall;
+        g[hi, hj] = "ha";
+        return g;
+    }
+
+    /// <summary>Smooth noise in roughly 0..1, for other systems that want the same texture of randomness.</summary>
+    public static double Noise(double x, double y) => Fbm(x, y);
+
+    /// <summary>The Ashlands' land: each sector on its own.</summary>
+    static string[,] GenerateLocal(int sector)
     {
         var b = Biome(sector);
         var g = new string[Size, Size];

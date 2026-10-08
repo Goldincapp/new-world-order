@@ -52,6 +52,9 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
         return await world.Snapshot(sector);
     }
 
+    /// <summary>A neighbouring sector's current state, for drawing it beside the one you're in, without switching live updates.</summary>
+    public Task<object> PeekSector(int sector) => world.Snapshot(sector);
+
     public Task<World.Result> Claim(int sector, int i, int j) => world.Claim(Me.Id, sector, i, j);
 
     public Task<World.Result> Build(int sector, int i, int j, string type) => world.Build(Me.Id, sector, i, j, type);
