@@ -2543,7 +2543,7 @@ function kitInst(group,key,list,opt){if(!list.length)return null;opt=opt||{};con
  im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;im.castShadow=!!opt.shadow;im.receiveShadow=true;group.add(im);return im;}
 /** Water with depth: teal shallows to deep blue, drifting glints, foam at the shore. Depth comes from a small texture of the board's heights. */
 const WATERU={uT:{value:0}};
-function waterSurface(S,HS,level){const Rz=S*4,d=new Uint8Array(Rz*Rz*4);for(let j=0;j<Rz;j++)for(let i=0;i<Rz;i++){const k=j*Rz+i,v=Math.max(0,Math.min(1,(level-HS(-S/2+(i+0.5)/Rz*S,-S/2+(j+0.5)/Rz*S))/0.24));d[k*4]=v*255;d[k*4+3]=255;}
+function waterSurface(S,HS,level,res){const Rz=S*(res||4),d=new Uint8Array(Rz*Rz*4);for(let j=0;j<Rz;j++)for(let i=0;i<Rz;i++){const k=j*Rz+i,v=Math.max(0,Math.min(1,(level-HS(-S/2+(i+0.5)/Rz*S,-S/2+(j+0.5)/Rz*S))/0.24));d[k*4]=v*255;d[k*4+3]=255;}
  const tex=new THREE.DataTexture(d,Rz,Rz);tex.magFilter=tex.minFilter=THREE.LinearFilter;tex.needsUpdate=true;
  const mt=new THREE.ShaderMaterial({transparent:true,depthWrite:false,fog:true,uniforms:THREE.UniformsUtils.merge([THREE.UniformsLib.fog,{uDepth:{value:null},uS:{value:S},sh:{value:new THREE.Color(0x3cc4cc)},dp:{value:new THREE.Color(0x15507e)},sky:{value:new THREE.Color(0xbfe4f4)}}]),
   vertexShader:'varying vec3 vW;\n#include <fog_pars_vertex>\nvoid main(){vW=(modelMatrix*vec4(position,1.)).xyz;vec4 mvPosition=viewMatrix*vec4(vW,1.);gl_Position=projectionMatrix*mvPosition;\n#include <fog_vertex>\n}',
@@ -2644,18 +2644,22 @@ function cellHc(X,Y){const d=NAT.data,ax=X+d.margin,ay=Y+d.margin;if(ax>=0&&ay>=
 /** Height of the land anywhere on the nation map; cell centres sit at whole numbers. */
 function natH(u,v){const i0=Math.floor(u),j0=Math.floor(v);let tx=u-i0,tz=v-j0;tx=tx*tx*(3-2*tx);tz=tz*tz*(3-2*tz);
  const b=(cellHc(i0,j0)*(1-tx)+cellHc(i0+1,j0)*tx)*(1-tz)+(cellHc(i0,j0+1)*(1-tx)+cellHc(i0+1,j0+1)*tx)*tz;
- let r=b+(NZ.fbm(u*0.13,v*0.13)-0.48)*0.16;const shore=NZ.ss(-0.01,0.08,b)*NZ.ss(0.24,0.15,b);r+=shore*(NZ.fbm(u*0.6+9,v*0.6)-0.48)*0.5;return b>0.235?Math.max(r,0.215):r;}
+ let r=b+(NZ.fbm(u*0.13,v*0.13)-0.48)*0.16;const shore=NZ.ss(-0.01,0.08,b)*NZ.ss(0.24,0.15,b);if(shore>0.001)r+=shore*(NZ.fbm(u*0.6+9,v*0.6)-0.48)*0.5;return b>0.235?Math.max(r,0.215):r;}
 const NATCOL={xx:[0x7f8c66,0x76845f],xs:[0x2a7f9a,0x24708a]};
 function natCol2(code){return LANDCOL2[code]||NATCOL[code]||[0x8f9a72,0x83906a];}
 /** Terrain for one board, from the nation-wide functions, so neighbouring boards meet without a seam. */
-function buildNatTerrain(gx,gy,S){const R=LOW?3:4,N=S*R+1,pos=new Float32Array(N*N*3),cols=new Float32Array(N*N*3),spl=new Float32Array(N*N*3),half=(S-1)/2,step=1/R;
- const ca=new THREE.Color(),cb=new THREE.Color(),acc=new THREE.Color(),rock=new THREE.Color(0x8a8178),snow=new THREE.Color(0xeff4f8);
+function buildNatTerrain(gx,gy,S,R){R=R||(LOW?3:4);const N=S*R+1,pos=new Float32Array(N*N*3),cols=new Float32Array(N*N*3),spl=new Float32Array(N*N*3),half=(S-1)/2,step=1/R;
+ // one colour, splat mix and height per parcel (plus a ring around the board), instead of recomputing noise at every vertex
+ const W=S+3,cr=new Float32Array(W*W),cg=new Float32Array(W*W),cbl=new Float32Array(W*W),s0=new Float32Array(W*W),s1=new Float32Array(W*W),s2=new Float32Array(W*W),ce=new Float32Array(W*W),ca=new THREE.Color(),cb=new THREE.Color();
+ for(let j=0;j<W;j++)for(let i=0;i<W;i++){const X=gx-1+i,Y=gy-1+j,k=j*W+i,code=natCode(X,Y),two=natCol2(code),t=NZ.ss(0.3,0.7,NZ.fbm(X*0.16,Y*0.16)+(hash(X*1.7,Y*2.3)-0.5)*0.2);
+  ca.setHex(two[0]).lerp(cb.setHex(two[1]),t);cr[k]=ca.r;cg[k]=ca.g;cbl[k]=ca.b;const sp=SPLAT[code]||[0.6,0.4,0];s0[k]=sp[0];s1[k]=sp[1];s2[k]=sp[2];ce[k]=natElev(X,Y);}
+ const acc=new THREE.Color(),rock=new THREE.Color(0x8a8178),snow=new THREE.Color(0xeff4f8);
  for(let b=0;b<N;b++)for(let a=0;a<N;a++){const v=b*N+a,x=-S/2+a*step,z=-S/2+b*step,u=gx+half+x,w=gy+half+z;pos[v*3]=x;pos[v*3+1]=natH(u,w);pos[v*3+2]=z;
-  const i0=Math.floor(u),j0=Math.floor(w);let tx=u-i0,tz=w-j0;tx=tx*tx*(3-2*tx);tz=tz*tz*(3-2*tz);acc.setRGB(0,0,0);let w0=0,w1=0,w2=0,el=0;
-  [[i0,j0,(1-tx)*(1-tz)],[i0+1,j0,tx*(1-tz)],[i0,j0+1,(1-tx)*tz],[i0+1,j0+1,tx*tz]].forEach(([i,j,wt])=>{if(wt<=0)return;const code=natCode(i,j),two=natCol2(code),t=NZ.ss(0.3,0.7,NZ.fbm(i*0.16,j*0.16)+(NZ.fbm(u*1.1,w*1.1)-0.5)*0.25);
-   ca.setHex(two[0]).lerp(cb.setHex(two[1]),t);acc.r+=ca.r*wt;acc.g+=ca.g*wt;acc.b+=ca.b*wt;const sp=SPLAT[code]||[0.6,0.4,0];w0+=sp[0]*wt;w1+=sp[1]*wt;w2+=sp[2]*wt;el+=natElev(i,j)*wt;});
-  if(el>6.5)acc.lerp(snow,NZ.ss(6.5,8.5,el+(NZ.fbm(u*0.8,w*0.8)-0.5)*1.5));
-  acc.multiplyScalar(0.94+0.12*NZ.fbm(u*0.9+5,w*0.9));cols[v*3]=acc.r;cols[v*3+1]=acc.g;cols[v*3+2]=acc.b;spl[v*3]=w0;spl[v*3+1]=w1;spl[v*3+2]=w2;}
+  const i0=Math.floor(u),j0=Math.floor(w);let tx=u-i0,tz=w-j0;tx=tx*tx*(3-2*tx);tz=tz*tz*(3-2*tz);
+  const k00=(j0-gy+1)*W+(i0-gx+1),k10=k00+1,k01=k00+W,k11=k01+1,w00=(1-tx)*(1-tz),w10=tx*(1-tz),w01=(1-tx)*tz,w11=tx*tz;
+  const L=arr=>arr[k00]*w00+arr[k10]*w10+arr[k01]*w01+arr[k11]*w11;acc.setRGB(L(cr),L(cg),L(cbl));const el=L(ce);
+  if(el>6.5)acc.lerp(snow,NZ.ss(6.5,8.5,el+(hash(u*3.1,w*2.7)-0.5)*1.5));
+  acc.multiplyScalar(0.94+0.12*NZ.fbm(u*0.9+5,w*0.9));cols[v*3]=acc.r;cols[v*3+1]=acc.g;cols[v*3+2]=acc.b;spl[v*3]=L(s0);spl[v*3+1]=L(s1);spl[v*3+2]=L(s2);}
  const Y=v=>pos[v*3+1],c=new THREE.Color();for(let b=0;b<N;b++)for(let a=0;a<N;a++){const v=b*N+a,l=a>0?v-1:v,r=a<N-1?v+1:v,up=b>0?v-N:v,d=b<N-1?v+N:v,avg=(Y(l)+Y(r)+Y(up)+Y(d))/4;
   const slope=Math.hypot(Y(r)-Y(l),Y(d)-Y(up))/(2*step),ao=Math.max(0.8,Math.min(1.05,1-(avg-Y(v))*10)),rk=NZ.ss(0.35,0.8,slope);
   c.setRGB(cols[v*3],cols[v*3+1],cols[v*3+2]).lerp(rock,rk*0.7).multiplyScalar(ao);cols[v*3]=c.r;cols[v*3+1]=c.g;cols[v*3+2]=c.b;
@@ -2665,8 +2669,10 @@ function buildNatTerrain(gx,gy,S){const R=LOW?3:4,N=S*R+1,pos=new Float32Array(N
  const m=new THREE.Mesh(geo,splatMat());m.receiveShadow=true;m.userData.terrainKey=p=>{const i=Math.round(p.x+half),j=Math.round(p.z+half);return i>=0&&j>=0&&i<S&&j<S?i+','+j:null;};return m;}
 
 /** Build one 34x34 board of the nation map: its land, plants, water, and (for a sector) the hall, bases and Caretaker outposts. */
-function buildBoard(c,r,snap,full){const d=NAT.data,S=d.size,half=(S-1)/2,gx=c*S,gy=r*S,n=d.byCell[c+','+r]||0;
- const B={key:c+','+r,c,r,n,gx,gy,snap,group:new THREE.Group(),cells:{},picks:[],bases:{},full};B.group.position.set(gx+half,0,gy+half);NAT.root.add(B.group);
+/* Levels of detail: 2 = close (fine ground, grass, flowers, bushes, crops, reeds, every tree, shadows);
+   1 = mid zoom (a quarter of the ground detail, just the trees, rocks and ruins that shape the land, no shadows). */
+function buildBoard(c,r,snap,lod){lod=lod===true?2:lod===false?1:(lod||1);const full=lod>=2,d=NAT.data,S=d.size,half=(S-1)/2,gx=c*S,gy=r*S,n=d.byCell[c+','+r]||0;
+ const B={key:c+','+r,c,r,n,gx,gy,snap,group:new THREE.Group(),cells:{},picks:[],bases:{},full,lod,detail:[]};B.group.position.set(gx+half,0,gy+half);NAT.root.add(B.group);
  B.H=(x,z)=>natH(gx+half+x,gy+half+z);
  const trees=[],rocks=[],ruins=[],rigs=[],dead=[],bush=[],crop=[],reed=[];let water=false;
  for(let j=0;j<S;j++)for(let i=0;i<S;i++){const X=gx+i,Y=gy+j,code=natCode(X,Y),x=i-half,z=j-half,h=B.H(x,z);if(code==='wa'||code==='xs')water=true;
@@ -2682,22 +2688,24 @@ function buildBoard(c,r,snap,full){const d=NAT.data,S=d.size,half=(S-1)/2,gx=c*S
   if(code==='fe')for(let q=0;q<3;q++)crop.push([x,0,z-0.3+q*0.3]);
   if(code==='wa'&&hash(X*1.1,Y*6.1)<0.3)reed.push([x+(hash(X,Y)-0.5)*0.7,0,z+(hash(Y,X)-0.5)*0.7]);}
  [trees,rocks,ruins,rigs,dead,bush,crop,reed].forEach(l=>l.forEach(p=>p[1]=B.H(p[0],p[2])));
- const terr=buildNatTerrain(gx,gy,S);terr.userData.board=B;B.group.add(terr);B.picks.push(terr);
+ const terr=buildNatTerrain(gx,gy,S,full?0:2);terr.userData.board=B;B.group.add(terr);B.picks.push(terr);
+ if(!full){dead.length=0;bush.length=0;crop.length=0;reed.length=0;}
+ const det=fn=>{const before=B.group.children.length;fn();B.detail.push(...B.group.children.slice(before));};
  const g=B.group,m4=new THREE.Matrix4(),T=(l,k,y)=>l.map(p=>[p[0],p[1]+(y||0),p[2],p[3]*k]);
  const trA=trees.filter(p=>hash(p[0]+gx,p[2]+gy)<0.6),trB=trees.filter(p=>hash(p[0]+gx,p[2]+gy)>=0.6);
- kitInst(g,'pine',T(trA,2.1),{shadow:full});kitInst(g,'oak',T(trB,1.9),{shadow:full});kitInst(g,'rock',T(rocks,0.9,-0.03),{solid:true,shadow:full});kitInst(g,'bush',T(bush,1.5));
+ kitInst(g,'pine',T(trA,2.1),{shadow:full});kitInst(g,'oak',T(trB,1.9),{shadow:full});kitInst(g,'rock',T(rocks,0.9,-0.03),{solid:true,shadow:full});det(()=>kitInst(g,'bush',T(bush,1.5)));
  const inst=(geo,color,list,place)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial({color,roughness:0.9}),list.length);im.castShadow=full;list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);});im.instanceMatrix.needsUpdate=true;g.add(im);};
  inst(new THREE.BoxGeometry(1,1,1),0xb0a490,ruins,(m,p)=>m.makeScale(p[3],p[4],p[5]).setPosition(p[0],p[1]+p[4]/2,p[2]));
- inst(new THREE.CylinderGeometry(0.02,0.04,1,5),0x7a5a3a,dead,(m,p)=>m.makeScale(1,p[3],1).setPosition(p[0],p[1]+p[3]/2,p[2]));
+ det(()=>{inst(new THREE.CylinderGeometry(0.02,0.04,1,5),0x7a5a3a,dead,(m,p)=>m.makeScale(1,p[3],1).setPosition(p[0],p[1]+p[3]/2,p[2]));
  inst(new THREE.BoxGeometry(0.86,0.05,0.12),0x86a83a,crop,(m,p)=>m.makeTranslation(p[0],p[1]+0.02,p[2]));
- inst(new THREE.CylinderGeometry(0.012,0.012,0.35,4),0x7aa83e,reed,(m,p)=>m.makeTranslation(p[0],p[1]+0.17,p[2]));
+ inst(new THREE.CylinderGeometry(0.012,0.012,0.35,4),0x7aa83e,reed,(m,p)=>m.makeTranslation(p[0],p[1]+0.17,p[2]));});
  inst(new THREE.CylinderGeometry(0.05,0.08,1,6),0x55555e,rigs,(m,p)=>m.makeScale(1,0.7,1).setPosition(p[0],p[1]+0.35,p[2]));
  // grass and flowers: full density where you are, thinner on the boards around it
- if(full||!LOW){const tufts=[],flw=[],FL=[0xfff4c0,0xffd45e,0xf6a3c8,0xffffff,0xb9a6ff],dens={gr:9,sc:5,ba:3,ru:1.2,ro:0.8,oi:0.6,fe:0.6,xx:0.8},tint={gr:0xffffff,sc:0xd8f0c8,ba:0xf0e2a0,ru:0xe8e0b0,ro:0xd8d8b0,oi:0xf8e0a0,fe:0xf0e8a0,xx:0xd8e0b8};
-  const k0=(full?1:0.45)*(LOW?0.5:1);Object.values(B.cells).forEach(c0=>{const nd=(dens[c0.code]||0)*k0;for(let q=0;q<nd;q++){if(q+1>nd&&hash(c0.i*1.7+q+gx,c0.j*2.3+gy)>nd%1)break;const x=c0.x+(hash(c0.i*3.1+q*1.3+gx,c0.j*0.7)-0.5)*0.95,z=c0.z+(hash(c0.i*0.9,c0.j*2.9+q*1.7+gy)-0.5)*0.95;
+ if(full)det(()=>{const tufts=[],flw=[],FL=[0xfff4c0,0xffd45e,0xf6a3c8,0xffffff,0xb9a6ff],dens={gr:9,sc:5,ba:3,ru:1.2,ro:0.8,oi:0.6,fe:0.6,xx:0.8},tint={gr:0xffffff,sc:0xd8f0c8,ba:0xf0e2a0,ru:0xe8e0b0,ro:0xd8d8b0,oi:0xf8e0a0,fe:0xf0e8a0,xx:0xd8e0b8};
+  const k0=LOW?0.5:1;Object.values(B.cells).forEach(c0=>{const nd=(dens[c0.code]||0)*k0;for(let q=0;q<nd;q++){if(q+1>nd&&hash(c0.i*1.7+q+gx,c0.j*2.3+gy)>nd%1)break;const x=c0.x+(hash(c0.i*3.1+q*1.3+gx,c0.j*0.7)-0.5)*0.95,z=c0.z+(hash(c0.i*0.9,c0.j*2.9+q*1.7+gy)-0.5)*0.95;
    if(hash(x*7.7+gx,z*3.3+gy)<(c0.code==='gr'?0.08:0.03))flw.push([x,B.H(x,z),z,0.8+hash(x,z)*0.5,FL[Math.floor(hash(z,x)*FL.length)]]);else tufts.push([x,B.H(x,z),z,0.7+hash(z*2,x)*0.7,tint[c0.code]]);}});
-  kitInst(g,'tuft',tufts);kitInst(g,'flower',flw);}
- if(water)g.add(waterSurface(S,B.H,0.2));
+  kitInst(g,'tuft',tufts);kitInst(g,'flower',flw);});
+ if(water)g.add(waterSurface(S,B.H,0.2,full?4:2));
  if(n){const hall=B.cells[SECTOR_HALL],P0=P;P=g;
   add(new RoundedBoxGeometry(1.6,0.7,1.6,2,0.06),0xe2d4b4,hall.x,hall.top+0.35,hall.z);add(new THREE.ConeGeometry(1.25,0.6,4),0xb5523a,hall.x,hall.top+1.0,hall.z).rotation.y=Math.PI/4;
   add(new THREE.CylinderGeometry(0.02,0.02,1.2,6),0x444444,hall.x+0.6,hall.top+1.1,hall.z+0.6);const hf=add(boxG,0xe7c46a,hall.x+0.85,hall.top+1.55,hall.z+0.6,null,{emissive:0xe7c46a,emissiveIntensity:0.3});hf.scale.set(0.36,0.22,0.01);flags.push(hf);P=P0;
@@ -2761,18 +2769,27 @@ function natShow(snap){const d=NAT.data,o=d.sec[snap.sector];if(!o)return false;
  if(old&&old.snap){old.snap=snap;Object.keys(old.bases).forEach(k=>{if(!snap.parcels.some(p=>p.home&&p.i+','+p.j===k)){old.group.remove(old.bases[k]);delete old.bases[k];}});snap.parcels.filter(p=>p.home).forEach(v=>addBase(v,old));activateBoard(old);return true;}
  if(old)disposeBoard(old);const B=buildBoard(c,r,snap,true);NAT.boards.set(key,B);activateBoard(B);return true;}
 /** Every half second: switch to the sector under the camera, stream nearby boards in and far ones out. */
-async function natTick(){if(!SEAM()||mode!=='county'||!NAT.cur||NAT.busy||anim)return;const now=performance.now();if(now-NAT.last<450)return;NAT.last=now;
- const d=NAT.data,S=d.size,half=(S-1)/2,u=controls.target.x-NAT.root.position.x,w=controls.target.z-NAT.root.position.z,c=Math.floor(u/S),r=Math.floor(w/S),far=camera.position.distanceTo(controls.target);
+async function natTick(){if(!SEAM()||mode!=='county'||!NAT.cur||NAT.busy||anim)return;const now=performance.now();if(now-NAT.last<200)return;NAT.last=now;
+ const d=NAT.data,S=d.size,u=controls.target.x-NAT.root.position.x,w=controls.target.z-NAT.root.position.z,c=Math.floor(u/S),r=Math.floor(w/S),far=camera.position.distanceTo(controls.target);
  NAT.labels.forEach(l=>{l.visible=l.userData.nation?far>160:far>70;if(l.visible){const k=Math.max(3.6,far*0.045)*(l.userData.mine?1.3:l.userData.nation?1.5:1);l.scale.set(1.79*k,0.39*k,1);}});
  const n=d.byCell[c+','+r];
  if(n&&n!==NAT.cur.n){const B=NAT.boards.get(c+','+r);if(B&&B.snap){activateBoard(B);NET.viewSector=n;NET.noFly=true;watchHome().finally(()=>{NET.noFly=false;});return;}}
- if(far>110)return;
- // load the nearest missing board within one square of the camera
- let best=null,bd=1e9;const eu=NAT.eu;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const k=(c+dc)+','+(r+dr);if(NAT.boards.has(k))continue;const cx=c+dc,cy=r+dr;
-  if(eu?(cx*S>eu.x0+eu.w*eu.step||cy*S>eu.y0+eu.h*eu.step||(cx+1)*S<eu.x0||(cy+1)*S<eu.y0):(cx*S>d.width+d.margin||cy*S>d.height+d.margin||(cx+1)*S<-d.margin||(cy+1)*S<-d.margin))continue;const dd=dc*dc+dr*dr;if(dd<bd){bd=dd;best=[cx,cy];}}
- if(best){NAT.busy=true;try{const k=best[0]+','+best[1],sn=d.byCell[k];let snap=null;if(!inGermanyAtlas(best[0]*S,best[1]*S)||!inGermanyAtlas(best[0]*S+S-1,best[1]*S+S-1))await natFetchSquares(best[0],best[1]).catch(()=>{});if(sn&&NET.conn)snap=await NET.conn.invoke('PeekSector',sn).catch(()=>null);if(!NAT.boards.has(k)){const B=buildBoard(best[0],best[1],snap,false);NAT.boards.set(k,B);picks.push(...B.picks);}}finally{NAT.busy=false;}return;}
- // drop boards more than two squares away
- NAT.boards.forEach(B=>{if(B!==NAT.cur&&(Math.abs(B.c-c)>2||Math.abs(B.r-r)>2)){disposeBoard(B);const i=picks.indexOf(B.picks[0]);if(i>=0)picks.splice(i,1);}});}
+ // how much detail each square around the camera should have: full detail close up, a lighter version further out, none from far away
+ const near=far<55,mid=far<140,want=(dc,dr)=>{const dd=Math.max(Math.abs(dc),Math.abs(dr));return near?(dd<=1?2:dd<=2?1:0):mid?(dd<=2?1:0):0;};
+ // grass and small things come and go with the zoom, without rebuilding anything
+ NAT.boards.forEach(B=>{const on=want(B.c-c,B.r-r)>=2;B.detail.forEach(m=>{m.visible=on;});});
+ // build or upgrade the nearest square that needs more detail than it has
+ const eu=NAT.eu,inBounds=(cx,cy)=>eu?!(cx*S>eu.x0+eu.w*eu.step||cy*S>eu.y0+eu.h*eu.step||(cx+1)*S<eu.x0||(cy+1)*S<eu.y0):!(cx*S>d.width+d.margin||cy*S>d.height+d.margin||(cx+1)*S<-d.margin||(cy+1)*S<-d.margin);
+ let best=null,bd=1e9;for(let dr=-2;dr<=2;dr++)for(let dc=-2;dc<=2;dc++){const lv=want(dc,dr);if(!lv)continue;const cx=c+dc,cy=r+dr;if(!inBounds(cx,cy))continue;const B=NAT.boards.get(cx+','+cy);if(B&&B.lod>=lv)continue;const dd=dc*dc+dr*dr+(B?0.5:0);if(dd<bd){bd=dd;best=[cx,cy,lv];}}
+ if(best){NAT.busy=true;try{const [cx,cy,lv]=best,k=cx+','+cy,sn=d.byCell[k],old=NAT.boards.get(k);
+   if(!inGermanyAtlas(cx*S,cy*S)||!inGermanyAtlas(cx*S+S-1,cy*S+S-1))await natFetchSquares(cx,cy).catch(()=>{});
+   let snap=old&&old.snap||null;if(!snap&&sn&&NET.conn)snap=await NET.conn.invoke('PeekSector',sn).catch(()=>null);
+   const now2=NAT.boards.get(k);if(now2&&now2.lod>=lv)return;
+   const B=buildBoard(cx,cy,snap,lv);B.detail.forEach(m=>{m.visible=lv>=2;});
+   if(now2){const wasCur=now2===NAT.cur;disposeBoard(now2);for(let i=picks.length-1;i>=0;i--)if(picks[i].userData.board===now2)picks.splice(i,1);NAT.boards.set(k,B);if(wasCur)activateBoard(B);else picks.push(...B.picks);}
+   else{NAT.boards.set(k,B);picks.push(...B.picks);}}finally{NAT.busy=false;}return;}
+ // drop squares more than two away (the one you're in stays)
+ NAT.boards.forEach(B=>{if(B!==NAT.cur&&(Math.abs(B.c-c)>2||Math.abs(B.r-r)>2)){disposeBoard(B);for(let i=picks.length-1;i>=0;i--)if(picks[i].userData.board===B)picks.splice(i,1);}});}
 setInterval(natTick,150);
 /* ---------- From the nation map to the Nation view and back, without a seam ----------
    Both maps use the same old-world projection, so Aurelia sits in the same place in each, the Nation view at about 1/115
