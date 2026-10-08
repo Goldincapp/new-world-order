@@ -214,9 +214,60 @@ api.MapPost("/feedback", async (HttpContext ctx, FeedbackRequest req, GameDb db)
     var fb = new Feedback { PlayerId = p.Id, Name = p.Name, Kind = kind, Text = text, Context = ctxText, Shot = shot };
     db.Feedback.Add(fb);
     await db.SaveChangesAsync();
-    fb.IssueUrl = await FeedbackDesk.OpenIssue(fb);
-    if (fb.IssueUrl is not null) await db.SaveChangesAsync();
+    if (shot is not null) fb.ShotKey = Auth.NewToken();
+    fb.IssueUrl = await FeedbackDesk.OpenIssue(fb, ShotUrl(ctx, fb));
+    await db.SaveChangesAsync();
     return Results.Ok(new { ok = true, id = fb.Id, issue = fb.IssueUrl, github = FeedbackDesk.LinkedToGitHub });
+});
+
+static string? ShotUrl(HttpContext ctx, Feedback fb) => fb.ShotKey is null ? null :
+    $"{(ctx.Request.Host.Host is "localhost" or "127.0.0.1" ? "http" : "https")}://{ctx.Request.Host}/api/feedback/{fb.Id}/shot?k={fb.ShotKey}";
+
+// A feedback screenshot, for its GitHub issue: needs the screenshot's own unguessable key.
+api.MapGet("/feedback/{id:long}/shot", async (GameDb db, long id, string? k) =>
+{
+    var fb = await db.Feedback.Where(x => x.Id == id).Select(x => new { x.Shot, x.ShotKey }).FirstOrDefaultAsync();
+    if (fb?.Shot is null || fb.ShotKey is null || k != fb.ShotKey) return Results.NotFound();
+    return Results.File(Convert.FromBase64String(fb.Shot[(fb.Shot.IndexOf(',') + 1)..]), "image/jpeg");
+});
+
+// The owner prompts a code change from inside the game. It becomes a GitHub issue for Claude, which makes the change
+// and opens a pull request; merging it deploys. Owner only.
+api.MapPost("/prompt", async (HttpContext ctx, FeedbackRequest req, GameDb db) =>
+{
+    var p = await Auth.PlayerFrom(ctx, db);
+    if (p is null) return Results.Unauthorized();
+    if (!p.IsOwner) return Results.Json(new { error = "Only the game's owner can prompt changes. Use Feedback instead." }, statusCode: 403);
+    var text = (req.Text ?? "").Trim();
+    if (text.Length < 5) return Results.BadRequest(new { error = "Describe the change you want." });
+    if (text.Length > FeedbackDesk.MaxText) text = text[..FeedbackDesk.MaxText];
+    var shot = req.Shot is { Length: <= FeedbackDesk.MaxShot } sh && sh.StartsWith("data:image/jpeg;base64,") ? sh : null;
+    var fb = new Feedback { PlayerId = p.Id, Name = p.Name, Kind = "change", Text = text, Context = req.Context is { } c ? (c.Length > 2000 ? c[..2000] : c) : null, Shot = shot, ShotKey = shot is null ? null : Auth.NewToken() };
+    db.Feedback.Add(fb);
+    await db.SaveChangesAsync();
+    fb.IssueUrl = await FeedbackDesk.OpenChangeIssue(fb, ShotUrl(ctx, fb));
+    await db.SaveChangesAsync();
+    return Results.Ok(new { ok = true, id = fb.Id, issue = fb.IssueUrl, github = FeedbackDesk.LinkedToGitHub });
+});
+
+// The owner's recent prompts, newest first.
+api.MapGet("/prompts", async (HttpContext ctx, GameDb db) =>
+{
+    var p = await Auth.PlayerFrom(ctx, db);
+    if (p is null || !p.IsOwner) return Results.Unauthorized();
+    return Results.Ok(await db.Feedback.Where(x => x.Kind == "change").OrderByDescending(x => x.Id).Take(8)
+        .Select(x => new { x.Id, x.At, x.Text, x.Status, x.IssueUrl }).ToListAsync());
+});
+
+// Admin: make a player the game's owner (or not), so they can prompt changes from inside the game.
+api.MapPost("/admin/owner", async (HttpContext ctx, GameDb db, string name, bool? on) =>
+{
+    if (!Admin.Allowed(ctx)) return Results.Unauthorized();
+    var p = await db.Players.FirstOrDefaultAsync(x => x.Name == name && !x.IsBot);
+    if (p is null) return Results.NotFound(new { error = $"No player called {name}." });
+    p.IsOwner = on ?? true;
+    await db.SaveChangesAsync();
+    return Results.Ok(new { p.Name, owner = p.IsOwner });
 });
 
 // Admin: the feedback queue, newest first. ?status=new|seen|done|wontdo, ?format=md for a list to hand to an agent.
@@ -412,7 +463,7 @@ static class Dto
             pending = Economy.Pending(p, now),
             ratesPerHour = Economy.RatesPerHour(p),
             parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x) }),
-            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, guide = Guide.View(p), allianceId = p.AllianceId, allianceRole = p.AllianceRole, warScore = Region2.Score(p),
+            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, owner = p.IsOwner, guide = Guide.View(p), allianceId = p.AllianceId, allianceRole = p.AllianceRole, warScore = Region2.Score(p),
             claimCost = Economy.ClaimCost,
             buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour, tech = Research.Unlocking(kv.Key)?.Name, locked = Research.Unlocking(kv.Key) is { } tk && !Research.Has(p, tk.Id) }),
             research = Research.View(p),

@@ -21,29 +21,48 @@ public static class FeedbackDesk
     static string? Token => Environment.GetEnvironmentVariable("NWO_GITHUB_TOKEN");
     public static bool LinkedToGitHub => !string.IsNullOrEmpty(Repo) && !string.IsNullOrEmpty(Token);
 
-    static readonly Dictionary<string, string> KindName = new() { ["bug"] = "Bug", ["idea"] = "Idea", ["balance"] = "Balance", ["other"] = "Feedback" };
+    static readonly Dictionary<string, string> KindName = new() { ["bug"] = "Bug", ["idea"] = "Idea", ["balance"] = "Balance", ["other"] = "Feedback", ["change"] = "Change" };
+
+    /// <summary>A change prompted by the owner from inside the game: the issue addresses Claude, whose GitHub Action makes the change
+    /// on a claude/ branch; a second workflow opens the pull request for the owner to merge.</summary>
+    public static Task<string?> OpenChangeIssue(Feedback f, string? shotUrl) => OpenIssue(f, shotUrl, forClaude: true);
 
     /// <summary>Open a GitHub issue for this feedback. Returns its web address, or null when GitHub isn't linked or the call fails.</summary>
-    public static async Task<string?> OpenIssue(Feedback f)
+    public static async Task<string?> OpenIssue(Feedback f, string? shotUrl = null, bool forClaude = false)
     {
         if (!LinkedToGitHub) return null;
         try
         {
             var firstLine = f.Text.Split('\n')[0].Trim();
             var title = $"[{KindName.GetValueOrDefault(f.Kind, "Feedback")}] {(firstLine.Length > 70 ? firstLine[..70] + "…" : firstLine)}";
-            var body = $"""
+            var shot = shotUrl is not null ? $"![Screenshot]({shotUrl})" : string.IsNullOrEmpty(f.Shot) ? "none" : $"saved on the server: `GET /api/admin/feedback/{f.Id}/shot` with the admin key";
+            var body = forClaude
+                ? $"""
+                @claude please make this change to the game, requested by the owner from inside the game:
+
+                > {f.Text.Replace("\n", "\n> ")}
+
+                Read CLAUDE.md and docs/GAME_OVERVIEW.md first. Keep the change focused, check it builds (dotnet build and the client syntax check in CLAUDE.md), and update docs/GAME_OVERVIEW.md if the change alters how the game works.
+
+                ---
+                **Where the owner was:** {f.Context ?? "(no context)"}
+                **Screenshot:** {shot}
+
+                _Sent from the in-game "Prompt a change" box · request #{f.Id}_
+                """
+                : $"""
                 {f.Text}
 
                 ---
                 **From:** {f.Name} · {f.At:yyyy-MM-dd HH:mm} UTC · feedback #{f.Id}
                 **Where:** {f.Context ?? "(no context)"}
-                **Screenshot:** {(string.IsNullOrEmpty(f.Shot) ? "none" : $"saved on the server: `GET /api/admin/feedback/{f.Id}/shot` with the admin key")}
+                **Screenshot:** {shot}
 
                 _Sent from the in-game Feedback button._
                 """;
             using var req = new HttpRequestMessage(HttpMethod.Post, $"https://api.github.com/repos/{Repo}/issues")
             {
-                Content = JsonContent.Create(new { title, body, labels = new[] { "feedback", f.Kind } }),
+                Content = JsonContent.Create(new { title, body, labels = forClaude ? new[] { "change-request" } : new[] { "feedback", f.Kind } }),
             };
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Token);
             req.Headers.UserAgent.ParseAdd("NWO-Server");

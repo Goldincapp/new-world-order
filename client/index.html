@@ -2993,18 +2993,26 @@ const FB={kind:'idea',shot:null};
 function grabShot(){try{composer.render();const src=renderer.domElement,w=Math.min(960,src.width),h=Math.round(src.height*w/src.width),cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(src,0,0,w,h);return cv.toDataURL('image/jpeg',0.62);}catch(_){return null;}}
 function fbContext(){return JSON.stringify({view:mode,sector:window.NET&&NET.big?NET.big.sector:null,home:NET.me&&NET.me.homeSector,graphics:NEWGFX?'new':'classic',screen:innerWidth+'x'+innerHeight+'@'+(devicePixelRatio||1),landscape:innerWidth>innerHeight,device:navigator.userAgent,time:new Date().toISOString()});}
 function openFeedback(){if(!(window.NET&&NET.me)){toast('Sign in to send feedback');return;}FB.shot=grabShot();card.hidden=true;chatEl.hidden=true;const el=$('fbEl');
- const kinds=[['bug','Something\'s broken'],['idea','An idea'],['balance','Too easy / too hard'],['other','Other']];
+ const kinds=[['bug','Something\'s broken'],['idea','An idea'],['balance','Too easy / too hard'],['other','Other']].concat(NET.me.owner?[['change','Prompt a change']]:[]);
  el.innerHTML='<button class="x" id="fbX" aria-label="Close"><span class="ms">close</span></button><h3>Feedback</h3><p class="note">Tell us what\'s broken, what you\'d change or what you\'d add. It goes straight to the developers, with where you are in the game.</p>'+
   '<div class="kinds" role="group" aria-label="Kind of feedback">'+kinds.map(k=>'<button data-k="'+k[0]+'" aria-pressed="'+(FB.kind===k[0])+'">'+k[1]+'</button>').join('')+'</div>'+
   '<textarea id="fbText" maxlength="2000" placeholder="e.g. Placing buildings is fiddly on my phone. Could the arrows be bigger?"></textarea>'+
   (FB.shot?'<label class="shot"><input type="checkbox" id="fbShot" checked> Attach a screenshot of where I am<img src="'+FB.shot+'" alt="Screenshot preview"></label>':'')+
   '<button class="send" id="fbSend">Send</button><p class="msg" id="fbMsg"></p>';
- el.hidden=false;
- el.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{FB.kind=b.dataset.k;el.querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
+ el.hidden=false;fbMode();
+ el.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{FB.kind=b.dataset.k;el.querySelectorAll('[data-k]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));fbMode();});
  $('fbX').onclick=()=>{el.hidden=true;};$('fbSend').onclick=sendFeedback;setTimeout(()=>$('fbText').focus(),60);}
+/** The owner's "Prompt a change" tab: the prompt goes to Claude as a GitHub issue; Claude opens a pull request to merge. */
+function fbMode(){const ch=FB.kind==='change',t=$('fbText'),send=$('fbSend'),note=$('fbEl').querySelector('.note');if(!t)return;
+ t.placeholder=ch?'Describe the change, e.g. "Make the placement arrows twice as big on phones" or "Add a leaderboard of land owned".':'e.g. Placing buildings is fiddly on my phone. Could the arrows be bigger?';
+ send.textContent=ch?'Send to Claude':'Send';
+ note.textContent=ch?'Claude reads the game\'s code, makes the change and opens a pull request. Merge it on GitHub and it goes live in a few minutes.':'Tell us what\'s broken, what you\'d change or what you\'d add. It goes straight to the developers, with where you are in the game.';
+ let list=$('fbList');if(!list){list=document.createElement('div');list.id='fbList';$('fbEl').appendChild(list);}list.innerHTML='';
+ if(ch)api('/prompts').then(rows=>{if(FB.kind!=='change')return;list.innerHTML=rows.length?'<p class="msg"><b>Your recent prompts</b></p>'+rows.map(r=>'<p class="msg">'+esc(r.text.length>80?r.text.slice(0,80)+'…':r.text)+(r.issueUrl?' · <a href="'+r.issueUrl+'" target="_blank" rel="noopener">follow it on GitHub</a>':' · saved (GitHub not linked yet)')+'</p>').join(''):'';}).catch(()=>{});}
 async function sendFeedback(){const t=$('fbText').value.trim(),btn=$('fbSend'),msg=$('fbMsg');if(t.length<3){msg.textContent='Write a few words first.';return;}
  btn.disabled=true;msg.textContent='Sending…';
- try{const r=await api('/feedback',{kind:FB.kind,text:t,context:fbContext(),shot:$('fbShot')&&$('fbShot').checked?FB.shot:null});
+ try{const ch=FB.kind==='change',r=await api(ch?'/prompt':'/feedback',{kind:FB.kind,text:t,context:fbContext(),shot:$('fbShot')&&$('fbShot').checked?FB.shot:null});
+  if(ch){$('fbText').value='';msg.innerHTML=r.issue?'Sent to Claude. It\'s working on it: <a href="'+r.issue+'" target="_blank" rel="noopener">follow along on GitHub</a>. You\'ll get a pull request to merge.':'Saved. GitHub isn\'t linked on the server yet, so Claude can\'t start on it automatically.';fbMode();btn.disabled=false;return;}
   $('fbText').value='';msg.innerHTML='Sent. Thank you!'+(r.issue?' It\'s on the developers\' list: <a href="'+r.issue+'" target="_blank" rel="noopener">see it on GitHub</a>.':' It\'s on the developers\' list.');}
  catch(e){msg.textContent=e.message||'Couldn\'t send. Try again in a moment.';}
  btn.disabled=false;}

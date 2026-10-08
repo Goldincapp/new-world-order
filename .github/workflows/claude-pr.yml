@@ -1,0 +1,35 @@
+# When Claude pushes a claude/ branch with changes, open a pull request for it, so the owner only has to review and merge.
+# Needs: Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+name: Open Claude's pull request
+
+on:
+  push:
+    branches: ['claude/**']
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+jobs:
+  open-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open a pull request if there isn't one yet
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -e
+          if [ "$(gh api "repos/$REPO/compare/main...$BRANCH" -q .ahead_by)" = "0" ]; then echo "No changes yet."; exit 0; fi
+          if [ -n "$(gh pr list -R "$REPO" --head "$BRANCH" --state open --json number -q '.[0].number')" ]; then echo "Pull request already open."; exit 0; fi
+          ISSUE=$(echo "$BRANCH" | sed -nE 's#^claude/issue-([0-9]+).*#\1#p')
+          if [ -n "$ISSUE" ]; then
+            TITLE=$(gh issue view "$ISSUE" -R "$REPO" --json title -q .title)
+            BODY=$(printf 'Made by Claude from an in-game prompt.\n\nCloses #%s\n\nMerging deploys it to the live game.' "$ISSUE")
+          else
+            TITLE=$(gh api "repos/$REPO/commits/$BRANCH" -q .commit.message | head -1)
+            BODY='Made by Claude. Merging deploys it to the live game.'
+          fi
+          gh pr create -R "$REPO" --base main --head "$BRANCH" --title "$TITLE" --body "$BODY"

@@ -9,6 +9,8 @@ public class Player
     public string TokenHash { get; set; } = "";
     /// <summary>Sign-ins on other devices (token hashes, comma-separated, newest last). Recovering on a new device adds one instead of signing the others out.</summary>
     public string? ExtraTokens { get; set; }
+    /// <summary>The game's owner: can prompt code changes from inside the game. Set with the admin endpoint /admin/owner.</summary>
+    public bool IsOwner { get; set; }
     /// <summary>Hash of the player's recovery code, which signs them in on another device.</summary>
     public string? RecoveryHash { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
@@ -156,6 +158,8 @@ public class Feedback
     public string Status { get; set; } = "new";
     public string? Note { get; set; }
     public string? IssueUrl { get; set; }
+    /// <summary>Unguessable key so the screenshot can be shown inside its GitHub issue without the admin key.</summary>
+    public string? ShotKey { get; set; }
 }
 
 /// <summary>One line of the Caretaker's record: what it remembers about a player.</summary>
