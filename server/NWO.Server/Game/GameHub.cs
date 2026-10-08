@@ -57,6 +57,9 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<World.Result> Claim(int sector, int i, int j) => world.Claim(Me.Id, sector, i, j);
 
+    /// <summary>Move your home base to this parcel (claiming it if it's free).</summary>
+    public Task<World.Result> RelocateBase(int sector, int i, int j) => world.Relocate(Me.Id, sector, i, j);
+
     public Task<World.Result> Build(int sector, int i, int j, string type) => world.Build(Me.Id, sector, i, j, type);
 
     public Task<World.Result> PlaceHome(string type, int x, int y, bool rotate) => world.PlaceHome(Me.Id, type, x, y, rotate);

@@ -1044,8 +1044,15 @@ function sectorInfo(u){const names={forest:'Forest',hills:'Highlands',lake:'Lake
 
 function toSector(n){if(window.NET&&NET.conn&&NET.me&&!OPEN_CLOSED.has(n)){openSectorMap(n);return;}if(n!==12){enterVisit(n);return;}go('county',V3(0,0,0),V3(2,33,2),'Entered Sector '+n+' · Vellmoor province');}
 function sectorToProvince(){provinceForMe();const hs=window.NET&&NET.me?NET.me.homeSector:12,[x,z]=sc(Math.floor((hs-1)/NR),(hs-1)%NR);go('province',V3(x,PT,z),V3(x,2.4,z+1.3),'Vellmoor province');}
+/** Where your home base stands on the nation map, in world coordinates (or null if the map isn't up). */
+function myBaseOnMap(){if(!(SEAM()&&NAT.root&&NET.me))return null;const hp=(NET.me.parcels||[]).find(p=>p.home),o=hp&&NAT.data.sec[hp.sector];if(!o)return null;
+ const u=o.gx+hp.i,v=o.gy+hp.j;return {hp,o,pos:V3(u+NAT.root.position.x,natH(u,v),v+NAT.root.position.z)};}
+/** From the map: glide over to your base (wherever it is in the nation), then go inside. */
+async function goHomeFromMap(){const b=myBaseOnMap();if(!b){sectorToHome();return;}const d=NAT.data,key=(b.o.gx/d.size)+','+(b.o.gy/d.size);
+ if(!NAT.boards.has(key)&&NET.conn){const snap=await NET.conn.invoke('PeekSector',b.hp.sector).catch(()=>null);if(!NAT.boards.has(key)){const B=buildBoard(b.o.gx/d.size,b.o.gy/d.size,snap,false);NAT.boards.set(key,B);picks.push(...B.picks);}}
+ const p=myBaseOnMap().pos,far=camera.position.distanceTo(p);flyTo(p.clone(),p.clone().add(V3(2.2,3.2,2.6)),()=>sectorToHome());if(anim)anim.dur=Math.min(2.4,0.9+far/120);}
 function sectorToHome(){if(window.NET&&NET.me&&NET.me.home&&NET.me.home.hi){const m0=mode;mode='hq';const h=home();mode=m0;go('hq',h[0],h[1],'Home base');return;}go('hq',V3(0,0,0),V3(3,29,3),'Home base');}
-function homeToSector(){const h=(window.NET&&NET.big&&cells[NET.homeKey])||cells['6,12'];go('county',V3(h.x,h.top,h.z),V3(h.x,h.top+2.6,h.z+1.5),'Sector 12');}
+function homeToSector(){const b=myBaseOnMap();if(b){go('county',b.pos,b.pos.clone().add(V3(0,2.6,1.5)),'Sector '+b.hp.sector);return;}const h=(window.NET&&NET.big&&cells[NET.homeKey])||cells['6,12'];go('county',V3(h.x,h.top,h.z),V3(h.x,h.top+2.6,h.z+1.5),'Sector 12');}
 
 /* ---------- Realistic relief for the nation map ---------- */
 {const nh=(x,y)=>{const q=Math.sin(x*127.1+y*311.7)*43758.5453;return q-Math.floor(q);};
@@ -1199,8 +1206,9 @@ function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.
  if(a==='Open market'){openMarket();return;}
  if(a==='Open province view'){diveToSector();return;}
  if(a==='Enter sector'){toSector(lastSector);return;}
- if(a==='Enter home base'){sectorToHome();return;}
+ if(a==='Enter home base'){if(mode==='county'&&myBaseOnMap())goHomeFromMap();else sectorToHome();return;}
  if(a.startsWith('Claim')){claimParcel(current,e);return;}
+ if(a==='Move my base here'&&current&&window.NET&&NET.conn){moveBaseHere(current);return;}
  if(a==='Build'){openBuild(current);return;}
  if(a==='Attack militia'){card.hidden=true;startBattle({title:'Assault on the militia camp: Sector 30',enemy:'Militia camp',sector:30});return;}
  if(a==='Attack'||a==='Scout and attack'){scoutCard(lastSector===44?'blue2':'blue');return;}
@@ -1239,7 +1247,7 @@ function resOf(c){const sp=window.NET&&NET.sector&&NET.sector[c.i+','+c.j];let t
  const unit={Oil:'oil',Grain:'grain',Timber:'timber',Stone:'stone','Iron ore':'ore','Housing and tax':'cash'}[t]||'';
  return {t,rich,seam,unit,out:rich*6+(t==='Oil'?6:0),days:6+rich*4};}
 const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
-function ownerOf(c){const k=c.i+','+c.j;if(window.NET&&NET.big){const sp=NET.sector[k];if(sp&&sp.owner)return sp.owner===NET.me.name?'You':sp.owner;return /^(wa|pa|ha)$/.test(c.code)?'Not claimable':'Unclaimed';}if(window.NET&&NET.sector){const sp=NET.sector[k];if(!sp)return c.type==='town'?'Aurelian citizens':'Not claimable';return sp.owner?(sp.owner===NET.me.name?'You':sp.owner):'Unclaimed';}if(claimed.has(k))return 'You';if(c.i>=10&&c.j<=6)return 'You';if(c.i<=3&&c.j>=9)return 'Blue Party (rival)';if(c.i>=8&&c.i<=11&&c.j>=10)return 'For sale';if(c.lvl>=2)return 'Crown land';return 'Unclaimed';}
+function ownerOf(c){const k=c.i+','+c.j;if(window.NET&&NET.big){const sp=NET.sector[k];if(sp&&sp.owner)return sp.owner===NET.me.name?'You':sp.owner;return /^(wa|pa|ha|xx|xs)$/.test(c.code)||OPEN_CLOSED.has(NET.big.sector)?'Not claimable':'Unclaimed';}if(window.NET&&NET.sector){const sp=NET.sector[k];if(!sp)return c.type==='town'?'Aurelian citizens':'Not claimable';return sp.owner?(sp.owner===NET.me.name?'You':sp.owner):'Unclaimed';}if(claimed.has(k))return 'You';if(c.i>=10&&c.j<=6)return 'You';if(c.i<=3&&c.j>=9)return 'Blue Party (rival)';if(c.i>=8&&c.i<=11&&c.j>=10)return 'For sale';if(c.lvl>=2)return 'Crown land';return 'Unclaimed';}
 function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
  if(window.NET&&NET.big){const k0=c.i+','+c.j,sp0=NET.sector[k0];
   if(c.code==='ha'){const r2=NET.big.region===2,nm=NET.big.name,mineHere=Object.values(NET.sector).filter(v=>v.owner===NET.me.name).length;
@@ -1254,7 +1262,8 @@ function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
   if(sp0&&sp0.owner&&sp0.owner!==NET.me.name){const r2=NET.big.region===2;showCard(sp0.owner+'\'s land','Parcel '+id+' · Sector '+NET.big.sector,[['Owner',sp0.owner],['Land here',RESNAME[sp0.res]||sp0.res],['Built',sp0.b&&sp0.b.length?sp0.b.join(', '):'Nothing yet']].concat(r2?[['Seize it','Beat their garrison and it is yours. Costs 80 fuel. Half the buildings are wrecked in the fighting']]:[['Take it',NET.me.homeSector===NET.big.sector?'Beat '+sp0.owner+'\'s home base with 3 stars to conquer a parcel of theirs':'Only their neighbours in this sector can fight them for it']]),r2?['Seize · 80 fuel','Close']:['Close']);return;}}
  if(!(window.NET&&NET.big)&&c.i===6&&c.j===12){slots.forEach(s=>s.material=slotUsed);showCard('Your HQ parcel','Parcel '+id+' · home base',[['Owner','You'],['Headquarters','Level 12'],['Walls','Level 6'],['Garrison','40 troops']],['Enter home base','Upgrade'],9);return;}
  const k=c.i+','+c.j,owner=ownerOf(c),R=resOf(c),sv=surveyed.has(k)||owner==='You';
- let btns;if(owner==='You')btns=['Collect','Build'];else if(owner==='Blue Party (rival)')btns=['Scout','Attack'];else if(owner==='For sale')btns=sv?['Buy · 1,250 gold']:['Buy · 1,250 gold','Survey · 50 cash'];else if(owner==='Crown land')btns=sv?['Petition to buy']:['Petition to buy','Survey · 50 cash'];else{const cl='Claim · '+fmt(window.NET&&NET.big&&NET.big.claimCost||2500)+' cash';btns=sv?[cl]:[cl,'Survey · 50 cash'];}
+ const canBase=window.NET&&NET.big&&NET.big.region!==2&&!OPEN_CLOSED.has(NET.big.sector)&&!/^(wa|pa|ha|xx|xs)$/.test(c.code||'');
+ let btns;if(owner==='You')btns=['Collect','Build'].concat(canBase?['Move my base here']:[]);else if(owner==='Not claimable')btns=['Close'];else if(owner==='Blue Party (rival)')btns=['Scout','Attack'];else if(owner==='For sale')btns=sv?['Buy · 1,250 gold']:['Buy · 1,250 gold','Survey · 50 cash'];else if(owner==='Crown land')btns=sv?['Petition to buy']:['Petition to buy','Survey · 50 cash'];else{const cl='Claim · '+fmt(window.NET&&NET.big&&NET.big.claimCost||2500)+' cash';btns=(sv?[cl]:[cl,'Survey · 50 cash']).concat(canBase?['Move my base here']:[]);}
  const fmap={pump:['Pumpjack Lv 4',2],tanks:['Oil tanks Lv 3',4],tank:['Oil tank Lv 2',2],refinery:['Refinery Lv 5',6],house:['Housing Lv 2',2],capitol:['Capitol Lv 10',6],windmill:['Windmill Lv 2',2],tree:['Forest',0],pine:['Forest',0],rock:['Rock outcrop',0]};
  let f=fmap[c.feat]||['Nothing built',0];if(c.type==='field')f=['Wheat field Lv 3',4];if(c.type==='path')f=['Road Lv 1',1];
  const bl=built[k]||[],used=f[1]+bl.reduce((a,t)=>a+BLD[t].slots,0);if(bl.length)f=[[f[0]==='Nothing built'?'':f[0],...bl.map(t=>BLD[t].name)].filter(Boolean).join(', '),used];
@@ -1268,6 +1277,13 @@ function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
 function markOwned(c){const g=new THREE.Group();g.position.set(c.x,c.top,c.z);county.add(g);
  [[0,-0.48,0.98,0.06],[0,0.48,0.98,0.06],[-0.48,0,0.06,0.98],[0.48,0,0.06,0.98]].forEach(q=>{const m=new THREE.Mesh(boxG,gold);m.position.set(q[0],0.03,q[1]);m.scale.set(q[2],0.05,q[3]);g.add(m);});
  add(new THREE.CylinderGeometry(0.015,0.015,0.5,6),0x333333,0.35,0.25,-0.35,g);flags.push(add(new THREE.BoxGeometry(0.2,0.12,0.01),0xffc933,0.45,0.43,-0.35,g,{emissive:0xffc933,emissiveIntensity:0.3}));}
+/** Move the home base to this parcel: anywhere open in Aurelia, once a day. The buildings come along. */
+function moveBaseHere(c){const own=ownerOf(c)==='You',cost=5000+(own?0:(NET.big.claimCost||2500));
+ if(!confirm('Move your home base to Sector '+NET.big.sector+'?\n\nCosts '+fmt(cost)+' cash'+(own?'':' (including claiming this parcel)')+' and 50 fuel. Your buildings come with you; your old home parcel stays yours as land. You can move once a day.'))return;
+ card.hidden=true;NET.conn.invoke('RelocateBase',NET.viewSector||NET.big.sector,c.i,c.j).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Your base has moved to Sector '+NET.me.homeSector);
+  // boards around here still show the base where it was: drop them and let the map reload them
+  if(SEAM()&&NAT.cur)NAT.boards.forEach(B=>{if(B!==NAT.cur){disposeBoard(B);}});picks.length=0;if(NAT.cur)picks.push(...NAT.cur.picks);
+  NET.noFly=true;watchHome().finally(()=>{NET.noFly=false;});}).catch(er=>toast(er.message));}
 function claimParcel(c,e){if(!c)return;if(window.NET&&NET.conn){NET.conn.invoke('Claim',NET.viewSector||NET.me.homeSector,c.i,c.j).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Parcel claimed: '+resOf(c).t+' now produces for you');setTimeout(()=>{if(current===c)parcelInfo(c);},200);}).catch(er=>toast(er.message));return;}if(res.cash<2500){toast('Not enough cash to claim this parcel');return;}res.cash-=2500;renderRes(['cash']);claimed.add(c.i+','+c.j);markOwned(c);
  const R=resOf(c);toast('Parcel claimed: '+R.t+' now produces for you');parcelInfo(c);}
 function surveyParcel(c){if(!c)return;if(res.cash<50){toast('Not enough cash to survey');return;}res.cash-=50;renderRes(['cash']);toast('Surveying the parcel...');
@@ -1384,7 +1400,7 @@ function setMode(m){mode=m;setTimeout(()=>{if(window.NET&&NET.me&&NET.me.home&&N
 $('tNation').onclick=$('nNation').onclick=()=>setMode('region');
 $('tProvince').onclick=$('nProvince').onclick=()=>{if(SEAM()&&NET.big&&NAT.root){if(mode!=='county')setMode('county');setTimeout(natOverviewView,mode==='county'?0:700);$('nProvince').setAttribute('aria-pressed','true');return;}setMode('province');};
 $('tCounty').onclick=$('nCounty').onclick=()=>setMode('county');
-$('tHome').onclick=$('nHome').onclick=()=>setMode('hq');
+$('tHome').onclick=$('nHome').onclick=()=>{if(mode==='county'&&myBaseOnMap()&&!anim){goHomeFromMap();return;}setMode('hq');};
 $('tWorld').onclick=$('nWorld').onclick=()=>setMode('world');
 $('nPolitics').onclick=()=>toast('Politics: election in 2 days. Not in this demo yet');
 $('bContracts').onclick=()=>toast('3 open contracts. Best: 500 fuel to the Blue Republic for 12,000');
@@ -2520,7 +2536,7 @@ function addBase(v,B){const cs=B?B.cells:cells,bases=B?B.bases:bigBases,grp=B?B.
  add(new RoundedBoxGeometry(0.5,0.32,0.5,1,0.04),NEWGFX?0xd8ccb0:0x4a4640,0,0.16,0);add(new THREE.ConeGeometry(0.42,0.26,4),col,0,0.45,0).rotation.y=Math.PI/4;
  add(boxG,0xffc46b,0,0.18,0.255,null,{emissive:0xffa53a,emissiveIntensity:1.5},true).scale.set(0.12,0.08,0.01);
  add(new THREE.CylinderGeometry(0.012,0.012,0.5,6),0x444444,0.3,0.25,-0.3);const fl=add(boxG,col,0.4,0.42,-0.3,null,{emissive:col,emissiveIntensity:0.3});fl.scale.set(0.2,0.12,0.01);flags.push(fl);
- P=P0;if(mine)label('Your base','#ffc933',c.x,c.top+1.2,c.z,0.9,grp,true);bases[v.i+','+v.j]=g;}
+ P=P0;if(mine)label('Your base','#ffc933',0,1.2,0,0.9,g,true);bases[v.i+','+v.j]=g;}
 /** Smooth sector terrain: vertices at every cell's corners, edges and centre, so each parcel keeps its own colour and height in the middle and blends into its neighbours at the edges. */
 function buildTerrain(S,H,C){const N=2*S+1,pos=new Float32Array(N*N*3),cols=new Float32Array(N*N*3),uvs=new Float32Array(N*N*2);
  for(let b=0;b<N;b++)for(let a=0;a<N;a++){const is=a%2?[(a-1)/2]:[a/2-1,a/2],js=b%2?[(b-1)/2]:[b/2-1,b/2];let h=0,r=0,g=0,bl=0,n=0;
@@ -2684,7 +2700,7 @@ function natShow(snap){const d=NAT.data,o=d.sec[snap.sector];if(!o)return false;
  if(!NAT.overview)buildOverview();
  if(camera.far<1500){camera.far=2500;camera.near=0.4;camera.updateProjectionMatrix();}
  const old=NAT.boards.get(key);
- if(old&&old.snap){old.snap=snap;snap.parcels.filter(p=>p.home).forEach(v=>addBase(v,old));activateBoard(old);return true;}
+ if(old&&old.snap){old.snap=snap;Object.keys(old.bases).forEach(k=>{if(!snap.parcels.some(p=>p.home&&p.i+','+p.j===k)){old.group.remove(old.bases[k]);delete old.bases[k];}});snap.parcels.filter(p=>p.home).forEach(v=>addBase(v,old));activateBoard(old);return true;}
  if(old)disposeBoard(old);const B=buildBoard(c,r,snap,true);NAT.boards.set(key,B);activateBoard(B);return true;}
 /** Every half second: switch to the sector under the camera, stream nearby boards in and far ones out. */
 async function natTick(){if(!SEAM()||mode!=='county'||!NAT.cur||NAT.busy||anim)return;const now=performance.now();if(now-NAT.last<450)return;NAT.last=now;

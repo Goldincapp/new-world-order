@@ -63,6 +63,52 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         return null;
     });
 
+    public const double RelocateCash = 5000, RelocateFuel = 50;
+    public static TimeSpan RelocateEvery => Admin.DevTools ? TimeSpan.FromMinutes(1) : TimeSpan.FromHours(24);
+
+    /// <summary>Move the home base to another parcel, in any open Region 1 sector: a free one (claimed as part of the move) or one
+    /// the player already owns. The base and its buildings come along; the old home parcel stays theirs as ordinary land.</summary>
+    public async Task<Result> Relocate(Guid playerId, int sector, int i, int j)
+    {
+        int oldSector = 0, oi = 0, oj = 0;
+        var r = await Change(playerId, sector, i, j, async (db, me, parcel, now) =>
+        {
+            if (!NationMap.Has(sector)) return "Home bases can only move within Aurelia.";
+            if (Economy.Closed.Contains(sector)) return "This sector belongs to the Caretaker or a rival. It can't be settled.";
+            if (!SectorTemplate.Claimable(sector, i, j)) return "Roads, water, the sector hall and land beyond the border can't hold a base.";
+            if (parcel is not null && parcel.OwnerId != me.Id) return $"{parcel.Owner!.Name} owns this parcel.";
+            if (parcel is { IsHome: true }) return "Your base is already here.";
+            if (me.LastRelocatedAt + RelocateEvery > now) return $"Your trucks are still unpacking from the last move. Try again in {(int)Math.Ceiling((me.LastRelocatedAt + RelocateEvery - now).TotalHours)} hours.";
+            var cash = RelocateCash + (parcel is null ? Economy.ClaimCost : 0);
+            if (me.Cash < cash) return $"Moving your base here costs {cash:N0} cash{(parcel is null ? " (including the claim)" : "")}.";
+            if (me.Fuel < RelocateFuel) return $"Moving needs {RelocateFuel:N0} fuel for the trucks.";
+            Economy.Settle(db, me, now);
+            var home = me.Parcels.FirstOrDefault(x => x.IsHome);
+            if (home is not null) { home.IsHome = false; oldSector = home.Sector; oi = home.I; oj = home.J; }
+            if (parcel is null)
+            {
+                Ledger.Add(db, me, "cash", -Economy.ClaimCost, $"Claimed parcel {sector}:{i},{j}");
+                parcel = new Parcel { Sector = sector, I = i, J = j, Resource = SectorTemplate.Resource(sector, i, j), Owner = me, ClaimedAt = now };
+                db.Parcels.Add(parcel);
+            }
+            parcel.IsHome = true;
+            Ledger.Add(db, me, "cash", -RelocateCash, $"Moved the home base to Sector {sector}");
+            Ledger.Add(db, me, "fuel", -RelocateFuel, "Fuel for the move");
+            me.HomeSector = sector; me.LastRelocatedAt = now;
+            Caretaker.Remember(db, me, 0, "build", $"Moved home to Sector {sector}");
+            return null;
+        });
+        // the old home parcel changed too: tell whoever is watching its sector
+        if (r.Ok && oldSector != 0)
+            await Locked(async db =>
+            {
+                var old = await db.Parcels.Include(p => p.Owner).FirstOrDefaultAsync(p => p.Sector == oldSector && p.I == oi && p.J == oj);
+                await hub.Clients.Group(Group(oldSector)).SendAsync("parcel", ParcelView(oldSector, oi, oj, old));
+                return true;
+            });
+        return r;
+    }
+
     /// <summary>An attacker won the battle for an Ashlands parcel: it changes hands, and half its buildings are wrecked.</summary>
     public Task<Result> Seize(Guid attackerId, int sector, int i, int j) => Change(attackerId, sector, i, j, async (db, me, parcel, now) =>
     {

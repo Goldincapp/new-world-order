@@ -170,6 +170,8 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 
 ### 5.3 Home base (`HomeBase.cs`, `Defense.cs`)
 
+- **Moving home.** "Move my base here" (`RelocateBase`, `World.Relocate`) moves the base to any open Region 1 parcel: a free one, which is claimed as part of the move, or one you already own. It costs 5,000 cash and 50 fuel, plus the claim cost for a free parcel, and you can move once a day (once a minute with dev tools). The buildings come along, and the old home parcel stays yours as land. Parcels can be claimed in any open sector, not just your home sector.
+
 - **The grid.** 26×26 overall. The unlocked square grows 14 → 18 → 22 → 26.
   - **Expansion costs:** 8k cash and 60 power, then 40k and 250 power, then 120k and 600 power.
   - **Yard:** a 3-tile strip outside the walls where field buildings can go.

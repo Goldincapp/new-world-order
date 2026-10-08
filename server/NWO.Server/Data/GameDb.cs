@@ -75,6 +75,8 @@ public class Player
     public string? ResearchHelpers { get; set; }
     /// <summary>When this player's base was last raided, so it can't be farmed.</summary>
     public DateTime LastRaidedAt { get; set; }
+    /// <summary>When the player last moved their home base to another parcel (once a day).</summary>
+    public DateTime LastRelocatedAt { get; set; }
     /// <summary>patrol, balanced or reserve: how the home garrison meets a base assault.</summary>
     public string? DefenseDoctrine { get; set; }
     /// <summary>Defenders trained with cash, e.g. "gunner:10,tank:2". Lost when killed in a raid.</summary>
