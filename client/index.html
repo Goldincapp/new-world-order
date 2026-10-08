@@ -321,6 +321,10 @@ html.app .screen{border-radius:0}
 .techNode.done{background:#eaf3e2;border-color:#9cc48a}.techNode.busy{background:#fff6dc;border-color:#e0bf5a}.techNode.locked{opacity:.62}
 @media (orientation:portrait){html.app .techEl{inset:calc(10*var(--u)) 2.5cqw calc(16*var(--u));font-size:calc(3.3*var(--u))}html.app .techGrid{grid-template-columns:1fr}}
 .tutbar.guide{flex-wrap:wrap;max-width:min(94cqw,calc(150*var(--u)))}.tutbar.guide>span:nth-child(2){flex:1;min-width:16em}.tutbar .gbtns{display:flex;gap:.4em}@media (orientation:portrait){html.app .tutbar.guide>span:nth-child(2){min-width:0;flex-basis:100%}html.app .tutbar.guide{max-width:none}}.tutbar button.sk{background:transparent;color:#c9a24a;border:1px solid #6b5a30}
+.guide-target{outline:calc(.45*var(--u)) solid #ffd34d!important;outline-offset:calc(.35*var(--u));box-shadow:0 0 calc(4*var(--u)) rgba(255,211,77,.9)!important;animation:guidePulse 1s ease-in-out infinite}
+button.guide-target{position:relative;z-index:50!important}
+button.guide-target::after{content:attr(data-guide-label);position:absolute;left:50%;bottom:calc(100% + 1.1em);transform:translateX(-50%);background:#ffd34d;color:#17120a;border-radius:99px;padding:.45em .8em;font:800 .8rem/1 system-ui,sans-serif;white-space:nowrap;pointer-events:none;box-shadow:0 .25em 1em rgba(0,0,0,.45)}
+@keyframes guidePulse{50%{outline-color:#fff2a8;box-shadow:0 0 calc(7*var(--u)) rgba(255,211,77,1)}}
 #placeBar .nud{display:inline-flex;gap:.2em}#placeBar .nud button{min-width:2.4em}
 .tutbar b{font:800 calc(2.6*var(--u))/1 'Baloo 2',sans-serif;color:#c9a24a;white-space:nowrap}.tutbar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:calc(1.2*var(--u)) calc(2.4*var(--u));cursor:pointer;white-space:nowrap}
 .placebar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16*var(--u));z-index:6;background:rgba(10,12,16,.92);border:1px solid rgba(255,255,255,.15);border-radius:99px;padding:calc(1*var(--u));display:flex;gap:calc(1*var(--u));align-items:center;color:#e8e2d4;font:600 calc(2.4*var(--u))/1 system-ui,sans-serif}
@@ -1542,8 +1546,8 @@ function tracer(a,b,side){const g=new THREE.BufferGeometry().setFromPoints([a,b]
  const fl=new THREE.Mesh(UG.flash,new THREE.MeshBasicMaterial({color:0xfff0a0,transparent:true,opacity:0.95}));fl.position.copy(a);battle.add(fl);fx.push({m:fl,life:0.07,max:0.07,grow:0.6});}
 const muzzleOf=u=>u.g.userData.muzzle?u.g.localToWorld(u.g.userData.muzzle.clone()):u.g.position.clone().add(V3(0,0.2,0));
 let selUnit=null;
-function renderCards(){const el=$('ucards');el.innerHTML=((BT&&BT.deck)||['gunner','launcher','tank','heli','militia','strike']).map(t=>{const u=UT[t],low=BT&&(BT.cp<u.cost||troopsLeft[t]<=0);return '<button class="ucard'+(low?' low':'')+'" data-t="'+t+'" aria-pressed="'+(selUnit===t)+'"><span class="ms">'+u.ic+'</span><b>'+u.n+'</b><small>'+u.cost+' cmd · '+troopsLeft[t]+' left</small></button>';}).join('');
- el.querySelectorAll('.ucard').forEach(b=>b.onclick=()=>{const t=b.dataset.t;selUnit=selUnit===t?null:t;if(AR.zone)AR.zone.visible=!!(BT&&BT.arena&&selUnit&&selUnit!=='strike');$('btip').textContent=selUnit?(selUnit==='strike'?'Tap the battlefield to call the strike':'Tap a lane to deploy '+UT[selUnit].n.toLowerCase()+'s'):'Pick a unit, then tap a lane to deploy it';renderCards();});}
+function renderCards(){const el=$('ucards');el.innerHTML=((BT&&BT.deck)||['gunner','launcher','tank','heli','militia','strike']).map(t=>{const u=UT[t],low=BT&&(BT.cp<u.cost||troopsLeft[t]<=0);return '<button class="ucard'+(low?' low':'')+'" data-t="'+t+'" aria-pressed="'+(selUnit===t)+'"><span class="ms">'+u.ic+'</span><b>'+u.n+'</b><small>'+u.cost+' command · '+troopsLeft[t]+' left</small></button>';}).join('');
+ el.querySelectorAll('.ucard').forEach(b=>b.onclick=()=>{const t=b.dataset.t;selUnit=selUnit===t?null:t;if(AR.zone)AR.zone.visible=!!(BT&&BT.arena&&selUnit&&selUnit!=='strike');$('btip').textContent=selUnit?(selUnit==='strike'?'Tap the battlefield to call the strike':'Tap one of the three tan lanes to deploy '+UT[selUnit].n.toLowerCase()+'s'):'Pick a unit, then tap a lane to deploy it';if(selUnit)battleCoachUnitSelected();renderCards();});battleCoachRender();}
 function startBattle(o){const prev=mode;troopsLeft={...troops0};
  if(window.NET&&NET.conn&&!o.local&&!o.defend){netStartBattle(o,prev);return;}
  go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>initBattle(o,prev),700);}
@@ -1551,7 +1555,7 @@ function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={
   $('bEnemyN').textContent=BT.enemy;selUnit=null;renderCards();toast(o.title);}}
 function lossText(o){return Object.entries(o).map(([t,n])=>n+' '+UT[t].n.toLowerCase()+(n>1?'s':'')).join(', ')||'none';}
 let war18=0;
-function leaveBattleNow(){card.hidden=true;arenaOff();if(window.NET&&NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle'&&BT.prev!=='siege')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);}
+function leaveBattleNow(){card.hidden=true;arenaOff();guideBattleCoach=0;clearGuideTarget();if(window.NET&&NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle'&&BT.prev!=='siege')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);}
 /* A finished battle never strands you: leave as soon as the result card is closed, or 15 seconds after it ends */
 setInterval(()=>{const inB=mode==='battle',inS=mode==='siege';if(!inB&&!inS){window.__doneAt=0;return;}
  const done=!BT||BT.done;if(!done){window.__doneAt=0;return;}if(!window.__doneAt)window.__doneAt=Date.now();
@@ -1591,7 +1595,7 @@ function battleTap(pt){if(BT&&BT.server&&!BT.done&&selUnit){netBattleTap(pt);ret
  BT.cp-=u.cost;BT.lastPlayer=selUnit;troopsLeft[selUnit]-=u.spell?1:(u.squad||1);
  if(u.spell){boom(pt.x,0.3,pt.z,true);units.forEach(v=>{if(v.side===1&&Math.hypot(v.g.position.x-pt.x,v.g.position.z-pt.z)<1.6)v.hp-=130;});if(Math.abs(pt.x-8.1)<2)BT.en-=90;toast('Artillery strike');}
  else{const lane=LANES.reduce((a,z)=>Math.abs(z-pt.z)<Math.abs(a-pt.z)?z:a,LANES[0]);spawn(selUnit,0,lane,-7.2);}
- renderCards();}
+ renderCards();battleCoachDeployed();}
 
 
 const RIVALS={blue:{name:'Blue Party garrison',leader:'Mara_V',faction:'Blue Party',col:0x3b587f,helm:0x2a4f8a,flag:0x3d7fd6,doctrine:'counter',dname:'Counter-push: answers whatever you send',garrison:{gunner:18,launcher:6,tank:4,heli:2,militia:10},walls:4,turretDmg:16,air:true,stored:'12,400 oil',loot:[1860,'oil',2100],sector:18,title:'Raid on the Blue Party garrison · Sector 18'},
@@ -2159,8 +2163,8 @@ const TOUR=[
  {t:'Your home base',x:'Your headquarters: barracks to train troops, research, a warehouse and a trade office. Upgrades take real time.',go:()=>sectorToHome()},
  {t:'Enemy territory',x:'You can enter any sector. This one belongs to the Blue Party: a walled garrison, patrols marked in red, and a gunship overhead. Tap anything to scout, ambush or track it.',go:()=>enterVisit(18)},
  {t:'Scout before you strike',x:'A scout report shows their garrison, walls and tactics. Then you choose up to four unit types to counter them.',m:'visit18',after:()=>scoutCard('blue')},
- {t:'Real-time battles',x:'Send units down three lanes using command points. Launchers break walls and tanks, gunners stop helicopters, and tanks crush infantry. Raids take loot, never land.',min:15000,
-  go:()=>{startBattle({title:RIVALS.blue.title,rival:'blue',deck:['gunner','launcher','tank','heli','strike'],sector:18,local:true});setTimeout(()=>{autoDeploy();autoDeploy();tour.bat=setInterval(autoDeploy,1500);},1100);}},
+ {t:'Real-time battles',x:'Command points are energy that refills during a battle. Pick a unit, then tap one of the three lanes. This tour fights automatically so the controls stay clear.',min:15000,hideBar:true,
+  go:()=>{startBattle({title:RIVALS.blue.title,rival:'blue',deck:['gunner','launcher','tank','heli','strike'],sector:18,local:true});setTimeout(()=>{$('btip').textContent='Battle demo: units deploy automatically. Command points refill over time.';autoDeploy();autoDeploy();tour.bat=setInterval(autoDeploy,1500);},1100);}},
  {t:'The Caretaker is watching',x:'Land no one has claimed still belongs to the Caretaker. Its drones sweep the sectors, scanning for smugglers and armed players, while its militia holds the camps. Shoot one down, and it remembers.',go:()=>enterVisit(30)},
  {t:'The Caretaker remembers',x:'Everything you do goes on your record: taxes paid, goods smuggled, drones shot down, camps cleared. Build and keep order, and doors open. Cause chaos, and its drones start following you.',m:'county',after:()=>{openRecord();setTimeout(()=>ctSay('I see you. I have always seen you.'),600);}},
  {t:'A player-run market',x:'Prices move with supply and demand. Sell oil when it spikes, buy fuel when it dips, and watch what everyone else is trading.',m:'county',after:()=>openMarket()},
@@ -2170,7 +2174,7 @@ const TOUR=[
 function tourClean(){clearInterval(tour.bat);card.hidden=true;$('ctSheet').hidden=true;closeMarket(true);polEl.hidden=true;chatEl.hidden=true;boardEl.hidden=true;statsEl.hidden=true;briefEl.hidden=true;hint.hidden=true;
  if(BT){BT.done=true;BT=null;units.splice(0).forEach(u=>battle.remove(u.g));}}
 function tourStart(){tour.on=true;tour.i=0;tour.paused=false;$('tourBar').hidden=false;$('hud').classList.add('touring');tourStep();}
-function tourStep(){clearTimeout(tour.timer);clearTimeout(VO.auto);const st=TOUR[tour.i],tok=++tour.tok;const wasBattle=mode==='battle';tourClean();let moved=!!st.go;if(st.go)st.go();else if(st.m==='visit18'){if(mode!=='visit'||!vSec||vSec.n!==18){enterVisit(18);moved=true;}}else if(st.m&&(st.m!==mode||wasBattle)){if(st.m==='province')go('province',V3(0,0,0),home0('province'),null);else go(st.m,V3(0,0,0),home0(st.m),null);moved=true;}
+function tourStep(){clearTimeout(tour.timer);clearTimeout(VO.auto);const st=TOUR[tour.i],tok=++tour.tok;const wasBattle=mode==='battle';tourClean();$('tourBar').hidden=!!st.hideBar;let moved=!!st.go;if(st.go)st.go();else if(st.m==='visit18'){if(mode!=='visit'||!vSec||vSec.n!==18){enterVisit(18);moved=true;}}else if(st.m&&(st.m!==mode||wasBattle)){if(st.m==='province')go('province',V3(0,0,0),home0('province'),null);else go(st.m,V3(0,0,0),home0(st.m),null);moved=true;}
  if(st.after)setTimeout(()=>{if(tok===tour.tok)st.after();},moved?1100:250);
  $('tourN').textContent=(tour.i+1)+' of '+TOUR.length;$('tourT').textContent=st.t;$('tourX').textContent=st.x;$('tourPause').querySelector('.ms').textContent='pause';tour.paused=false;
  const pr=$('tourProg'),dur=Math.max(st.min||0,7500,st.x.split(' ').length*360);pr.style.transition='none';pr.style.width='0';void pr.offsetWidth;
@@ -2803,7 +2807,7 @@ function netStartBattle(o,prev){const kind=o.kind||(o.rival?'raid':(o.campAssaul
   go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>{initBattle({...o,deck:r.battle.deck},prev);BT.server=r.battle.id;BT.title=r.battle.title;BT.enemy=r.battle.enemy;$('bEnemyN').textContent=BT.enemy;
    NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();
    if(r.battle.arena){BT.arena=true;arenaBuild();campM.visible=false;campR.visible=false;$('btip').textContent='Pick a unit, then tap anywhere in your half (blue) to deploy';toast('Base assault: knock down the towers and the HQ');}
-   applyBattleState(r.battle.state);renderCards();},700);}).catch(er=>toast(er.message));}
+   applyBattleState(r.battle.state);renderCards();battleCoachStart();},700);}).catch(er=>toast(er.message));}
 function applyBattleState(st){if(!BT||!BT.server)return;if(st.arena){applyArenaState(st);return;}BT.t=st.t;BT.cp=st.cp;BT.you=st.you;BT.youMax=st.youMax;BT.en=st.en;BT.enMax=st.enMax;Object.assign(troopsLeft,st.troops);
  const seen=new Set();
  st.units.forEach(([id,t,side,x,z,hp])=>{seen.add(id);let u=NET.bUnits.get(id);
@@ -2826,10 +2830,10 @@ function serverBattleFrame(dt){const now=performance.now();
  const mm=Math.floor(BT.t/60),ss=Math.floor(BT.t%60);$('bTitle').textContent=BT.title.split(':')[0].split(' · ')[0]+' · '+mm+':'+String(ss).padStart(2,'0');
  $('cpN').textContent=Math.floor(BT.cp);$('cpB').style.width=(BT.cp*10)+'%';if(Math.random()<dt*2)renderCards();}
 function netBattleTap(pt){if(BT.arena&&selUnit!=='strike'){const u=UT[selUnit];if(pt.x>-1){toast('Deploy in your half of the field (the blue zone)');return;}if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
-  NET.conn.invoke('DeployAt',selUnit,pt.x,Math.max(-2.9,Math.min(2.9,pt.z))).then(e=>{if(e)toast(e);});return;}
+ NET.conn.invoke('DeployAt',selUnit,pt.x,Math.max(-2.9,Math.min(2.9,pt.z))).then(e=>{if(e)toast(e);else battleCoachDeployed();});return;}
  if(selUnit==='strike'){if(BT.cp<6){toast('Not enough command points yet');return;}NET.conn.invoke('Strike',pt.x,pt.z).then(e=>{if(e)toast(e);else toast('Artillery strike');});return;}
  const u=UT[selUnit];if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
- const lane=LANES.reduce((a,z,i)=>Math.abs(z-pt.z)<Math.abs(LANES[a]-pt.z)?i:a,0);NET.conn.invoke('Deploy',selUnit,lane).then(e=>{if(e)toast(e);});}
+ const lane=LANES.reduce((a,z,i)=>Math.abs(z-pt.z)<Math.abs(LANES[a]-pt.z)?i:a,0);NET.conn.invoke('Deploy',selUnit,lane).then(e=>{if(e)toast(e);else battleCoachDeployed();});}
 function onBattleState(m){if(BT&&BT.server===m.id)applyBattleState(m.state);}
 function onBattleEnd(m){if(!BT||BT.server!==m.id)return;BT.done=true;if(m.player)applyMe(m.player);
  if(m.won&&BT.sector===30)sec30=55;if(m.won&&BT.campAssault)cleared.add(BT.sector);
@@ -3058,23 +3062,34 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  P=P0;renderTutorial();}
 /* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
 setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden&&$('allyEl').hidden)?'':'hidden';},400);
+let guideActing=null,guideTargetEl=null,guideBattleCoach=0;
+function clearGuideTarget(){if(guideTargetEl){guideTargetEl.classList.remove('guide-target');guideTargetEl.removeAttribute('data-guide-label');guideTargetEl=null;}}
+function pointGuideAt(el,label){clearGuideTarget();if(!el)return;guideTargetEl=el;el.classList.add('guide-target');if(el.tagName==='BUTTON')el.dataset.guideLabel=label||'Tap this';}
+function pointGuideButton(root,text,label){const b=[...root.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(text));pointGuideAt(b,label);return b;}
+function beginGuideAction(g){guideActing=g.do;$('tutBar').hidden=true;clearGuideTarget();}
+function openGuideCamp(tries=0){const camp=vPicks.find(x=>x.userData&&x.userData.vk&&x.userData.vk.kind==='camp'&&!x.userData.vk.done);if(camp){vCard(camp.userData.vk,camp);setTimeout(()=>{pointGuideButton(card,'Attack camp','1. Tap Attack camp');toast('Step 1: tap the highlighted Attack camp button');},100);return;}if(tries<10)setTimeout(()=>openGuideCamp(tries+1),350);else toast('Look for the red Caretaker militia camp in Sector 30 and tap it');}
+function battleCoachStart(){if(!guideBattleCoach)return;guideBattleCoach=1;$('btip').textContent='Step 2: Command points are energy. Tap the highlighted Gunner (costs 2).';battleCoachRender();}
+function battleCoachRender(){if(!guideBattleCoach||mode!=='battle')return;if(guideBattleCoach===1){const gunner=$('ucards').querySelector('button[data-t="gunner"]');pointGuideAt(gunner,'2. Tap Gunner');}else if(guideBattleCoach===2)pointGuideAt(renderer.domElement);}
+function battleCoachUnitSelected(){if(!guideBattleCoach||guideBattleCoach>2)return;guideBattleCoach=2;$('btip').textContent='Step 3: tap one of the three tan lanes to deploy your unit.';pointGuideAt(renderer.domElement);}
+function battleCoachDeployed(){if(!guideBattleCoach)return;guideBattleCoach=0;clearGuideTarget();$('btip').textContent='Good. Command points refill over time. Deploy more units and defeat the red force.';toast('Unit deployed. Keep spending command points as they refill.');}
 function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');
- if(!t&&NET.me&&NET.me.guide&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){renderGuide(NET.me.guide);return;}
+ const g=NET.me&&NET.me.guide;if(guideActing&&(!g||g.do!==guideActing)){guideActing=null;clearGuideTarget();}
+ if(!t&&g&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){if(guideActing===g.do){b.hidden=true;return;}renderGuide(g);return;}
  if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
  b.hidden=false;b.classList.remove('guide');const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>startPlacing(k.type),900);}else startPlacing(k.type);}else{openBrief();}};}
 /* ---------- The Field Guide: one short chapter per system, done by doing it ---------- */
 function renderGuide(g){const b=$('tutBar');b.hidden=false;b.classList.add('guide');
- b.innerHTML='<b>Field Guide '+g.step+'/'+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">'+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">Show me</button><button id="tutSkip" class="sk">Skip guide</button></span>';
+ b.innerHTML='<b>Step '+g.step+' of '+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">Reward: '+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">Show what to tap</button><button id="tutSkip" class="sk">Skip guide</button></span>';
  $('tutGo').onclick=()=>guideShow(g);$('tutSkip').onclick=()=>{if(confirm('Skip the rest of the Field Guide? You can still learn everything by playing.'))NET.conn.invoke('SkipGuide').then(r=>{if(r.ok){applyMe(r.player);$('tutBar').hidden=true;toast('Field Guide skipped');}});};}
-function guideShow(g){card.hidden=true;const seen=w=>NET.conn.invoke('GuideSeen',w).then(r=>{if(r.ok){applyMe(r.player);toast('Field Guide: chapter complete');}}).catch(()=>{});
+function guideShow(g){card.hidden=true;beginGuideAction(g);const seen=w=>NET.conn.invoke('GuideSeen',w).then(r=>{if(r.ok){applyMe(r.player);toast('Field Guide: chapter complete');}}).catch(()=>{});
  switch(g.show){
   case 'sector':openSectorMap(NET.me.homeSector);setTimeout(()=>toast(g.do==='claim'?'Tap an empty parcel next to your base, then Claim':'Tap a parcel you own (gold border), then Build'),1200);break;
   case 'hq':sectorToHome();setTimeout(()=>{if(typeof hqCard==='function')hqCard();},1100);break;
   case 'research':if(NET.me.research&&NET.me.research.labs){openTech();}else{sectorToHome();setTimeout(()=>toast('Build a Research lab in your base first'),1100);}break;
   case 'market':$('bMarket').click();setTimeout(()=>toast('Pick a resource, then place a buy or sell order'),600);break;
   case 'contracts':$('bContracts').click();setTimeout(()=>toast('Pick a contract you have the goods for, then ship it'),600);break;
-  case 'battle':sectorToProvince();setTimeout(()=>toast('Tap the red Militia camp to attack it, or tap a bot\'s base in a sector to raid it'),1400);break;
+  case 'battle':guideBattleCoach=1;enterVisit(30);setTimeout(()=>openGuideCamp(),900);break;
   case 'alliance':openAlly();break;
   case 'politics':$('nPolitics').click();setTimeout(()=>toast('Vote for a candidate, or vote on a law'),600);break;
   case 'record':$('bRecord').click();seen('record');break;
