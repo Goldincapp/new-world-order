@@ -65,6 +65,7 @@ app.UseCors();
 
 // In development the server also hosts the phone client, so everything runs from one address.
 var clientDir = Path.GetFullPath(Environment.GetEnvironmentVariable("NWO_CLIENT") ?? Path.Combine(builder.Environment.ContentRootPath, "..", "..", "client"));
+WorldAtlas.GeoPath = Path.Combine(clientDir, "nwo-geo.js");
 if (Directory.Exists(clientDir))
 {
     var files = new PhysicalFileProvider(clientDir);
@@ -174,6 +175,14 @@ api.MapGet("/sentinel", (Siege siege) => siege.Status());
 
 // The whole of Region 1 as one map in the shape of Aurelia: layout, border and every sector's land.
 api.MapGet("/nation", () => Results.Text(NationMap.Json(), "application/json"));
+// The rest of the region, to look at: a coarse map of all of it, and detailed land a few 34x34 squares at a time.
+api.MapGet("/atlas/overview", () => Results.Text(WorldAtlas.Overview(8), "application/json"));
+api.MapGet("/atlas/squares", (int c, int r) =>
+{
+    var list = new List<object>();
+    for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) { var (codes, elev) = WorldAtlas.Square(c + dc, r + dr); list.Add(new { c = c + dc, r = r + dr, codes, elev }); }
+    return Results.Ok(list);
+});
 
 api.MapGet("/sectors/names", async (GameDb db) => Results.Ok(await SectorNames.All(db)));
 

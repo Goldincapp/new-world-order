@@ -1277,7 +1277,7 @@ function resOf(c){const sp=window.NET&&NET.sector&&NET.sector[c.i+','+c.j];let t
  const unit={Oil:'oil',Grain:'grain',Timber:'timber',Stone:'stone','Iron ore':'ore','Housing and tax':'cash'}[t]||'';
  return {t,rich,seam,unit,out:rich*6+(t==='Oil'?6:0),days:6+rich*4};}
 const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
-function ownerOf(c){const k=c.i+','+c.j;if(window.NET&&NET.big){const sp=NET.sector[k];if(sp&&sp.owner)return sp.owner===NET.me.name?'You':sp.owner;return /^(wa|pa|ha|xx|xs)$/.test(c.code)||OPEN_CLOSED.has(NET.big.sector)?'Not claimable':'Unclaimed';}if(window.NET&&NET.sector){const sp=NET.sector[k];if(!sp)return c.type==='town'?'Aurelian citizens':'Not claimable';return sp.owner?(sp.owner===NET.me.name?'You':sp.owner):'Unclaimed';}if(claimed.has(k))return 'You';if(c.i>=10&&c.j<=6)return 'You';if(c.i<=3&&c.j>=9)return 'Blue Party (rival)';if(c.i>=8&&c.i<=11&&c.j>=10)return 'For sale';if(c.lvl>=2)return 'Crown land';return 'Unclaimed';}
+function ownerOf(c){const k=c.i+','+c.j;if(window.NET&&NET.big){const sp=NET.sector[k];if(sp&&sp.owner)return sp.owner===NET.me.name?'You':sp.owner;return /^(wa|pa|ha|xx|xs)$/.test(c.code)||c.outside||OPEN_CLOSED.has(NET.big.sector)?'Not claimable':'Unclaimed';}if(window.NET&&NET.sector){const sp=NET.sector[k];if(!sp)return c.type==='town'?'Aurelian citizens':'Not claimable';return sp.owner?(sp.owner===NET.me.name?'You':sp.owner):'Unclaimed';}if(claimed.has(k))return 'You';if(c.i>=10&&c.j<=6)return 'You';if(c.i<=3&&c.j>=9)return 'Blue Party (rival)';if(c.i>=8&&c.i<=11&&c.j>=10)return 'For sale';if(c.lvl>=2)return 'Crown land';return 'Unclaimed';}
 function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
  if(window.NET&&NET.big){const k0=c.i+','+c.j,sp0=NET.sector[k0];
   if(c.code==='ha'){const r2=NET.big.region===2,nm=NET.big.name,mineHere=Object.values(NET.sector).filter(v=>v.owner===NET.me.name).length;
@@ -1292,7 +1292,7 @@ function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
   if(sp0&&sp0.owner&&sp0.owner!==NET.me.name){const r2=NET.big.region===2;showCard(sp0.owner+'\'s land','Parcel '+id+' · Sector '+NET.big.sector,[['Owner',sp0.owner],['Land here',RESNAME[sp0.res]||sp0.res],['Built',sp0.b&&sp0.b.length?sp0.b.join(', '):'Nothing yet']].concat(r2?[['Seize it','Beat their garrison and it is yours. Costs 80 fuel. Half the buildings are wrecked in the fighting']]:[['Take it',NET.me.homeSector===NET.big.sector?'Beat '+sp0.owner+'\'s home base with 3 stars to conquer a parcel of theirs':'Only their neighbours in this sector can fight them for it']]),r2?['Seize · 80 fuel','Close']:['Close']);return;}}
  if(!(window.NET&&NET.big)&&c.i===6&&c.j===12){slots.forEach(s=>s.material=slotUsed);showCard('Your HQ parcel','Parcel '+id+' · home base',[['Owner','You'],['Headquarters','Level 12'],['Walls','Level 6'],['Garrison','40 troops']],['Enter home base','Upgrade'],9);return;}
  const k=c.i+','+c.j,owner=ownerOf(c),R=resOf(c),sv=surveyed.has(k)||owner==='You';
- const canBase=window.NET&&NET.big&&NET.big.region!==2&&!OPEN_CLOSED.has(NET.big.sector)&&!/^(wa|pa|ha|xx|xs)$/.test(c.code||'');
+ const canBase=window.NET&&NET.big&&NET.big.region!==2&&!OPEN_CLOSED.has(NET.big.sector)&&!c.outside&&!/^(wa|pa|ha|xx|xs)$/.test(c.code||'');
  let btns;if(owner==='You')btns=['Collect','Build'].concat(canBase?['Move my base here']:[]);else if(owner==='Not claimable')btns=['Close'];else if(owner==='Blue Party (rival)')btns=['Scout','Attack'];else if(owner==='For sale')btns=sv?['Buy · 1,250 gold']:['Buy · 1,250 gold','Survey · 50 cash'];else if(owner==='Crown land')btns=sv?['Petition to buy']:['Petition to buy','Survey · 50 cash'];else{const cl='Claim · '+fmt(window.NET&&NET.big&&NET.big.claimCost||2500)+' cash';btns=(sv?[cl]:[cl,'Survey · 50 cash']).concat(canBase?['Move my base here']:[]);}
  const fmap={pump:['Pumpjack Lv 4',2],tanks:['Oil tanks Lv 3',4],tank:['Oil tank Lv 2',2],refinery:['Refinery Lv 5',6],house:['Housing Lv 2',2],capitol:['Capitol Lv 10',6],windmill:['Windmill Lv 2',2],tree:['Forest',0],pine:['Forest',0],rock:['Rock outcrop',0]};
  let f=fmap[c.feat]||['Nothing built',0];if(c.type==='field')f=['Wheat field Lv 3',4];if(c.type==='path')f=['Road Lv 1',1];
@@ -1390,7 +1390,8 @@ renderer.domElement.addEventListener('pointermove',e=>{if(followShip&&e.buttons&
 renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-dx,e.clientY-dy)>6)return;if(!sheet.hidden)return;const r=renderer.domElement.getBoundingClientRect();
  ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);
  if(mode==='county'){let h=ray.intersectObjects(picks,false)[0];if(!h)return;
-  if(h.object.userData.board&&h.object.userData.board!==NAT.cur){const B=h.object.userData.board;if(!(B.n&&B.snap)){toast(B.n?'Loading that sector…':'Beyond the settled land');return;}
+  if(h.object.userData.board&&h.object.userData.board!==NAT.cur){const B=h.object.userData.board;if(!(B.n&&B.snap)){if(B.n){toast('Loading that sector…');return;}const p=B.group.worldToLocal(h.point.clone()),X=B.gx+Math.round(p.x+16.5),Y=B.gy+Math.round(p.z+16.5),fac=nationAt(X,Y);
+    current=null;showCard(fac?fac.name:'Open sea',fac?(fac===FAC.you?'Aurelia · beyond the settled sectors':'Another nation'):'',fac?[['Land',fac===FAC.you?'Border wilds: part of Aurelia, but no sector covers it':'Foreign land. Only Aurelia\'s sectors can be settled for now'],['Here',({ba:'Barren ground',sc:'Woods',gr:'Grassland',fe:'Farmland',ro:'Rock and mountains',oi:'Dry land',ru:'Old ruins',wa:'Water',pa:'An old road',xs:'Sea'})[natCode(X,Y)]||'Land']]:[['Sea','Nothing to claim out here']],['Close']);return;}
    activateBoard(B);NET.viewSector=B.n;NET.noFly=true;watchHome().finally(()=>{NET.noFly=false;});ray.setFromCamera(ndc,camera);h=ray.intersectObjects(picks,false)[0];if(!h||h.object.userData.board!==NAT.cur)return;toast('Sector '+B.n);}
   const c=cells[h.object.userData.terrainKey?h.object.userData.terrainKey(h.object.worldToLocal(h.point.clone())):h.object.userData.inst?h.object.userData.keys[h.instanceId]:h.object.userData.key];if(!c||c.type==='water')return;current=c;
   sel.position.set(c.x,c.top+0.02,c.z);sel.visible=true;parcelInfo(c);controls.autoRotate=false;controls.minDistance=2.5;
@@ -2623,11 +2624,23 @@ async function loadNation(){if(NAT.data)return NAT.data;try{const d=await api('/
   // base height of every atlas cell, so the surface is one continuous function across the whole nation
   const hc=new Float32Array(d.aw*d.ah);for(let y=0;y<d.ah;y++){const row=d.codes[y],er=d.elev[y];for(let x=0;x<d.aw;x++){const c=row.substr(x*2,2),e=+er[x],X=x-d.margin,Y=y-d.margin;
    let h=(c==='wa'||c==='xs')?0.03:(LANDH[c]||0.3);if(c==='ro')h+=hash(X,Y)*0.25;else if(c!=='wa'&&c!=='xs')h+=hash(X*3.1,Y*1.7)*0.04;hc[y*d.aw+x]=h-0.05+e*0.14;}}
-  d.hc=hc;NAT.data=d;return d;}catch(e){console.warn('nation map unavailable',e);return null;}}
-function natCode(X,Y){const d=NAT.data,ax=X+d.margin,ay=Y+d.margin;if(ax<0||ay<0||ax>=d.aw||ay>=d.ah)return Y<d.height*0.15?'xs':'xx';return d.codes[ay].substr(ax*2,2);}
-function natElev(X,Y){const d=NAT.data,ax=X+d.margin,ay=Y+d.margin;if(ax<0||ay<0||ax>=d.aw||ay>=d.ah)return 0;return +d.elev[ay][ax];}
+  d.hc=hc;NAT.data=d;
+  // the rest of the region (other nations), coarse; detail streams in square by square (NAT.sq)
+  try{NAT.eu=await api('/atlas/overview');}catch(_){NAT.eu=null;}
+  return d;}catch(e){console.warn('nation map unavailable',e);return null;}}
+/** Detailed land outside Aurelia's atlas, fetched a 3x3 block of squares at a time. */
+NAT.sq=new Map();
+async function natFetchSquares(c,r){if(NAT.sq.has(c+','+r)&&NAT.sq.has((c+1)+','+(r+1))&&NAT.sq.has((c-1)+','+(r-1)))return;const list=await api('/atlas/squares?c='+c+'&r='+r);list.forEach(q=>NAT.sq.set(q.c+','+q.r,q));}
+function inGermanyAtlas(X,Y){const d=NAT.data,ax=X+d.margin,ay=Y+d.margin;return ax>=0&&ay>=0&&ax<d.aw&&ay<d.ah;}
+function euSample(X,Y,elev){const e=NAT.eu;if(!e)return elev?'0':'xs';const i=Math.round((X-e.x0)/e.step),j=Math.round((Y-e.y0)/e.step);if(i<0||j<0||i>=e.w||j>=e.h)return elev?'0':'xs';return elev?e.elev[j][i]:e.codes[j].substr(i*2,2);}
+function natCode(X,Y){const d=NAT.data,ax=X+d.margin,ay=Y+d.margin;if(ax>=0&&ay>=0&&ax<d.aw&&ay<d.ah)return d.codes[ay].substr(ax*2,2);
+ const S=d.size,c=Math.floor(X/S),r=Math.floor(Y/S),q=NAT.sq.get(c+','+r);if(q)return q.codes[Y-r*S].substr((X-c*S)*2,2);return euSample(X,Y,false);}
+function natElev(X,Y){const d=NAT.data,ax=X+d.margin,ay=Y+d.margin;if(ax>=0&&ay>=0&&ax<d.aw&&ay<d.ah)return +d.elev[ay][ax];
+ const S=d.size,c=Math.floor(X/S),r=Math.floor(Y/S),q=NAT.sq.get(c+','+r);if(q)return +q.elev[Y-r*S][X-c*S];return +euSample(X,Y,true);}
+/** Base height of one cell from its land and height, the same rule Aurelia's atlas uses. */
+function cellBase(X,Y){const c=natCode(X,Y),e=natElev(X,Y);let h=(c==='wa'||c==='xs')?0.03:(LANDH[c]||0.3);if(c==='ro')h+=hash(X,Y)*0.25;else if(c!=='wa'&&c!=='xs')h+=hash(X*3.1,Y*1.7)*0.04;return h-0.05+e*0.14;}
 function natSectorAt(X,Y){return NAT.data.byCell[Math.floor(X/NAT.data.size)+','+Math.floor(Y/NAT.data.size)]||0;}
-function cellHc(X,Y){const d=NAT.data,ax=Math.max(0,Math.min(d.aw-1,X+d.margin)),ay=Math.max(0,Math.min(d.ah-1,Y+d.margin));return d.hc[ay*d.aw+ax];}
+function cellHc(X,Y){const d=NAT.data,ax=X+d.margin,ay=Y+d.margin;if(ax>=0&&ay>=0&&ax<d.aw&&ay<d.ah)return d.hc[ay*d.aw+ax];return cellBase(X,Y);}
 /** Height of the land anywhere on the nation map; cell centres sit at whole numbers. */
 function natH(u,v){const i0=Math.floor(u),j0=Math.floor(v);let tx=u-i0,tz=v-j0;tx=tx*tx*(3-2*tx);tz=tz*tz*(3-2*tz);
  const b=(cellHc(i0,j0)*(1-tx)+cellHc(i0+1,j0)*tx)*(1-tz)+(cellHc(i0,j0+1)*(1-tx)+cellHc(i0+1,j0+1)*tx)*tz;
@@ -2657,7 +2670,7 @@ function buildBoard(c,r,snap,full){const d=NAT.data,S=d.size,half=(S-1)/2,gx=c*S
  B.H=(x,z)=>natH(gx+half+x,gy+half+z);
  const trees=[],rocks=[],ruins=[],rigs=[],dead=[],bush=[],crop=[],reed=[];let water=false;
  for(let j=0;j<S;j++)for(let i=0;i<S;i++){const X=gx+i,Y=gy+j,code=natCode(X,Y),x=i-half,z=j-half,h=B.H(x,z);if(code==='wa'||code==='xs')water=true;
-  B.cells[i+','+j]={x,z,top:h,type:code==='xx'?'wild':code==='xs'?'water':TYPEOF[code],code,res:n?landRes(code,i,j,n):'none',i,j,lvl:code==='ro'?2:1};
+  B.cells[i+','+j]={x,z,top:h,type:code==='xx'?'wild':code==='xs'?'water':TYPEOF[code],code,res:n?landRes(code,i,j,n):'none',i,j,lvl:code==='ro'?2:1,outside:!natInAurelia(X,Y)};
   if(code==='sc'){const nT=1+Math.floor(hash(X,Y*2)*3);for(let q=0;q<nT;q++)trees.push([x+(hash(X+q,Y)-0.5)*0.7,0,z+(hash(X,Y+q)-0.5)*0.7,0.25+hash(q,X+Y)*0.15]);}
   else if((code==='gr'||code==='xx')&&hash(X*2,Y)<(code==='xx'?0.12:0.25))trees.push([x+(hash(X,Y)-0.5)*0.5,0,z+(hash(Y,X)-0.5)*0.5,0.3]);
   else if(code==='ro'&&hash(X,Y*3)<0.6)rocks.push([x+(hash(X,Y)-0.5)*0.4,0,z+(hash(Y,X)-0.5)*0.4,0.18+hash(X+1,Y)*0.18]);
@@ -2692,6 +2705,11 @@ function buildBoard(c,r,snap,full){const d=NAT.data,S=d.size,half=(S-1)/2,gx=c*S
   if(snap){snap.parcels.filter(p=>p.home).forEach(v=>addBase(v,B));boardOutposts(B);}}
  return B;}
 const SECTOR_HALL='17,17';
+/** Is a map cell inside Aurelia's border? */
+function natInAurelia(X,Y){const p=NAT.data.poly,x=X+0.5,y=Y+0.5;let inside=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const xi=p[i][0],yi=p[i][1],xj=p[j][0],yj=p[j][1];if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)inside=!inside;}return inside;}
+/** Map position to old-world longitude, latitude, and the nation that holds it there (from the Nation view's countries). */
+function natLonLat(X,Y){const d=NAT.data;return [((X+0.5)/d.ppd+d.minX)/d.cos,-((Y+0.5)/d.ppd+d.minY)];}
+function nationAt(X,Y){const [lon,lat]=natLonLat(X,Y);for(const g of GEO){for(const r of g.r){let inside=false;for(let i=0,j=r.length-2;i<r.length;j=i,i+=2){const xi=r[i],yi=r[i+1],xj=r[j],yj=r[j+1];if((yi>lat)!==(yj>lat)&&lon<(xj-xi)*(lat-yi)/(yj-yi)+xi)inside=!inside;}if(inside){const k=idTo[g.id]||'care';return FAC[k];}}}return null;}
 function boardOutposts(B){const snap=B.snap;if(!snap||!snap.caretaker||snap.caretaker.free)return;const S=NAT.data.size,n=Math.ceil(snap.caretaker.presence/25),spots=[[-0.32,-0.32],[0.32,-0.32],[-0.32,0.32],[0.32,0.32]];const P0=P;P=B.group;
  for(let q=0;q<n;q++){const ci=Math.round(snap.hall.i+spots[q][0]*S*0.75),cj=Math.round(snap.hall.j+spots[q][1]*S*0.75);let c=null;for(let r=0;r<6&&!c;r++)for(let a=-r;a<=r&&!c;a++)for(let b=-r;b<=r&&!c;b++){const cc=B.cells[(ci+a)+','+(cj+b)];if(cc&&!/wa|pa|ha|xx|xs/.test(cc.code))c=cc;}
   if(!c)continue;add(new THREE.CylinderGeometry(0.16,0.28,1.5,6),0x3a3f48,c.x,c.top+0.75,c.z);add(new THREE.OctahedronGeometry(0.2,0),0x8fd3ff,c.x,c.top+1.75,c.z,null,{emissive:0x5fb8ff,emissiveIntensity:1.2},true);
@@ -2706,11 +2724,20 @@ function buildOverview(){const d=NAT.data,st=LOW?3:2,x0=-d.margin,y0=-d.margin,N
  const idx=[];for(let b=0;b<NY-1;b++)for(let a=0;a<NX-1;a++){const p=b*NX+a;idx.push(p,p+NX,p+1,p+1,p+NX,p+NX+1);}
  const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('color',new THREE.BufferAttribute(col,3));geo.setIndex(idx);geo.computeVertexNormals();
  const g=new THREE.Group(),m=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({vertexColors:true}));m.receiveShadow=true;g.add(m);
- const sea=new THREE.Mesh(new THREE.PlaneGeometry(d.aw+800,d.ah+800),new THREE.MeshLambertMaterial({color:0x2f8fa8,transparent:true,opacity:0.88}));sea.rotation.x=-Math.PI/2;sea.position.set(d.width/2,0.0,d.height/2);g.add(sea);
+ const eu=NAT.eu,ew=eu?eu.w*eu.step:d.aw+800,eh=eu?eu.h*eu.step:d.ah+800,ecx=eu?eu.x0+ew/2:d.width/2,ecz=eu?eu.y0+eh/2:d.height/2;
+ const sea=new THREE.Mesh(new THREE.PlaneGeometry(ew+600,eh+600),new THREE.MeshLambertMaterial({color:0x2f8fa8,transparent:true,opacity:0.9}));sea.rotation.x=-Math.PI/2;sea.position.set(ecx,0.0,ecz);g.add(sea);
+ if(eu){// every other nation, one vertex every few parcels, just under Aurelia's finer map
+  const NX=eu.w,NY=eu.h,ep=new Float32Array(NX*NY*3),ec=new Float32Array(NX*NY*3);for(let b=0;b<NY;b++)for(let a=0;a<NX;a++){const v=b*NX+a,X=eu.x0+a*eu.step,Y=eu.y0+b*eu.step,code=eu.codes[b].substr(a*2,2),e=+eu.elev[b][a];
+   ep[v*3]=X;ep[v*3+1]=(code==='xs'?-0.25:((code==='wa'?0.03:(LANDH[code]||0.3))-0.05+e*0.14))-0.12;ep[v*3+2]=Y;const two=natCol2(code);if(code==='wa')c.setHex(0x3cb8c4);else c.setHex(two[0]).lerp(new THREE.Color(two[1]),0.5);if(e>6.5)c.lerp(snow,NZ.ss(6.5,8.5,e));ec[v*3]=c.r;ec[v*3+1]=c.g;ec[v*3+2]=c.b;}
+  const ei=[];for(let b=0;b<NY-1;b++)for(let a=0;a<NX-1;a++){const p=b*NX+a;ei.push(p,p+NX,p+1,p+1,p+NX,p+NX+1);}
+  const eg=new THREE.BufferGeometry();eg.setAttribute('position',new THREE.BufferAttribute(ep,3));eg.setAttribute('color',new THREE.BufferAttribute(ec,3));eg.setIndex(ei);eg.computeVertexNormals();
+  const em=new THREE.Mesh(eg,new THREE.MeshLambertMaterial({vertexColors:true}));em.receiveShadow=true;g.add(em);
+  // nation names for the view from far away, at each nation's biggest country
+  Object.entries(FAC).forEach(([k,fc])=>{if(k==='you'||!fc.ids.length)return;let best=null,ba=0;fc.ids.forEach(id=>{const gg=GEO.find(x=>x.id===id);if(!gg)return;gg.r.forEach(r=>{let x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,cx=0,cy=0;for(let i=0;i<r.length;i+=2){x0=Math.min(x0,r[i]);x1=Math.max(x1,r[i]);y0=Math.min(y0,r[i+1]);y1=Math.max(y1,r[i+1]);cx+=r[i];cy+=r[i+1];}const ar=(x1-x0)*(y1-y0);if(ar>ba){ba=ar;best=[cx/(r.length/2),cy/(r.length/2)];}});});
+   if(!best)return;const X=(best[0]*d.cos-d.minX)*d.ppd,Y=(-best[1]-d.minY)*d.ppd,l=label(fc.name,fc.dot,X,8,Y,6,NAT.root,true);l.userData.far=true;l.userData.nation=true;l.visible=false;NAT.labels.push(l);});}
  // Aurelia's border, so the nation's shape reads from any height
  const bp=d.poly.map(p=>V3(p[0],natH(p[0],p[1])+0.12,p[1]));bp.push(bp[0].clone());const bl=new THREE.Line(new THREE.BufferGeometry().setFromPoints(bp),new THREE.LineBasicMaterial({color:0xffd45e,transparent:true,opacity:0.75}));g.add(bl);
- // far beyond the atlas: plain land, lost in the haze
- const far=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),new THREE.MeshLambertMaterial({color:0x83906a}));far.rotation.x=-Math.PI/2;far.position.set(d.width/2,0.12,d.height/2);g.add(far);
+
  // sector numbers for the view from far away
  NAT.labels.forEach(l=>NAT.root.remove(l));NAT.labels=[];
  d.sectors.forEach(q=>{const mine=NET.me&&q.n===NET.me.homeSector,hx=q.gx+17,hy=q.gy+17,l=label(mine?'Sector '+q.n+' · your home':(q.closed?'Sector '+q.n+' · closed':'Sector '+q.n),mine?'#ffc933':q.closed?'#9aa0a6':'#e7c46a',hx,natH(hx,hy)+3,hy,mine?5:3.6,NAT.root,true);l.userData.far=true;l.userData.mine=mine;l.visible=false;NAT.labels.push(l);});
@@ -2736,13 +2763,14 @@ function natShow(snap){const d=NAT.data,o=d.sec[snap.sector];if(!o)return false;
 /** Every half second: switch to the sector under the camera, stream nearby boards in and far ones out. */
 async function natTick(){if(!SEAM()||mode!=='county'||!NAT.cur||NAT.busy||anim)return;const now=performance.now();if(now-NAT.last<450)return;NAT.last=now;
  const d=NAT.data,S=d.size,half=(S-1)/2,u=controls.target.x-NAT.root.position.x,w=controls.target.z-NAT.root.position.z,c=Math.floor(u/S),r=Math.floor(w/S),far=camera.position.distanceTo(controls.target);
- NAT.labels.forEach(l=>{l.visible=far>70;if(l.visible){const k=Math.max(3.6,far*0.045)*(l.userData.mine?1.3:1);l.scale.set(1.79*k,0.39*k,1);}});
+ NAT.labels.forEach(l=>{l.visible=l.userData.nation?far>160:far>70;if(l.visible){const k=Math.max(3.6,far*0.045)*(l.userData.mine?1.3:l.userData.nation?1.5:1);l.scale.set(1.79*k,0.39*k,1);}});
  const n=d.byCell[c+','+r];
  if(n&&n!==NAT.cur.n){const B=NAT.boards.get(c+','+r);if(B&&B.snap){activateBoard(B);NET.viewSector=n;NET.noFly=true;watchHome().finally(()=>{NET.noFly=false;});return;}}
  if(far>110)return;
  // load the nearest missing board within one square of the camera
- let best=null,bd=1e9;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const k=(c+dc)+','+(r+dr);if(NAT.boards.has(k))continue;const cx=c+dc,cy=r+dr;if(cx*S>d.width+d.margin||cy*S>d.height+d.margin||(cx+1)*S<-d.margin||(cy+1)*S<-d.margin)continue;const dd=dc*dc+dr*dr;if(dd<bd){bd=dd;best=[cx,cy];}}
- if(best){NAT.busy=true;try{const k=best[0]+','+best[1],sn=d.byCell[k];let snap=null;if(sn&&NET.conn)snap=await NET.conn.invoke('PeekSector',sn).catch(()=>null);if(!NAT.boards.has(k)){const B=buildBoard(best[0],best[1],snap,false);NAT.boards.set(k,B);picks.push(...B.picks);}}finally{NAT.busy=false;}return;}
+ let best=null,bd=1e9;const eu=NAT.eu;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){const k=(c+dc)+','+(r+dr);if(NAT.boards.has(k))continue;const cx=c+dc,cy=r+dr;
+  if(eu?(cx*S>eu.x0+eu.w*eu.step||cy*S>eu.y0+eu.h*eu.step||(cx+1)*S<eu.x0||(cy+1)*S<eu.y0):(cx*S>d.width+d.margin||cy*S>d.height+d.margin||(cx+1)*S<-d.margin||(cy+1)*S<-d.margin))continue;const dd=dc*dc+dr*dr;if(dd<bd){bd=dd;best=[cx,cy];}}
+ if(best){NAT.busy=true;try{const k=best[0]+','+best[1],sn=d.byCell[k];let snap=null;if(!inGermanyAtlas(best[0]*S,best[1]*S)||!inGermanyAtlas(best[0]*S+S-1,best[1]*S+S-1))await natFetchSquares(best[0],best[1]).catch(()=>{});if(sn&&NET.conn)snap=await NET.conn.invoke('PeekSector',sn).catch(()=>null);if(!NAT.boards.has(k)){const B=buildBoard(best[0],best[1],snap,false);NAT.boards.set(k,B);picks.push(...B.picks);}}finally{NAT.busy=false;}return;}
  // drop boards more than two squares away
  NAT.boards.forEach(B=>{if(B!==NAT.cur&&(Math.abs(B.c-c)>2||Math.abs(B.r-r)>2)){disposeBoard(B);const i=picks.indexOf(B.picks[0]);if(i>=0)picks.splice(i,1);}});}
 setInterval(natTick,150);
@@ -2755,6 +2783,7 @@ const natK=()=>{const d=NAT.data;return 0.5*(0.2508/(d.ppd*d.cos)+0.39/d.ppd);};
 function zoomFade(){let el=$('zoomFade');if(!el){el=document.createElement('div');el.id='zoomFade';el.style.cssText='position:fixed;inset:0;pointer-events:none;z-index:5;background:#bcdcec;opacity:0';screen.appendChild(el);}
  el.style.transition='none';el.style.opacity='0.85';void el.offsetWidth;el.style.transition='opacity .45s ease-out';el.style.opacity='0';}
 /** Is a point on the Nation view inside Aurelia (roughly its bounding box)? */
+function inRegionMap(rx,rz){const lon=rx/0.2508+18.5,lat=48-rz/0.39;return lon>-25&&lon<62&&lat>24&&lat<72;}
 function inAurelia(rx,rz){const lon=rx/0.2508+18.5,lat=48-rz/0.39;return lon>5.6&&lon<15.3&&lat>47.1&&lat<55.2;}
 function natToRegion(){const d=NAT.data,u=controls.target.x-NAT.root.position.x,v=controls.target.z-NAT.root.position.z,lon=((u+0.5)/d.ppd+d.minX)/d.cos,lat=-((v+0.5)/d.ppd+d.minY);
  const off=camera.position.clone().sub(controls.target).multiplyScalar(natK());zoomFade();setMode('region');anim=null;
@@ -2782,6 +2811,7 @@ function buildBigSector(snap){if(NAT.root&&!(SEAM()&&NAT.data.sec[snap.sector]))
   sun.shadow.camera.left=sun.shadow.camera.bottom=-20;sun.shadow.camera.right=sun.shadow.camera.top=20;sun.shadow.camera.updateProjectionMatrix();
   if(mode==='county'){controls.maxDistance=NAT_OUT+80;if(!diving&&!NET.noFly){const hm=home();flyTo(hm[0],hm[1]);}}
   if(/[?&]ov/.test(location.search)&&!NET.ovDone){NET.ovDone=true;setTimeout(()=>{briefEl.hidden=true;anim=null;controls.target.set(0,0,0);camera.position.set(20,30,24);controls.update();},3000);}
+  {const m=location.search.match(/[?&]natgo=([-0-9.]+),([-0-9.]+),([0-9.]+)/);if(m&&!NET.natGo){NET.natGo=true;setTimeout(()=>{briefEl.hidden=true;anim=null;const d=NAT.data,X=(+m[1]*d.cos-d.minX)*d.ppd,Y=(-m[2]-d.minY)*d.ppd;controls.target.set(X+NAT.root.position.x,0,Y+NAT.root.position.z);camera.position.copy(controls.target).add(V3(0,0.55,0.42).normalize().multiplyScalar(+m[3]));controls.update();setInterval(()=>window.__composer.render(),700);},4500);}}
   {const ev=(location.search.match(/[?&]nat=(edge|edgereg)/)||[])[1];if(ev&&!NET.natDone){NET.natDone=true;setTimeout(()=>{briefEl.hidden=true;anim=null;const o=V3(0,0.55,0.42).normalize();camera.position.copy(controls.target).addScaledVector(o,NAT_OUT-5);controls.update();if(ev==="edgereg")natToRegion();setInterval(()=>window.__composer.render(),500);},4500);}}
   {const nv=(location.search.match(/[?&]nat=(far|mid)/)||[])[1];if(nv&&!NET.natDone){NET.natDone=true;setTimeout(()=>{briefEl.hidden=true;anim=null;const D=Math.max(NAT.data.width,NAT.data.height);if(nv==='far'){controls.target.set(-NAT.root.position.x-NAT.data.width/2+NAT.root.position.x*0+NAT.data.width/2+NAT.root.position.x,0,NAT.root.position.z+NAT.data.height/2);camera.position.set(controls.target.x,D*0.9,controls.target.z+D*0.55);}else{controls.target.set(0,0,0);camera.position.set(0,45,40);}controls.update();},4000);}}
   return;}const S=snap.size,half=(S-1)/2;NET.big={sector:snap.sector,size:S,biome:snap.biome,settlers:snap.settlers,region:snap.region||1,claimCost:snap.claimCost,open:snap.open,name:snap.name,needToName:snap.needToName,ct:snap.caretaker};setTimeout(renderSec,0);
@@ -3356,7 +3386,7 @@ renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),0.05),t=clock.
  screen.style.background=mode==='world'?'#0e1a2b':((mode!=='world')?'radial-gradient(ellipse at 50% 35%,#232a33 0%,#0c0f14 75%)':'#bfe6f5');shadowCatch.visible=mode!=='world';
  const dNow=camera.position.distanceTo(controls.target);
  if(mode==='county'){aimSpot(t);const seam=SEAM()&&NAT.root&&NAT.root.visible;
-  if(seam){const d=NAT.data,rx=NAT.root.position.x,rz=NAT.root.position.z;controls.target.x=Math.max(rx-d.margin,Math.min(rx+d.width+d.margin,controls.target.x));controls.target.z=Math.max(rz-d.margin,Math.min(rz+d.height+d.margin,controls.target.z));
+  if(seam){const d=NAT.data,rx=NAT.root.position.x,rz=NAT.root.position.z,eu=NAT.eu,bx0=eu?eu.x0:-d.margin,bz0=eu?eu.y0:-d.margin,bx1=eu?eu.x0+eu.w*eu.step:d.width+d.margin,bz1=eu?eu.y0+eu.h*eu.step:d.height+d.margin;controls.target.x=Math.max(rx+bx0,Math.min(rx+bx1,controls.target.x));controls.target.z=Math.max(rz+bz0,Math.min(rz+bz1,controls.target.z));
    if(scene.fog){scene.fog.near=Math.max(40,dNow*0.9);scene.fog.far=Math.max(120,dNow*2.6);}}
   else if(NET.big){const L=NET.big.size/2;controls.target.x=Math.max(-L,Math.min(L,controls.target.x));controls.target.z=Math.max(-L,Math.min(L,controls.target.z));}
   if(!anim&&!diving&&seam&&dNow>NAT_OUT){natToRegion();}
@@ -3376,7 +3406,7 @@ renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),0.05),t=clock.
   const q2=(t*0.06+0.5)%2,u2=q2<1?q2:2-q2;pT2.position.copy(pRoadZ.getPointAt(u2));pT2.position.y=(window.__HP?window.__HP(pT2.position.x,pT2.position.z):0.09)+0.02;pT2.rotation.y=q2<1?0:Math.PI;
   pBeacons.forEach((b,i)=>b.material.opacity=0.2+0.14*Math.sin(t*1.6+i));if(window.__HP)droneTick(pDrones,window.__HP,t,dt,0.45);pFire.scale.setScalar(0.8+0.4*Math.sin(t*11));
   pfogs.forEach(o=>{o.s.position.y=o.by+Math.sin(t*0.35+o.ph)*0.06;o.s.position.x=o.bx+Math.sin(t*0.12+o.ph)*0.15;});}
- if(mode==='region'){const dd=camera.position.distanceTo(controls.target),live=SEAM()&&!!NET.big&&!!NAT.root,k=live?0:Math.min(1,Math.max(0,(8.5-dd)/3.5));pmesh.material.opacity=k*0.95;provLabels.forEach(l=>l.material.opacity=k);const poiK=Math.min(1,Math.max(0,(14.5-dd)/3));natL.forEach((l,i)=>l.material.opacity=(i<8?1:poiK)*(1-k*0.85));secRing.material.opacity=k;secRing.scale.setScalar(1+0.25*Math.sin(t*4));if(window.__dbg&&(frameCount++%30===0))console.log('DBG region dd',dd.toFixed(2),'anim',!!anim,'diving',diving);if(live){if(!anim&&!diving&&dd<NAT_IN&&inAurelia(controls.target.x,controls.target.z))regionToNat();}else if(!anim&&!diving&&dd<2.6)diveToSector();}
+ if(mode==='region'){const dd=camera.position.distanceTo(controls.target),live=SEAM()&&!!NET.big&&!!NAT.root,k=live?0:Math.min(1,Math.max(0,(8.5-dd)/3.5));pmesh.material.opacity=k*0.95;provLabels.forEach(l=>l.material.opacity=k);const poiK=Math.min(1,Math.max(0,(14.5-dd)/3));natL.forEach((l,i)=>l.material.opacity=(i<8?1:poiK)*(1-k*0.85));secRing.material.opacity=k;secRing.scale.setScalar(1+0.25*Math.sin(t*4));if(window.__dbg&&(frameCount++%30===0))console.log('DBG region dd',dd.toFixed(2),'anim',!!anim,'diving',diving);if(live){if(!anim&&!diving&&dd<NAT_IN&&inRegionMap(controls.target.x,controls.target.z))regionToNat();}else if(!anim&&!diving&&dd<2.6)diveToSector();}
  if(mode==='hq'){aimSpot2(t);hqBlades.rotation.z-=dt*1.2;torches.forEach((o,i)=>{const k=0.8+0.3*Math.sin(t*9+i*1.7)+0.15*Math.sin(t*23+i);o.f.scale.setScalar(k);if(o.pl)o.pl.intensity=2.2*k;});}
  if(mode==='region'){controls.target.x=Math.max(-7,Math.min(7,controls.target.x));controls.target.z=Math.max(-6,Math.min(6,controls.target.z));
   rShips.forEach(sh=>{const u=(t*0.018+sh.o)%1,p=seaC.getPointAt(u),tg=seaC.getTangentAt(u);sh.s.position.copy(p);sh.s.rotation.y=Math.atan2(-tg.z,tg.x);});

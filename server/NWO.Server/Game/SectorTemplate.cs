@@ -71,7 +71,8 @@ public static class SectorTemplate
     };
 
     public static bool Claimable(int sector, int i, int j) =>
-        i >= 0 && j >= 0 && i < Size && j < Size && Code(sector, i, j) is not ("wa" or "pa" or "ha" or "xx");
+        i >= 0 && j >= 0 && i < Size && j < Size && Code(sector, i, j) is not ("wa" or "pa" or "ha" or "xx" or "xs")
+        && (!NationMap.Has(sector) || NationMap.Inside(NationMap.Origin(sector).gx + i, NationMap.Origin(sector).gy + j));
 
     // ---------- Generation ----------
 
@@ -126,7 +127,7 @@ public static class SectorTemplate
         var g = new string[Size, Size];
         for (var j = 0; j < Size; j++)
             for (var i = 0; i < Size; i++)
-                g[i, j] = NationMap.Inside(gx + i, gy + j) ? LandAt(gx + i, gy + j) : "xx";
+                g[i, j] = NationMap.Inside(gx + i, gy + j) ? LandAt(gx + i, gy + j) : WorldAtlas.LandCode(gx + i, gy + j);
         // Roads come from the nation's road network (see Geography.Roads); the hall stands in the middle
         var (hi, hj) = Hall;
         g[hi, hj] = "ha";

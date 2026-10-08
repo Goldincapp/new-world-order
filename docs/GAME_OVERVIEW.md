@@ -107,6 +107,11 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 - **Each sector is a 34×34 parcel grid**, mostly barren, with pockets of other land generated from its place on the map.
   - **Land codes:** `ba` barren, `sc` scrub, `gr` grassland, `fe` fertile, `ro` rocky, `oi` oil sands, `ru` ruins, `wa` water, `pa` road, `ha` sector hall, `xx` beyond the border (and `xs` sea in the atlas).
   - **Resources under a parcel:** oil, grain, timber, ore, stone, housing, salvage or none.
+- **The rest of the region (Europe and its edges) is on the same map,** so every nation can be looked at the way Aurelia can (`WorldAtlas.cs`).
+  - **What it shows:** real country shapes (from `client/nwo-geo.js`, the same ones the Nation view draws), the major rivers, ranges and lakes, old cities as ruins, roads, and broad climate (boreal north, dry Mediterranean south, eastern steppe, desert below the Atlas). Land just beyond Aurelia's border is real foreign land, not grey.
+  - **Settling:** only Aurelia's sectors can be settled. Tapping foreign land shows whose nation it is.
+  - **Data:** `GET /api/atlas/overview` returns a coarse map of the whole region (one sample every 8 parcels, about 11 KB compressed). `GET /api/atlas/squares?c=&r=` returns a 3×3 block of detailed 34×34 squares as the camera moves.
+  - **Zooming:** the Nation view hands over to the map anywhere in the region, not just over Aurelia.
 - **`GET /api/nation`** returns the layout, the border, where the towns stand, and an atlas of every parcel's land code and height for the whole nation plus a 20-parcel margin of sea and foreign land (about 43 KB compressed).
 - **The client's Sector view is the whole nation.**
   - **Boards:** nearby 34×34 squares (boards) are built in full and stream in and out as you pan.

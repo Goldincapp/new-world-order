@@ -116,7 +116,7 @@ public static class NationMap
         var n = SectorAt(x, y);
         if (n != 0) return SectorTemplate.Code(n, x - Origins[n].gx, y - Origins[n].gy);
         if (Inside(x, y)) return SectorTemplate.LandAt(x, y);
-        return Sea(x, y) ? "xs" : "xx";
+        return WorldAtlas.LandCode(x, y);
     }
 
     static string? json;
