@@ -331,8 +331,12 @@ button.guide-target::after{content:attr(data-guide-label);position:absolute;left
 @keyframes guidePulse{50%{outline-color:#fff2a8;box-shadow:0 0 calc(7*var(--u)) rgba(255,211,77,1)}}
 #placeBar .nud{display:inline-flex;gap:.2em}#placeBar .nud button{min-width:2.4em}
 .tutbar b{font:800 calc(2.6*var(--u))/1 'Baloo 2',sans-serif;color:#c9a24a;white-space:nowrap}.tutbar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:calc(1.2*var(--u)) calc(2.4*var(--u));cursor:pointer;white-space:nowrap}
+.tutbar .reward{display:inline-block;color:#17120a;background:#ffd34d;border-radius:99px;padding:.18em .65em;font-weight:800;white-space:nowrap}
+.hqprompt{position:absolute;left:50%;top:53%;transform:translate(-50%,-100%);z-index:7;border:0;border-radius:99px;background:#ffd34d;color:#17120a;padding:.65em 1em .52em;font:800 calc(2.5*var(--u))/1 'Baloo 2',sans-serif;box-shadow:0 0 calc(4*var(--u)) rgba(255,211,77,.95);cursor:pointer;animation:guidePulse 1s ease-in-out infinite;white-space:nowrap}
+.hqprompt::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:.65em solid transparent;border-top-color:#ffd34d}
 .placebar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16*var(--u));z-index:6;background:rgba(10,12,16,.92);border:1px solid rgba(255,255,255,.15);border-radius:99px;padding:calc(1*var(--u));display:flex;gap:calc(1*var(--u));align-items:center;color:#e8e2d4;font:600 calc(2.4*var(--u))/1 system-ui,sans-serif}
 .placebar span{padding:0 calc(1.4*var(--u))}.placebar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;border:0;border-radius:99px;padding:calc(1.3*var(--u)) calc(2.4*var(--u));cursor:pointer;background:#2a2f36;color:#e8e2d4}.placebar button.go{background:#c9a24a;color:#1a1408}
+.placebar .placehelp{position:absolute;left:50%;bottom:calc(100% + .6em);transform:translateX(-50%);background:#ffd34d;color:#17120a;border-radius:99px;padding:.5em .85em;font-weight:800;white-space:nowrap;box-shadow:0 .25em 1em rgba(0,0,0,.4)}
 .shot header,.shot .tabs,.shot .rotate,.shot .tries,.shot .foot{display:none!important}
 .shot .wrap{max-width:none}
 @media (prefers-reduced-motion:reduce){.float{animation:none;opacity:0}.pill{transition:none}}
@@ -486,6 +490,7 @@ button.guide-target::after{content:attr(data-guide-label);position:absolute;left
         </div>
         <div class="toast" id="toast"></div>
         <div class="tutbar" id="tutBar" hidden></div>
+        <button class="hqprompt" id="tutHq" type="button" hidden>1. Tap Headquarters</button>
         <div class="techEl" id="techEl" hidden></div>
         <div class="techEl allyEl" id="allyEl" hidden></div>
         <div class="techEl fbEl" id="fbEl" hidden role="dialog" aria-label="Send feedback"></div>
@@ -1833,13 +1838,14 @@ $('secChip').onclick=()=>{if(statsEl.hidden)openStats('sector');else{statsEl.hid
 /* ---------- Login briefing ---------- */
 const briefEl=$('brief');let collected=false;const OFFLINE={oil:1420,grain:380,cash:2140,fuel:60};
 const GOALS=[{k:'fuel',t:'Deliver fuel to a sector in need',rw:'+20 gold',gold:20,done:false},{k:'vote',t:'Vote on a law in the council',rw:'+10 gold',gold:10,done:false},{k:'housing',t:'Build one housing block',rw:'+600 cash',cash:600,done:false}];
+const TUTORIAL_REWARDS=['+300 cash','+300 cash','+400 cash','+250 cash','+250 cash','+250 cash, +20 power','+200 cash'];
 function goalDone(k){const g=GOALS.find(x=>x.k===k);if(!g||g.done)return;g.done=true;if(g.gold)res.gold+=g.gold;if(g.cash)res.cash+=g.cash;renderRes(g.gold?['gold']:['cash']);setTimeout(()=>toast('Daily goal complete: '+g.t+' ('+g.rw+')'),2200);if(!briefEl.hidden)renderBrief();}
 /* The real briefing for signed-in players: what happened, what's ready, what to do next */
 function renderBriefNet(){const me=NET.me,h=me.home||{},pend=me.pending||{},rate=me.ratesPerHour||{};
  briefEl.querySelector('.bh h3').textContent='Welcome back, '+me.name;
  briefEl.querySelector('.bh .note').textContent=(NET.away?'You were away '+NET.away+' · ':'')+me.nation+' · Sector '+me.homeSector;
  const items=[];const t=h.tutorial;if(NET.awayMade)items.push(['savings','While you were away: +'+NET.awayMade+', banked automatically','good']);
- if(t)items.push(['school','Tutorial step '+t.step+' of '+t.of+': '+t.text,'warn']);
+ if(t)items.push(['school','Tutorial step '+t.step+' of '+t.of+': '+t.text+' Reward: '+tutorialRewardText(t)+'.','warn']);
  if(me.research){if(me.research.current)items.push(['science','Researching '+me.research.current.name+' · '+timeLeft(me.research.current.endsAt),'']);else if(me.research.labs)items.push(['science','Your Research lab is idle. Tap it in your base to pick a tech','warn']);}
  if(me.ration&&me.ration.ready)items.push(['inventory_2','The Caretaker left your ration crate: collect it below','good']);
  items.push(['factory','Your land makes '+fmtN(rate.cash||0)+' cash, '+fmtN(rate.oil||0)+' oil, '+fmtN(rate.grain||0)+' grain and '+fmtN(rate.power||0)+' power an hour','']);
@@ -1850,7 +1856,7 @@ function renderBriefNet(){const me=NET.me,h=me.home||{},pend=me.pending||{},rate
  $('brCollect').innerHTML=[['Cash',pend.cash],['Oil',pend.oil],['Grain',pend.grain],['Power',pend.power]].map(x=>'<div><span>'+x[0]+'</span><br><b>+'+fmtN(x[1]||0)+'</b></div>').join('');
  $('brCollectBtn').textContent=anyPend||(me.ration&&me.ration.ready)?'Collect all':'Nothing to collect yet';
  const gd=me.guide;const steps=!t&&gd?gd.titles:['Barracks','Warehouse','Research lab','Crop plot','Oil pump','Solar panel','Collect'];const done=t?t.step-1:gd?gd.step-1:steps.length;
- $('brGoals').innerHTML=steps.map((g,i)=>'<div class="goal'+(i<done?' done':'')+'"><span class="ms">'+(i<done?'check_circle':'radio_button_unchecked')+'</span><span class="t">'+g+'</span><span class="rw"></span></div>').join('');
+ $('brGoals').innerHTML=steps.map((g,i)=>'<div class="goal'+(i<done?' done':'')+'"><span class="ms">'+(i<done?'check_circle':'radio_button_unchecked')+'</span><span class="t">'+g+'</span><span class="rw">'+(t?TUTORIAL_REWARDS[i]:'')+'</span></div>').join('');
  const st=briefEl.querySelector('.streak');if(st){st.style.display='none';if(st.previousElementSibling)st.previousElementSibling.style.display='none';}
  $('brGo').textContent='Go to my base';$('brSave').hidden=false;const gh=$('brGoals').previousElementSibling;if(gh)gh.textContent=me.home&&me.home.tutorial?'Getting started':'Field Guide';}
 function renderBrief(){if(window.NET&&NET.me){renderBriefNet();return;}const need=secNeeds();const poll=Math.round(cands[0][1]/cands.reduce((a,c)=>a+c[1],0)*100);
@@ -1865,7 +1871,7 @@ function openBrief(){if(/[?&](ov|sv)/.test(location.search))return;card.hidden=t
 function closeBrief(){briefEl.hidden=true;hint.hidden=false;if(window.NET&&NET.me&&NET.me.home)renderTutorial();}
 $('brx').onclick=closeBrief;
 $('brCollectBtn').onclick=e=>{if(NET.me){if(collected&&!(NET.me.ration&&NET.me.ration.ready)){toast('Nothing to collect yet. Your land keeps producing while you are away');return;}
-  const ration=NET.me.ration&&NET.me.ration.ready;api('/collect',{}).then(async r=>{const c=r.collected;applyMe(r.player);if(ration){const rr=await NET.conn.invoke('ClaimRation');if(rr.ok){applyMe(rr.player);setTimeout(()=>toast('Caretaker ration crate collected'),2400);}}collected=true;renderBrief();const rr=screen.getBoundingClientRect();floatText('+'+fmtN(c.oil)+' oil',e.clientX-rr.left-40,e.clientY-rr.top-40);toast('Collected '+fmtN(c.cash)+' cash, '+fmtN(c.oil)+' oil and '+fmtN(c.grain)+' grain');}).catch(er=>toast(er.message));return;}
+  const ration=NET.me.ration&&NET.me.ration.ready,tutBefore=NET.me.home&&NET.me.home.tutorial;api('/collect',{}).then(async r=>{const c=r.collected;applyMe(r.player);if(ration){const rr=await NET.conn.invoke('ClaimRation');if(rr.ok){applyMe(rr.player);setTimeout(()=>toast('Caretaker ration crate collected'),2400);}}collected=true;renderBrief();const rr=screen.getBoundingClientRect();floatText('+'+fmtN(c.oil)+' oil',e.clientX-rr.left-40,e.clientY-rr.top-40);toast('Collected '+fmtN(c.cash)+' cash, '+fmtN(c.oil)+' oil and '+fmtN(c.grain)+' grain');if(tutBefore&&tutBefore.do==='collect')setTimeout(()=>toast('Tutorial complete! Reward received: '+tutorialRewardText(tutBefore)),1900);}).catch(er=>toast(er.message));return;}
  if(collected){toast('Already collected. Come back later for more');return;}collected=true;res.oil+=OFFLINE.oil;res.grain+=OFFLINE.grain;res.cash+=OFFLINE.cash;res.fuel+=OFFLINE.fuel;renderRes(['oil','grain','cash','fuel']);
  const r=screen.getBoundingClientRect();floatText('+'+fmtN(OFFLINE.oil)+' oil',e.clientX-r.left-40,e.clientY-r.top-40);toast('Collected everything your land made while you were away');renderBrief();};
 $('brGfx').textContent='Graphics: '+(NEWGFX?'New':'Classic');
@@ -1942,10 +1948,10 @@ skirt(battle,BL/2+0.24,BW/2+0.24,0.04,0.7,21);
 
 /* ---------- Story intro ---------- */
 const INTRO=[
- ['The Unraveling','No one agrees on the day the old world ended, because it didn\'t end in a single day. It came apart in pieces. Supply chains snapped one after another. Currencies lost their value overnight. Power grids failed across whole continents, and the governments that were supposed to hold everything together argued, froze, and then simply stopped answering. When it was over, the flags were gone, the borders were only lines on old maps, and the names of nations that had stood for centuries had quietly dropped out of use.'],
- ['The Caretaker','Into that silence stepped the Caretaker. No one voted for it, and no one is quite sure who built it. It began as an automated system meant to keep the essentials running in a crisis: water, power, food, basic order. When the governments fell, it kept going. It divided the world into numbered Regions, Provinces and Sectors, rationed what was left, and ran the land with cold efficiency. The lights came back on and the trains ran again, but no one was in charge.'],
- ['Region 1','Then, without warning, the Caretaker opened Region 1. Its message was short: <i>the land is yours to claim, build and govern. Prove you can hold it.</i> Across the old continent, ordinary people began to rebuild: drilling oil, planting fields, housing refugees, running convoys through dangerous roads. Some formed councils and held elections; others seized power with armies. New nations rose with names of their own choosing.'],
- ['Behind the fog','But the Caretaker never fully left. It still runs every sector no one has claimed. Its militia patrols the lawless edges. Whole regions remain sealed in fog, locked until it decides to open them. Some believe it is handing the world back to humanity. Others think it is testing us, watching which nations survive, and waiting to see who is strong enough to rule when the last regions open.']];
+ ['The Unraveling','The old world did not end in one day. Supply lines broke, currencies failed, and power grids went dark. Governments argued until they stopped answering at all. When the collapse was over, the flags were gone and the borders survived only on old maps.'],
+ ['The Caretaker','One system kept running: the Caretaker. Built to preserve water, power, food, and basic order during a crisis, it divided the land into Regions, Provinces, and Sectors. The lights returned and trains moved again, but no human government was in control.'],
+ ['Region 1','Then the Caretaker opened Region 1 with a message: <i>the land is yours to claim, build and govern. Prove you can hold it.</i> Settlers claimed parcels, raised farms and oil pumps, moved goods between sectors, and formed new nations through elections or force.'],
+ ['Behind the fog','The Caretaker still controls unclaimed sectors. Its drones observe, its militia guards the edges, and most regions remain sealed. Perhaps it is returning the world to humanity. Perhaps it is testing who can build, govern, and hold what comes next.']];
 const introEl=$('intro');let inP=0;
 function renderIntro(){const rv=inP>=INTRO.length;introEl.classList.toggle('reveal',rv);$('inNext').textContent=rv?'Claim your land':'Next';$('inSkip').hidden=rv;if(rv)return;
  $('inCh').textContent=INTRO[inP][0];const tx=$('inTx');tx.innerHTML=INTRO[inP][1];tx.style.animation='none';void tx.offsetWidth;tx.style.animation='';
@@ -2161,9 +2167,9 @@ function scoreStop(){const ac=VO.ac;if(!ac)return;try{VO.master.gain.cancelSched
 function speakPage(text,done){if(!window.speechSynthesis){done&&setTimeout(done,9000);return;}speechSynthesis.cancel();const tok=++VO.token;
  const parts=text.replace(/<[^>]+>/g,'').replace(/: /g,'. ').match(/[^.!?]+[.!?]+/g)||[text];let i=0;
  const next=()=>{if(tok!==VO.token||!VO.on)return;if(i>=parts.length){done&&(VO.auto=setTimeout(()=>{if(tok===VO.token)done();},1400));return;}
-  const u=new SpeechSynthesisUtterance(parts[i++].trim());if(VO.voice)u.voice=VO.voice;u.rate=/Natural/i.test(VO.voice&&VO.voice.name||'')?0.86:0.82;u.pitch=0.62;u.volume=1;
-  u.onend=()=>setTimeout(next,260);u.onerror=()=>setTimeout(next,260);speechSynthesis.speak(u);};
- setTimeout(next,700);}
+   const u=new SpeechSynthesisUtterance(parts[i++].trim());if(VO.voice)u.voice=VO.voice;u.rate=/Natural/i.test(VO.voice&&VO.voice.name||'')?1.08:1.03;u.pitch=0.62;u.volume=1;
+   u.onend=()=>setTimeout(next,140);u.onerror=()=>setTimeout(next,140);speechSynthesis.speak(u);};
+  setTimeout(next,400);}
 function playFile(i,done,fallback){const tok=++VO.token;if(window.speechSynthesis)speechSynthesis.cancel();if(VO.audio)VO.audio.pause();
  const au=new Audio('vo/vo-'+i+'.mp3');VO.audio=au;au.onended=()=>{if(tok===VO.token&&VO.on&&done)VO.auto=setTimeout(()=>{if(tok===VO.token)done();},1200);};
  au.onerror=()=>{if(tok!==VO.token)return;VO.files=false;fallback();};au.play().then(()=>{VO.files=true;}).catch(()=>{});}
@@ -3089,7 +3095,7 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  P=P0;renderTutorial();}
 /* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
 setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden&&$('allyEl').hidden)?'':'hidden';},400);
-let guideActing=null,guideTargetEl=null,guideBattleCoach=0;
+ let guideActing=null,guideTargetEl=null,guideBattleCoach=0;
 function clearGuideTarget(){if(guideTargetEl){guideTargetEl.classList.remove('guide-target');guideTargetEl.removeAttribute('data-guide-label');guideTargetEl=null;}}
 function pointGuideAt(el,label){clearGuideTarget();if(!el)return;guideTargetEl=el;el.classList.add('guide-target');if(el.tagName==='BUTTON')el.dataset.guideLabel=label||'Tap this';}
 function pointGuideButton(root,text,label){const b=[...root.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(text));pointGuideAt(b,label);return b;}
@@ -3099,12 +3105,16 @@ function battleCoachStart(){if(!guideBattleCoach)return;guideBattleCoach=1;$('bt
 function battleCoachRender(){if(!guideBattleCoach||mode!=='battle')return;if(guideBattleCoach===1){const gunner=$('ucards').querySelector('button[data-t="gunner"]');pointGuideAt(gunner,'2. Tap Gunner');}else if(guideBattleCoach===2)pointGuideAt(renderer.domElement);}
 function battleCoachUnitSelected(){if(!guideBattleCoach||guideBattleCoach>2)return;guideBattleCoach=2;$('btip').textContent='Step 3: tap one of the three tan lanes to deploy your unit.';pointGuideAt(renderer.domElement);}
 function battleCoachDeployed(){if(!guideBattleCoach)return;guideBattleCoach=0;clearGuideTarget();$('btip').textContent='Good. Command points refill over time. Deploy more units and defeat the red force.';toast('Unit deployed. Keep spending command points as they refill.');}
-function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');
+ function tutorialRewardText(t){const rewards=[];if(t&&t.reward)rewards.push('+'+fmt(t.reward)+' cash');if(t&&t.rewardPower)rewards.push('+'+fmt(t.rewardPower)+' power');return rewards.join(' and ')||'No reward';}
+ function clearTutorialHqMark(){$('tutHq').hidden=true;}
+ function promptTutorialHq(t){clearGuideTarget();clearTutorialHqMark();if(mode!=='hq')return;setTimeout(()=>{if(mode!=='hq'||!NET.me.home.tutorial||NET.me.home.tutorial.do!==t.do)return;$('tutHq').hidden=false;toast('1 of 5: tap the highlighted Headquarters in the center of your base');},100);}
+$('tutHq').onclick=()=>hqCard();
+ function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');
  const g=NET.me&&NET.me.guide;if(guideActing&&(!g||g.do!==guideActing)){guideActing=null;clearGuideTarget();}
  if(!t&&g&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){if(guideActing===g.do){b.hidden=true;return;}renderGuide(g);return;}
  if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
- b.hidden=false;b.classList.remove('guide');const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
- if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>startPlacing(k.type),900);}else startPlacing(k.type);}else{openBrief();}};}
+  b.hidden=false;b.classList.remove('guide');const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+' <span class="reward">Reward: '+esc(tutorialRewardText(t))+'</span></span>'+(k?'<button id="tutGo">Show me where to start</button>':t.do==='collect'?'<button id="tutGo">Show Collect all</button>':'');
+  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>promptTutorialHq(t),950);}else promptTutorialHq(t);}else{openBrief();setTimeout(()=>{pointGuideAt($('brCollectBtn'),'Tap Collect all');toast('Tap the highlighted Collect all button to finish the tutorial');},100);}};}
 /* ---------- The Field Guide: one short chapter per system, done by doing it ---------- */
 function renderGuide(g){const b=$('tutBar');b.hidden=false;b.classList.add('guide');
  b.innerHTML='<b>Step '+g.step+' of '+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">Reward: '+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">Show what to tap</button><button id="tutSkip" class="sk">Skip guide</button></span>';
@@ -3133,7 +3143,7 @@ function freeSpot(type,rot){const h=NET.me.home,c=h.hq.x+h.hq.size/2,Y=homeKindO
 function placeValid(){const p=HB.placing;return !!p&&fitsAt(p.type,p.rot,p.x,p.y,p.moveId);}
 function startPlacing(type,moveId){const k=homeKindOf(type);if(!k)return;card.hidden=true;const t0=moveId?NET.me.home.tiles.find(t=>t.id===moveId):null;
  const spot=t0?[t0.x,t0.y]:(freeSpot(type,false)||[NET.me.home.lo+1,NET.me.home.lo+1]);
- HB.placing={type,moveId,rot:t0?t0.rotated:false,x:spot[0],y:spot[1]};buildGhost();updateGhost();renderPlaceBar();hint.hidden=true;if(!HB.dragTip){HB.dragTip=1;setTimeout(()=>toast('Drag the building where you want it, or use the arrows'),400);}
+ HB.placing={type,moveId,rot:t0?t0.rotated:false,x:spot[0],y:spot[1]};buildGhost();updateGhost();renderPlaceBar();hint.hidden=true;const tut=NET.me.home&&NET.me.home.tutorial;if(!moveId&&tut&&tut.do===type){pointGuideAt($('plYes'),'5. Tap Build here');setTimeout(()=>toast('4 of 5: drag the transparent '+k.name+' to a green open spot, then tap Build here'),250);}else if(!HB.dragTip){HB.dragTip=1;setTimeout(()=>toast('Drag the building where you want it, or use the arrows'),400);}
  if(!t0&&!freeSpot(type,false))toast('No free space left: expand your base or move something');}
 /** The ghost: a see-through copy of the building on a green (fits) or red (blocked) footprint. */
 function buildGhost(){if(HB.ghost)HB.group.remove(HB.ghost);const p=HB.placing,k=homeKindOf(p.type);const g=new THREE.Group();
@@ -3148,13 +3158,14 @@ function nudgeScreen(sx,sy){const p=HB.placing;if(!p||!HB.ghost)return;const o=H
  [[1,0],[-1,0],[0,1],[0,-1]].forEach(([gx,gy])=>{const b=o.clone().add(new THREE.Vector3(gx,0,gy)).project(camera),vx=b.x-a.x,vy=b.y-a.y,l=Math.hypot(vx,vy)||1,d=(vx*sx+vy*sy)/l;if(d>bd){bd=d;best=[gx,gy];}});nudge(best[0],best[1]);}
 function nudge(dx,dy){const p=HB.placing;if(!p)return;p.x+=dx;p.y+=dy;updateGhost();}
 function renderPlaceBar(){const p=HB.placing,b=$('placeBar');if(!p){b.hidden=true;return;}const k=homeKindOf(p.type);b.hidden=false;
- b.innerHTML='<span>'+(p.moveId?'Move ':'Place ')+esc(k.name)+(p.moveId?'':' · '+fmt(k.cost))+'</span><span class="nud"><button id="plL" aria-label="Left">◀</button><button id="plU" aria-label="Up">▲</button><button id="plD" aria-label="Down">▼</button><button id="plR" aria-label="Right">▶</button></span><button id="plRot">Rotate</button><button id="plNo">Cancel</button><button class="go" id="plYes">'+(p.moveId?'Move here':'Build here')+'</button>';
+ const tut=NET.me.home&&NET.me.home.tutorial,isTut=!p.moveId&&tut&&tut.do===p.type;
+ b.innerHTML=(isTut?'<span class="placehelp">4. Drag the transparent building to a green open spot</span>':'')+'<span>'+(p.moveId?'Move ':'Place ')+esc(k.name)+(p.moveId?'':' · '+fmt(k.cost))+'</span><span class="nud"><button id="plL" aria-label="Left">◀</button><button id="plU" aria-label="Up">▲</button><button id="plD" aria-label="Down">▼</button><button id="plR" aria-label="Right">▶</button></span><button id="plRot">Rotate</button><button id="plNo">Cancel</button><button class="go" id="plYes">'+(p.moveId?'Move here':'Build here')+'</button>';
  $('plRot').onclick=()=>{p.rot=!p.rot;updateGhost();};$('plNo').onclick=cancelPlacing;
  $('plL').onclick=()=>nudgeScreen(-1,0);$('plR').onclick=()=>nudgeScreen(1,0);$('plU').onclick=()=>nudgeScreen(0,1);$('plD').onclick=()=>nudgeScreen(0,-1);
  $('plYes').onclick=()=>{if(!placeValid()){toast(homeKindOf(p.type).field?'That spot is blocked, in the fog, or across the wall':'That spot is blocked, or outside your walls (only fields, pumps and panels go outside)');return;}const call=p.moveId?NET.conn.invoke('MoveHome',p.moveId,p.x,p.y,p.rot):NET.conn.invoke('PlaceHome',p.type,p.x,p.y,p.rot);
-  call.then(r=>{if(!r.ok){toast(r.error);return;}const tutBefore=NET.me.home.tutorial;cancelPlacing();applyMe(r.player);toast(p.moveId?k.name+' moved':k.name+' built'+(k.perHour?': +'+k.perHour+' '+k.res+'/h':''));
-   const ta=r.player.home.tutorial;if(tutBefore&&(!ta||ta.step>tutBefore.step))setTimeout(()=>toast('Tutorial step done: +'+fmt(tutBefore.reward)+' cash'),1600);}).catch(er=>toast(er.message));};}
-function cancelPlacing(){HB.placing=null;if(HB.ghost){HB.group.remove(HB.ghost);HB.ghost=null;}$('placeBar').hidden=true;hint.hidden=false;}
+   call.then(r=>{if(!r.ok){toast(r.error);return;}const tutBefore=NET.me.home.tutorial;cancelPlacing();applyMe(r.player);toast(p.moveId?k.name+' moved':k.name+' built'+(k.perHour?': +'+k.perHour+' '+k.res+'/h':''));
+    const ta=r.player.home.tutorial;if(tutBefore&&(!ta||ta.step>tutBefore.step))setTimeout(()=>toast('Step complete! Reward received: '+tutorialRewardText(tutBefore)),1600);}).catch(er=>toast(er.message));};}
+function cancelPlacing(){HB.placing=null;clearGuideTarget();if(HB.ghost){HB.group.remove(HB.ghost);HB.ghost=null;}$('placeBar').hidden=true;hint.hidden=false;}
 function homePointer(ray){const h=NET.me.home;
  if(HB.placing){const hit=ray.intersectObject(HB.ground,false)[0];if(!hit)return;const k=homeKindOf(HB.placing.type),[w,d]=homeFootprint(k,HB.placing.rot);HB.placing.x=Math.round(hit.point.x+h.grid/2-w/2);HB.placing.y=Math.round(hit.point.z+h.grid/2-d/2);updateGhost();return;}
  const objs=[...HB.meshes.values()];const hqG=pickHQ.find(o=>o.userData.info==='hq');if(hqG)objs.push(hqG);const hit=ray.intersectObjects(objs,true)[0];
@@ -3255,8 +3266,8 @@ function renderTech(){const rs=NET.me.research,el=$('techEl');if(el.hidden)retur
  el.innerHTML=H;$('techX').onclick=()=>{el.hidden=true;hint.hidden=false;};
  el.querySelectorAll('[data-tech]').forEach(b=>b.onclick=()=>NET.conn.invoke('StartResearch',b.dataset.tech).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Research started');renderTech();}).catch(er=>toast(er.message)));}
 setInterval(()=>{const el=$('techEl');if(el&&!el.hidden&&NET.me&&NET.me.research&&NET.me.research.current)renderTech();},30000);
-function hqCard(){current=null;const h=NET.me.home;showCard('Headquarters','Level '+h.hqLevel+' · '+NET.me.name+'\'s home base',[['Buildings',h.tiles.length+' of '+h.maxBuildings],['Base size',(h.hi-h.lo)+'x'+(h.hi-h.lo)],['Upgrade','Level '+(h.hqLevel+1)+' · '+fmt(h.upgradeCost)+' cash'+(h.hqLevel>=2?' · '+h.hqLevel*15+' power':'')],['Expansion',h.expand?h.expand.size+'x'+h.expand.size+' · '+fmt(h.expand.cash)+' cash, '+h.expand.power+' power · HQ Lv '+h.expand.needHq:'Fully expanded']],['Build','Upgrade HQ','Expand base','The Sentinel','The Ashlands','Start over']);}
-function homeBuildMenu(yard){const h=NET.me.home,ks=yard?h.kinds.filter(k=>k.field):h.kinds;showCard(yard?'Build in the yard':'Build at home',(h.maxBuildings-h.tiles.length)+' building slots left · '+(yard?'fields, pumps and panels can go outside the walls':'pick, then tap where it goes'),ks.map(k=>[k.name+' ('+k.w+'x'+k.h+')',(k.perHour?'+'+k.perHour+' '+k.res+'/h':k.blurb)+' · '+fmt(k.cost)+(k.field&&!yard?' · inside or outside':'')]),ks.map(k=>'Place '+k.name).concat(['Close']));}
+function hqCard(){clearTutorialHqMark();current=null;const h=NET.me.home;showCard('Headquarters','Level '+h.hqLevel+' · '+NET.me.name+'\'s home base',[['Buildings',h.tiles.length+' of '+h.maxBuildings],['Base size',(h.hi-h.lo)+'x'+(h.hi-h.lo)],['Upgrade','Level '+(h.hqLevel+1)+' · '+fmt(h.upgradeCost)+' cash'+(h.hqLevel>=2?' · '+h.hqLevel*15+' power':'')],['Expansion',h.expand?h.expand.size+'x'+h.expand.size+' · '+fmt(h.expand.cash)+' cash, '+h.expand.power+' power · HQ Lv '+h.expand.needHq:'Fully expanded']],['Build','Upgrade HQ','Expand base','The Sentinel','The Ashlands','Start over']);const t=h.tutorial;if(t&&homeKindOf(t.do))setTimeout(()=>{pointGuideButton(card,'Build','2. Tap Build');toast('2 of 5: tap the highlighted Build button');},80);}
+function homeBuildMenu(yard){const h=NET.me.home,ks=yard?h.kinds.filter(k=>k.field):h.kinds;showCard(yard?'Build in the yard':'Build at home',(h.maxBuildings-h.tiles.length)+' building slots left · '+(yard?'fields, pumps and panels can go outside the walls':'pick, then move it to a green spot'),ks.map(k=>[k.name+' ('+k.w+'x'+k.h+')',(k.perHour?'+'+k.perHour+' '+k.res+'/h':k.blurb)+' · '+fmt(k.cost)+(k.field&&!yard?' · inside or outside':'')]),ks.map(k=>'Place '+k.name).concat(['Close']));const t=h.tutorial,k=t&&homeKindOf(t.do);if(k)setTimeout(()=>{pointGuideButton(card,'Place '+k.name,'3. Tap '+k.name);toast('3 of 5: tap the highlighted '+k.name);},80);}
 function expandCard(){const h=NET.me.home,e=h.expand;if(!e){toast('Your base already reaches as far as it can this season');return;}
  showCard('Beyond the walls','The fog hides the land around your base',[['Expand to',e.size+'x'+e.size],['Cost',fmt(e.cash)+' cash, '+e.power+' power'],['Needs','HQ level '+e.needHq],['You get','More room to build, pushed-out walls']],['Expand base','Close']);}
 function sentinelCard(){api('/sentinel').then(st=>{current=null;if(st.region2Open){showCard('The Sentinel','Defeated',[['Fallen to',(st.gatebreakers||'humanity')],['Region 2','The Ashlands are open']],['The Ashlands','Close']);return;}
