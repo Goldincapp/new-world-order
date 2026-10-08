@@ -55,6 +55,7 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .me b{display:block;line-height:1.05}
 .res{display:flex;gap:calc(1*var(--u));margin-left:auto;flex-wrap:nowrap}
 .pill{display:flex;align-items:center;gap:calc(.8*var(--u));background:var(--hud);border:1px solid var(--hud-line);border-radius:99px;padding:calc(.9*var(--u)) calc(1.8*var(--u)) calc(.7*var(--u)) calc(1.2*var(--u));font-variant-numeric:tabular-nums;transition:transform .15s}
+.pill[role=button]{cursor:pointer}.pill[role=button]:focus-visible{outline:2px solid #ffd34d;outline-offset:2px}
 .pill .ms{font-size:1.25em}
 .pill.bump{transform:scale(1.12)}
 .pill.land{cursor:pointer}.pill.land .ms{color:#9fdc7a}.pill.power .ms{color:#ffe066}.pill.cash .ms{color:#8fe3a0}.pill.oil .ms{color:#c9c9c9}.pill.fuel .ms{color:#ff9a7a}.pill.grain .ms{color:#f2cd4b}.pill.gold .ms{color:var(--gold)}
@@ -68,7 +69,9 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .nav button{font:inherit;color:#dfe6ec;background:transparent;border:0;border-radius:calc(3*var(--u));padding:calc(1*var(--u)) calc(2.4*var(--u)) calc(.8*var(--u));display:flex;flex-direction:column;align-items:center;gap:calc(.2*var(--u));cursor:pointer;font-size:.8em}
 .nav button .ms{font-size:calc(4.8*var(--u))}
 .nav button[aria-pressed="true"]{background:var(--gold);color:var(--gold-ink)}
-.hint{position:absolute;left:5cqw;bottom:calc(4*var(--u));background:var(--hud);border:1px solid var(--hud-line);border-radius:calc(2*var(--u));padding:calc(.9*var(--u)) calc(1.8*var(--u)) calc(.7*var(--u));font-size:.82em;color:#e6edf2;max-width:26cqw}
+.hint{position:absolute;left:5cqw;bottom:calc(4*var(--u));background:var(--hud);border:1px solid var(--hud-line);border-radius:calc(2*var(--u));padding:calc(.9*var(--u)) calc(1.8*var(--u)) calc(.7*var(--u));font:inherit;font-size:.82em;color:#e6edf2;max-width:29cqw;text-align:left;cursor:pointer}
+.hint::after{content:"? Guide";display:inline-block;margin-left:.8em;color:var(--gold);font-weight:800;white-space:nowrap}
+.hint:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
 .card{position:absolute;left:5cqw;top:calc(19.5*var(--u));width:min(40cqw,300px);background:#fbf7ee;color:#2a2a2a;border-radius:calc(3*var(--u));padding:calc(2.6*var(--u)) calc(3*var(--u));box-shadow:0 calc(1.4*var(--u)) 0 rgba(0,0,0,.18);font-family:'IBM Plex Sans',system-ui,sans-serif;font-weight:400;font-size:clamp(7px,calc(3.1*var(--u)),13px);line-height:1.45}
 .card h3{font:800 1.35em/1.05 'Baloo 2','Trebuchet MS',sans-serif;margin:0;color:#1d1d1d}
@@ -316,11 +319,16 @@ html.app .screen{border-radius:0}
 .allyEl .arow{display:flex;gap:.6em;align-items:center;justify-content:space-between;border-bottom:1px dashed #e2d9c5;padding:.35em 0;flex-wrap:wrap}.allyEl .arow small{color:#8a8272}
 .allyEl .acts{display:flex;gap:.4em;flex-wrap:wrap;margin:.4em 0}.allyEl button{background:#e9e1cf;color:#2a2a2a;border:0;border-radius:99px;padding:.3em .85em;font:700 .95em/1.1 'Baloo 2',sans-serif;cursor:pointer}
 .allyEl button.go{background:#c9a24a;color:#1a1408}.allyEl button.bad{background:#f1d9d2;color:#8a2a1a}.allyEl input{font:inherit;padding:.4em .6em;border-radius:.5em;border:1px solid #d9d1bf;min-width:7em;background:#fff;color:#2a2a2a}
+.allyEl button:disabled{cursor:not-allowed;opacity:.55}.allyEl .explain{background:#f3ecdc;border:1px solid #ddd0b4;border-radius:.75em;padding:.65em .8em;margin:.5em 0}.allyEl .formHelp{margin:.25em 0 .55em;color:#6f6759}.allyEl .formError{color:#9a2418;font-weight:700;min-height:1.2em;margin:.35em 0}
 .allyEl h4{margin:.9em 0 .25em;font:700 1.05em/1.2 'Baloo 2',sans-serif}.allyEl .dot{display:inline-block;width:.55em;height:.55em;border-radius:50%;background:#bbb;margin-right:.3em}.allyEl .dot.on{background:#3cb371}
 .allyEl .two{display:grid;grid-template-columns:1fr 1fr;gap:1.2em}@media (orientation:portrait){html.app .allyEl .two{grid-template-columns:1fr}}
 .techNode.done{background:#eaf3e2;border-color:#9cc48a}.techNode.busy{background:#fff6dc;border-color:#e0bf5a}.techNode.locked{opacity:.62}
 @media (orientation:portrait){html.app .techEl{inset:calc(10*var(--u)) 2.5cqw calc(16*var(--u));font-size:calc(3.3*var(--u))}html.app .techGrid{grid-template-columns:1fr}}
 .tutbar.guide{flex-wrap:wrap;max-width:min(94cqw,calc(150*var(--u)))}.tutbar.guide>span:nth-child(2){flex:1;min-width:16em}.tutbar .gbtns{display:flex;gap:.4em}@media (orientation:portrait){html.app .tutbar.guide>span:nth-child(2){min-width:0;flex-basis:100%}html.app .tutbar.guide{max-width:none}}.tutbar button.sk{background:transparent;color:#c9a24a;border:1px solid #6b5a30}
+.guide-target{outline:calc(.45*var(--u)) solid #ffd34d!important;outline-offset:calc(.35*var(--u));box-shadow:0 0 calc(4*var(--u)) rgba(255,211,77,.9)!important;animation:guidePulse 1s ease-in-out infinite}
+button.guide-target{position:relative;z-index:50!important}
+button.guide-target::after{content:attr(data-guide-label);position:absolute;left:50%;bottom:calc(100% + 1.1em);transform:translateX(-50%);background:#ffd34d;color:#17120a;border-radius:99px;padding:.45em .8em;font:800 .8rem/1 system-ui,sans-serif;white-space:nowrap;pointer-events:none;box-shadow:0 .25em 1em rgba(0,0,0,.45)}
+@keyframes guidePulse{50%{outline-color:#fff2a8;box-shadow:0 0 calc(7*var(--u)) rgba(255,211,77,1)}}
 #placeBar .nud{display:inline-flex;gap:.2em}#placeBar .nud button{min-width:2.4em}
 .tutbar b{font:800 calc(2.6*var(--u))/1 'Baloo 2',sans-serif;color:#c9a24a;white-space:nowrap}.tutbar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:calc(1.2*var(--u)) calc(2.4*var(--u));cursor:pointer;white-space:nowrap}
 .placebar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(16*var(--u));z-index:6;background:rgba(10,12,16,.92);border:1px solid rgba(255,255,255,.15);border-radius:99px;padding:calc(1*var(--u));display:flex;gap:calc(1*var(--u));align-items:center;color:#e8e2d4;font:600 calc(2.4*var(--u))/1 system-ui,sans-serif}
@@ -361,12 +369,12 @@ html.app .screen{border-radius:0}
         <div class="top">
           <div class="me"><div class="av" id="meAv">12</div><div><b id="meName">You</b><small id="meSub">Aurelia · Tycoon</small></div></div>
           <div class="res">
-            <div class="pill cash" id="pCash"><span class="ms">payments</span><span id="vCash">48,200</span></div>
-            <div class="pill oil" id="pOil"><span class="ms">oil_barrel</span><span id="vOil">1,240</span></div>
-            <div class="pill fuel" id="pFuel"><span class="ms">local_gas_station</span><span id="vFuel">380</span></div>
-            <div class="pill grain" id="pGrain"><span class="ms">agriculture</span><span id="vGrain">900</span></div>
-            <div class="pill gold" id="pGold"><span class="ms">paid</span><span id="vGold">120</span></div>
-            <div class="pill power" id="pPower"><span class="ms">bolt</span><span id="vPower">0</span></div>
+            <div class="pill cash" id="pCash" role="button" tabindex="0" aria-label="Cash. Tap for help"><span class="ms">payments</span><span id="vCash">48,200</span></div>
+            <div class="pill oil" id="pOil" role="button" tabindex="0" aria-label="Oil. Tap for help"><span class="ms">oil_barrel</span><span id="vOil">1,240</span></div>
+            <div class="pill fuel" id="pFuel" role="button" tabindex="0" aria-label="Fuel. Tap for help"><span class="ms">local_gas_station</span><span id="vFuel">380</span></div>
+            <div class="pill grain" id="pGrain" role="button" tabindex="0" aria-label="Grain. Tap for help"><span class="ms">agriculture</span><span id="vGrain">900</span></div>
+            <div class="pill gold" id="pGold" role="button" tabindex="0" aria-label="Gold. Tap for help"><span class="ms">paid</span><span id="vGold">120</span></div>
+            <div class="pill power" id="pPower" role="button" tabindex="0" aria-label="Power. Tap for help"><span class="ms">bolt</span><span id="vPower">0</span></div>
             <div class="pill land" id="pLand" role="button" tabindex="0" aria-label="Your land"><span class="ms">crop_square</span><span id="vLand">0</span></div>
           </div>
         </div>
@@ -389,7 +397,7 @@ html.app .screen{border-radius:0}
           <button id="nWorld" aria-pressed="false"><span class="ms">public</span>World</button>
           <button id="nPolitics" aria-pressed="false"><span class="ms">account_balance</span>Politics</button>
         </div>
-        <div class="hint" id="hint">Tap a parcel. Your land has the gold border.</div>
+        <button class="hint" id="hint" type="button" aria-label="Open a guide for this screen">Tap a parcel. Your land has the gold border.</button>
         <button class="secchip" id="secChip" hidden><span id="secText">Sector 12</span></button>
         <button class="secchip" id="visChip" hidden><span id="visText"></span></button>
         <div class="ticker" id="ticker" aria-live="polite"><span class="ms">campaign</span><span id="tickText">Crimson Pact captured Sector 9 from the Steppe Dominion</span></div>
@@ -1169,6 +1177,26 @@ paintGlobe();
 /* ---------- Game state + HUD ---------- */
 const res={cash:48200,oil:1240,fuel:380,grain:900,gold:120};
 const fmt=n=>Math.round(n).toLocaleString('en-US');
+const RESOURCE_HELP={
+ cash:['Cash','Your everyday money. Spend it to claim land, construct buildings, research upgrades, trade, and take political actions.',['Main sources','Land and buildings, deliveries, trading, and rewards']],
+ oil:['Oil','A raw trade good made by oil land, pumps, and rigs. Sell it on the market or use it to complete delivery contracts.',['Best source','Claim oil land and build an Oil rig on it']],
+ fuel:['Fuel','Your military action supply. Battles, raids, and land seizures consume fuel; some delivery contracts also request it.',['Main sources','Generators, the market, and rewards']],
+ grain:['Grain','Food and a trade good. Farms and fertile land produce it; contracts and the market turn surplus grain into cash.',['Best source','Build Farms on fertile grain land']],
+ gold:['Gold','A rare advanced currency. Higher research tiers, founding a nation, and coups can require it.',['Main sources','Goals, major battles, and special rewards']],
+ power:['Power','Electricity stored for expanding your home base. Solar panels, Solar farms, and Wind turbines produce it.',['Used for','Larger walls and more room for home-base buildings']],
+};
+const SCREEN_HELP={
+ county:['Sector: your local area','The closest map view. A sector contains the parcels where players claim land, build, produce resources, and meet neighbours.',[['Parcel','One buildable square of land inside a sector'],['Gold border','Land that belongs to you'],['Caretaker','The AI authority still controlling unclaimed land and basic order']]],
+ province:['Province: a group of sectors','The regional map. Use it to move between sectors, follow shipments, find contracts, and see nearby conflicts.',[['Sector','A local area containing player parcels'],['Province','The larger region containing many sectors'],['Convoy','A shipment travelling between sectors']]],
+ region:['Nation: player-run government','A nation contains provinces and sectors. Its players elect leaders who can shape laws, taxes, trade, and wars.',[['Province','A major region inside a nation'],['Politics','Elections, offices, laws, taxes, and national decisions'],['Standing','How much the Caretaker trusts or distrusts your actions']]],
+ hq:['Home: your private base','Your home base sits on your first parcel. Place and upgrade buildings here to unlock production, research, storage, and defence.',[['HQ','Headquarters; upgrading it expands capacity and unlocks options'],['Building slots','The limit on structures you can place'],['Power','Electricity used to expand and strengthen your base']]],
+ world:['World: the largest map','The world is divided into regions. Enter an open region to reach its nations; additional regions unlock as the game expands.',[['Region','The largest playable territory below the world'],['Nation','A player-governed country inside a region'],['Locked region','Not yet open for settlement or travel']]],
+ visit:['Visiting another sector','You are away from home. Inspect bases, patrols, camps, and threats here before deciding whether to trade, ally, or fight.',[['Red ring','A hostile force or target'],['Patrol','A moving military group'],['Alliance','Players cooperating in chat, defence, trade, and war']]],
+};
+function glossaryCard(){showCard('Plain-language glossary','The terms you will see most often',[['World → Region','The map from largest scale to smaller areas'],['Nation → Province → Sector','A country, one of its regions, then a local settlement area'],['Parcel','One claimable, buildable square inside a sector'],['Home / HQ','Your private base and its central headquarters'],['Caretaker','The AI authority controlling unclaimed land and tracking behaviour'],['Alliance','A group of players cooperating in trade, defence, and war'],['Resources','Tap any counter at the top to learn what it does']],['Back to this screen','Close']);}
+function guideCard(topic){const g=SCREEN_HELP[topic]||SCREEN_HELP.county;showCard(g[0],'Tap this guide whenever a term is unclear',g[2].concat([['On this screen',g[1]]]),['All terms','Close']);}
+function resourceCard(k){const r=RESOURCE_HELP[k];if(!r)return;showCard(r[0],fmt(res[k]||0)+' available',[['What it is',r[1]],r[2],['Tip','Tap any resource counter at the top to open this explanation.']],['Close']);}
+Object.keys(RESOURCE_HELP).forEach(k=>{const el=$('p'+k[0].toUpperCase()+k.slice(1));if(!el)return;el.onclick=()=>resourceCard(k);el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();resourceCard(k);}};});
 /** Your land: how many parcels, where, and what they hold. */
 function landCard(){const ps=(NET.me&&NET.me.parcels)||[];const by={};ps.forEach(p=>{(by[p.sector]=by[p.sector]||[]).push(p);});
  const rows=Object.keys(by).sort((a,b)=>by[b].length-by[a].length).map(k=>{const l=by[k],kinds={};l.forEach(p=>{const r=p.home?'home':(p.resource||'none');kinds[r]=(kinds[r]||0)+1;});
@@ -1198,6 +1226,8 @@ function showCard(title,sub,rows,btns,slotsUsed){
  card.querySelectorAll('[data-a]').forEach(b=>b.onclick=e=>act(b.dataset.a,e));}
 let current=null;
 function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+ if(a==='All terms'){glossaryCard();return;}
+ if(a==='Back to this screen'){guideCard(mode);return;}
  if(window.NET&&!NET.me&&(a==='Try again'||a==='Play offline')){card.hidden=true;if(a==='Try again')comeBack();else{NET.offline=true;openBrief();}return;}if(window.NET&&NET.me&&homeAct(a))return;
  if(mode==='visit'&&visitAct(a))return;
  if(a==='Collect'&&window.NET&&NET.me){api('/collect',{}).then(r=>{applyMe(r.player);const c2=r.collected;floatText('+'+fmtN(c2.oil)+' oil',x-10,y-30);toast('Collected '+fmtN(c2.cash)+' cash, '+fmtN(c2.oil)+' oil, '+fmtN(c2.grain)+' grain');}).catch(er=>toast(er.message));return;}
@@ -1383,6 +1413,7 @@ function home0(m){const k=mode;mode=m;const h=home();mode=k;return h[1];}
 function home(){if(mode==='siege')return [new THREE.Vector3(0,0,0.5),new THREE.Vector3(0,25,27),10];if(mode==='county'&&window.NET&&NET.big){const c=cells[NET.homeKey]||{x:0,top:0.3,z:0};return [new THREE.Vector3(c.x,c.top,c.z),new THREE.Vector3(c.x+11,c.top+13,c.z+11),3];}if(mode==='visit')return [new THREE.Vector3(0,0,0),new THREE.Vector3(12.5,12,12.5),2.5];if(mode==='county')return [new THREE.Vector3(0,0,0),new THREE.Vector3(15,14,15),2.5];if(mode==='hq'){const sz=window.NET&&NET.me&&NET.me.home.hi?NET.me.home.hi-NET.me.home.lo+2*(NET.me.home.yard||0)-2:10,d=(0.95*sz+3)*(innerWidth<innerHeight?1.12:1);return [new THREE.Vector3(0,0,0),new THREE.Vector3(d,d*0.95,d),5];}if(mode==='battle')return [new THREE.Vector3(0,0,0.4),new THREE.Vector3(0,11.8,12.8),5];if(mode==='province')return [new THREE.Vector3(0,0,0.6),new THREE.Vector3(0,22,19),2];if(mode==='region')return [new THREE.Vector3(-0.9,0,-0.9),new THREE.Vector3(-0.9,13.2,8.6),2.2];return [new THREE.Vector3(0,0,0),new THREE.Vector3(0,1.4,7.4),2.9];}
 function back(){card.hidden=true;sel.visible=false;hint.hidden=false;const h=home();flyTo(h[0],h[1],()=>{controls.minDistance=h[2];controls.autoRotate=false;});}
 const hints={visit:'Red rings are enemies. Tap bases, patrols and camps. Zoom out to return to the province.',county:'Tap a parcel. Zoom into your HQ to go home, or zoom out to see the province.',hq:'Tap a building. Zoom out to return to your sector.',province:'Tap a sector, or zoom into one to enter it. Zoom out to rise to the nation.',world:'Zoom into the lit region, or tap it, to enter the nation view.',region:'Zoom into Aurelia to reveal its provinces and enter one. Zoom out to see the world.'};
+$('hint').onclick=()=>guideCard(mode);
 function setMode(m){mode=m;setTimeout(()=>{if(window.NET&&NET.me&&NET.me.home&&NET.me.home.grid)renderTutorial();if(m!=='hq'&&HB.placing)cancelPlacing();},0);if(window.__siegeG){window.__siegeG.visible=m==='siege';$('siegePanel').hidden=m!=='siege';}card.hidden=true;chatEl.hidden=true;polEl.hidden=true;$('board').hidden=true;$('stats').hidden=true;$('brief').hidden=true;$('ctSheet').hidden=true;battle.visible=m==='battle';$('bhud').hidden=m!=='battle';$('hud').classList.toggle('inbattle',m==='battle');controls.enableRotate=m!=='battle';controls.enableZoom=m!=='battle';$('secChip').hidden=m!=='county';if(m==='county')renderSec();sel.visible=false;closeMarket(true);county.visible=m==='county';hq.visible=m==='hq';visit.visible=m==='visit';$('visChip').hidden=m!=='visit';if(m!=='visit')vFollow=null;world.visible=m==='world';region.visible=m==='region';province.visible=m==='province';
  hint.textContent=hints[m]||'';hint.hidden=m==='battle';
  scene.fog=(m==='visit'||m==='county'||m==='hq'||m==='province'||m==='battle')?(NEWGFX?new THREE.Fog(FOGC,42,100):new THREE.Fog(FOGC,24,46)):null;
@@ -1558,8 +1589,8 @@ function tracer(a,b,side){const g=new THREE.BufferGeometry().setFromPoints([a,b]
  const fl=new THREE.Mesh(UG.flash,new THREE.MeshBasicMaterial({color:0xfff0a0,transparent:true,opacity:0.95}));fl.position.copy(a);battle.add(fl);fx.push({m:fl,life:0.07,max:0.07,grow:0.6});}
 const muzzleOf=u=>u.g.userData.muzzle?u.g.localToWorld(u.g.userData.muzzle.clone()):u.g.position.clone().add(V3(0,0.2,0));
 let selUnit=null;
-function renderCards(){const el=$('ucards');el.innerHTML=((BT&&BT.deck)||['gunner','launcher','tank','heli','militia','strike']).map(t=>{const u=UT[t],low=BT&&(BT.cp<u.cost||troopsLeft[t]<=0);return '<button class="ucard'+(low?' low':'')+'" data-t="'+t+'" aria-pressed="'+(selUnit===t)+'"><span class="ms">'+u.ic+'</span><b>'+u.n+'</b><small>'+u.cost+' cmd · '+troopsLeft[t]+' left</small></button>';}).join('');
- el.querySelectorAll('.ucard').forEach(b=>b.onclick=()=>{const t=b.dataset.t;selUnit=selUnit===t?null:t;if(AR.zone)AR.zone.visible=!!(BT&&BT.arena&&selUnit&&selUnit!=='strike');$('btip').textContent=selUnit?(selUnit==='strike'?'Tap the battlefield to call the strike':'Tap a lane to deploy '+UT[selUnit].n.toLowerCase()+'s'):'Pick a unit, then tap a lane to deploy it';renderCards();});}
+function renderCards(){const el=$('ucards');el.innerHTML=((BT&&BT.deck)||['gunner','launcher','tank','heli','militia','strike']).map(t=>{const u=UT[t],low=BT&&(BT.cp<u.cost||troopsLeft[t]<=0);return '<button class="ucard'+(low?' low':'')+'" data-t="'+t+'" aria-pressed="'+(selUnit===t)+'"><span class="ms">'+u.ic+'</span><b>'+u.n+'</b><small>'+u.cost+' command · '+troopsLeft[t]+' left</small></button>';}).join('');
+ el.querySelectorAll('.ucard').forEach(b=>b.onclick=()=>{const t=b.dataset.t;selUnit=selUnit===t?null:t;if(AR.zone)AR.zone.visible=!!(BT&&BT.arena&&selUnit&&selUnit!=='strike');$('btip').textContent=selUnit?(selUnit==='strike'?'Tap the battlefield to call the strike':'Tap one of the three tan lanes to deploy '+UT[selUnit].n.toLowerCase()+'s'):'Pick a unit, then tap a lane to deploy it';if(selUnit)battleCoachUnitSelected();renderCards();});battleCoachRender();}
 function startBattle(o){const prev=mode;troopsLeft={...troops0};
  if(window.NET&&NET.conn&&!o.local&&!o.defend){netStartBattle(o,prev);return;}
  go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>initBattle(o,prev),700);}
@@ -1567,7 +1598,7 @@ function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={
   $('bEnemyN').textContent=BT.enemy;selUnit=null;renderCards();toast(o.title);}}
 function lossText(o){return Object.entries(o).map(([t,n])=>n+' '+UT[t].n.toLowerCase()+(n>1?'s':'')).join(', ')||'none';}
 let war18=0;
-function leaveBattleNow(){card.hidden=true;arenaOff();if(window.NET&&NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle'&&BT.prev!=='siege')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);}
+function leaveBattleNow(){card.hidden=true;arenaOff();guideBattleCoach=0;clearGuideTarget();if(window.NET&&NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle'&&BT.prev!=='siege')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);}
 /* A finished battle never strands you: leave as soon as the result card is closed, or 15 seconds after it ends */
 setInterval(()=>{const inB=mode==='battle',inS=mode==='siege';if(!inB&&!inS){window.__doneAt=0;return;}
  const done=!BT||BT.done;if(!done){window.__doneAt=0;return;}if(!window.__doneAt)window.__doneAt=Date.now();
@@ -1607,7 +1638,7 @@ function battleTap(pt){if(BT&&BT.server&&!BT.done&&selUnit){netBattleTap(pt);ret
  BT.cp-=u.cost;BT.lastPlayer=selUnit;troopsLeft[selUnit]-=u.spell?1:(u.squad||1);
  if(u.spell){boom(pt.x,0.3,pt.z,true);units.forEach(v=>{if(v.side===1&&Math.hypot(v.g.position.x-pt.x,v.g.position.z-pt.z)<1.6)v.hp-=130;});if(Math.abs(pt.x-8.1)<2)BT.en-=90;toast('Artillery strike');}
  else{const lane=LANES.reduce((a,z)=>Math.abs(z-pt.z)<Math.abs(a-pt.z)?z:a,LANES[0]);spawn(selUnit,0,lane,-7.2);}
- renderCards();}
+ renderCards();battleCoachDeployed();}
 
 
 const RIVALS={blue:{name:'Blue Party garrison',leader:'Mara_V',faction:'Blue Party',col:0x3b587f,helm:0x2a4f8a,flag:0x3d7fd6,doctrine:'counter',dname:'Counter-push: answers whatever you send',garrison:{gunner:18,launcher:6,tank:4,heli:2,militia:10},walls:4,turretDmg:16,air:true,stored:'12,400 oil',loot:[1860,'oil',2100],sector:18,title:'Raid on the Blue Party garrison · Sector 18'},
@@ -2175,8 +2206,8 @@ const TOUR=[
  {t:'Your home base',x:'Your headquarters: barracks to train troops, research, a warehouse and a trade office. Upgrades take real time.',go:()=>sectorToHome()},
  {t:'Enemy territory',x:'You can enter any sector. This one belongs to the Blue Party: a walled garrison, patrols marked in red, and a gunship overhead. Tap anything to scout, ambush or track it.',go:()=>enterVisit(18)},
  {t:'Scout before you strike',x:'A scout report shows their garrison, walls and tactics. Then you choose up to four unit types to counter them.',m:'visit18',after:()=>scoutCard('blue')},
- {t:'Real-time battles',x:'Send units down three lanes using command points. Launchers break walls and tanks, gunners stop helicopters, and tanks crush infantry. Raids take loot, never land.',min:15000,
-  go:()=>{startBattle({title:RIVALS.blue.title,rival:'blue',deck:['gunner','launcher','tank','heli','strike'],sector:18,local:true});setTimeout(()=>{autoDeploy();autoDeploy();tour.bat=setInterval(autoDeploy,1500);},1100);}},
+ {t:'Real-time battles',x:'Command points are energy that refills during a battle. Pick a unit, then tap one of the three lanes. This tour fights automatically so the controls stay clear.',min:15000,hideBar:true,
+  go:()=>{startBattle({title:RIVALS.blue.title,rival:'blue',deck:['gunner','launcher','tank','heli','strike'],sector:18,local:true});setTimeout(()=>{$('btip').textContent='Battle demo: units deploy automatically. Command points refill over time.';autoDeploy();autoDeploy();tour.bat=setInterval(autoDeploy,1500);},1100);}},
  {t:'The Caretaker is watching',x:'Land no one has claimed still belongs to the Caretaker. Its drones sweep the sectors, scanning for smugglers and armed players, while its militia holds the camps. Shoot one down, and it remembers.',go:()=>enterVisit(30)},
  {t:'The Caretaker remembers',x:'Everything you do goes on your record: taxes paid, goods smuggled, drones shot down, camps cleared. Build and keep order, and doors open. Cause chaos, and its drones start following you.',m:'county',after:()=>{openRecord();setTimeout(()=>ctSay('I see you. I have always seen you.'),600);}},
  {t:'A player-run market',x:'Prices move with supply and demand. Sell oil when it spikes, buy fuel when it dips, and watch what everyone else is trading.',m:'county',after:()=>openMarket()},
@@ -2186,7 +2217,7 @@ const TOUR=[
 function tourClean(){clearInterval(tour.bat);card.hidden=true;$('ctSheet').hidden=true;closeMarket(true);polEl.hidden=true;chatEl.hidden=true;boardEl.hidden=true;statsEl.hidden=true;briefEl.hidden=true;hint.hidden=true;
  if(BT){BT.done=true;BT=null;units.splice(0).forEach(u=>battle.remove(u.g));}}
 function tourStart(){tour.on=true;tour.i=0;tour.paused=false;$('tourBar').hidden=false;$('hud').classList.add('touring');tourStep();}
-function tourStep(){clearTimeout(tour.timer);clearTimeout(VO.auto);const st=TOUR[tour.i],tok=++tour.tok;const wasBattle=mode==='battle';tourClean();let moved=!!st.go;if(st.go)st.go();else if(st.m==='visit18'){if(mode!=='visit'||!vSec||vSec.n!==18){enterVisit(18);moved=true;}}else if(st.m&&(st.m!==mode||wasBattle)){if(st.m==='province')go('province',V3(0,0,0),home0('province'),null);else go(st.m,V3(0,0,0),home0(st.m),null);moved=true;}
+function tourStep(){clearTimeout(tour.timer);clearTimeout(VO.auto);const st=TOUR[tour.i],tok=++tour.tok;const wasBattle=mode==='battle';tourClean();$('tourBar').hidden=!!st.hideBar;let moved=!!st.go;if(st.go)st.go();else if(st.m==='visit18'){if(mode!=='visit'||!vSec||vSec.n!==18){enterVisit(18);moved=true;}}else if(st.m&&(st.m!==mode||wasBattle)){if(st.m==='province')go('province',V3(0,0,0),home0('province'),null);else go(st.m,V3(0,0,0),home0(st.m),null);moved=true;}
  if(st.after)setTimeout(()=>{if(tok===tour.tok)st.after();},moved?1100:250);
  $('tourN').textContent=(tour.i+1)+' of '+TOUR.length;$('tourT').textContent=st.t;$('tourX').textContent=st.x;$('tourPause').querySelector('.ms').textContent='pause';tour.paused=false;
  const pr=$('tourProg'),dur=Math.max(st.min||0,7500,st.x.split(' ').length*360);pr.style.transition='none';pr.style.width='0';void pr.offsetWidth;
@@ -2819,7 +2850,7 @@ function netStartBattle(o,prev){const kind=o.kind||(o.rival?'raid':(o.campAssaul
   go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>{initBattle({...o,deck:r.battle.deck},prev);BT.server=r.battle.id;BT.title=r.battle.title;BT.enemy=r.battle.enemy;$('bEnemyN').textContent=BT.enemy;
    NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();
    if(r.battle.arena){BT.arena=true;arenaBuild();campM.visible=false;campR.visible=false;$('btip').textContent='Pick a unit, then tap anywhere in your half (blue) to deploy';toast('Base assault: knock down the towers and the HQ');}
-   applyBattleState(r.battle.state);renderCards();},700);}).catch(er=>toast(er.message));}
+   applyBattleState(r.battle.state);renderCards();battleCoachStart();},700);}).catch(er=>toast(er.message));}
 function applyBattleState(st){if(!BT||!BT.server)return;if(st.arena){applyArenaState(st);return;}BT.t=st.t;BT.cp=st.cp;BT.you=st.you;BT.youMax=st.youMax;BT.en=st.en;BT.enMax=st.enMax;Object.assign(troopsLeft,st.troops);
  const seen=new Set();
  st.units.forEach(([id,t,side,x,z,hp])=>{seen.add(id);let u=NET.bUnits.get(id);
@@ -2842,10 +2873,10 @@ function serverBattleFrame(dt){const now=performance.now();
  const mm=Math.floor(BT.t/60),ss=Math.floor(BT.t%60);$('bTitle').textContent=BT.title.split(':')[0].split(' · ')[0]+' · '+mm+':'+String(ss).padStart(2,'0');
  $('cpN').textContent=Math.floor(BT.cp);$('cpB').style.width=(BT.cp*10)+'%';if(Math.random()<dt*2)renderCards();}
 function netBattleTap(pt){if(BT.arena&&selUnit!=='strike'){const u=UT[selUnit];if(pt.x>-1){toast('Deploy in your half of the field (the blue zone)');return;}if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
-  NET.conn.invoke('DeployAt',selUnit,pt.x,Math.max(-2.9,Math.min(2.9,pt.z))).then(e=>{if(e)toast(e);});return;}
+ NET.conn.invoke('DeployAt',selUnit,pt.x,Math.max(-2.9,Math.min(2.9,pt.z))).then(e=>{if(e)toast(e);else battleCoachDeployed();});return;}
  if(selUnit==='strike'){if(BT.cp<6){toast('Not enough command points yet');return;}NET.conn.invoke('Strike',pt.x,pt.z).then(e=>{if(e)toast(e);else toast('Artillery strike');});return;}
  const u=UT[selUnit];if(BT.cp<u.cost){toast('Not enough command points yet');return;}if(troopsLeft[selUnit]<=0){toast('No '+u.n.toLowerCase()+'s left in your barracks');return;}
- const lane=LANES.reduce((a,z,i)=>Math.abs(z-pt.z)<Math.abs(LANES[a]-pt.z)?i:a,0);NET.conn.invoke('Deploy',selUnit,lane).then(e=>{if(e)toast(e);});}
+ const lane=LANES.reduce((a,z,i)=>Math.abs(z-pt.z)<Math.abs(LANES[a]-pt.z)?i:a,0);NET.conn.invoke('Deploy',selUnit,lane).then(e=>{if(e)toast(e);else battleCoachDeployed();});}
 function onBattleState(m){if(BT&&BT.server===m.id)applyBattleState(m.state);}
 function onBattleEnd(m){if(!BT||BT.server!==m.id)return;BT.done=true;if(m.player)applyMe(m.player);
  if(m.won&&BT.sector===30)sec30=55;if(m.won&&BT.campAssault)cleared.add(BT.sector);
@@ -3074,23 +3105,34 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  P=P0;renderTutorial();}
 /* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
 setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden&&$('allyEl').hidden)?'':'hidden';},400);
+let guideActing=null,guideTargetEl=null,guideBattleCoach=0;
+function clearGuideTarget(){if(guideTargetEl){guideTargetEl.classList.remove('guide-target');guideTargetEl.removeAttribute('data-guide-label');guideTargetEl=null;}}
+function pointGuideAt(el,label){clearGuideTarget();if(!el)return;guideTargetEl=el;el.classList.add('guide-target');if(el.tagName==='BUTTON')el.dataset.guideLabel=label||'Tap this';}
+function pointGuideButton(root,text,label){const b=[...root.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(text));pointGuideAt(b,label);return b;}
+function beginGuideAction(g){guideActing=g.do;$('tutBar').hidden=true;clearGuideTarget();}
+function openGuideCamp(tries=0){const camp=vPicks.find(x=>x.userData&&x.userData.vk&&x.userData.vk.kind==='camp'&&!x.userData.vk.done);if(camp){vCard(camp.userData.vk,camp);setTimeout(()=>{pointGuideButton(card,'Attack camp','1. Tap Attack camp');toast('Step 1: tap the highlighted Attack camp button');},100);return;}if(tries<10)setTimeout(()=>openGuideCamp(tries+1),350);else toast('Look for the red Caretaker militia camp in Sector 30 and tap it');}
+function battleCoachStart(){if(!guideBattleCoach)return;guideBattleCoach=1;$('btip').textContent='Step 2: Command points are energy. Tap the highlighted Gunner (costs 2).';battleCoachRender();}
+function battleCoachRender(){if(!guideBattleCoach||mode!=='battle')return;if(guideBattleCoach===1){const gunner=$('ucards').querySelector('button[data-t="gunner"]');pointGuideAt(gunner,'2. Tap Gunner');}else if(guideBattleCoach===2)pointGuideAt(renderer.domElement);}
+function battleCoachUnitSelected(){if(!guideBattleCoach||guideBattleCoach>2)return;guideBattleCoach=2;$('btip').textContent='Step 3: tap one of the three tan lanes to deploy your unit.';pointGuideAt(renderer.domElement);}
+function battleCoachDeployed(){if(!guideBattleCoach)return;guideBattleCoach=0;clearGuideTarget();$('btip').textContent='Good. Command points refill over time. Deploy more units and defeat the red force.';toast('Unit deployed. Keep spending command points as they refill.');}
 function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');
- if(!t&&NET.me&&NET.me.guide&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){renderGuide(NET.me.guide);return;}
+ const g=NET.me&&NET.me.guide;if(guideActing&&(!g||g.do!==guideActing)){guideActing=null;clearGuideTarget();}
+ if(!t&&g&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){if(guideActing===g.do){b.hidden=true;return;}renderGuide(g);return;}
  if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
  b.hidden=false;b.classList.remove('guide');const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+(t.reward?' <span style="color:#c9a24a">+'+fmt(t.reward)+' cash</span>':'')+'</span>'+(k?'<button id="tutGo">Place '+esc(k.name)+'</button>':t.do==='collect'?'<button id="tutGo">Collect</button>':'');
  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>startPlacing(k.type),900);}else startPlacing(k.type);}else{openBrief();}};}
 /* ---------- The Field Guide: one short chapter per system, done by doing it ---------- */
 function renderGuide(g){const b=$('tutBar');b.hidden=false;b.classList.add('guide');
- b.innerHTML='<b>Field Guide '+g.step+'/'+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">'+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">Show me</button><button id="tutSkip" class="sk">Skip guide</button></span>';
+ b.innerHTML='<b>Step '+g.step+' of '+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">Reward: '+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">Show what to tap</button><button id="tutSkip" class="sk">Skip guide</button></span>';
  $('tutGo').onclick=()=>guideShow(g);$('tutSkip').onclick=()=>{if(confirm('Skip the rest of the Field Guide? You can still learn everything by playing.'))NET.conn.invoke('SkipGuide').then(r=>{if(r.ok){applyMe(r.player);$('tutBar').hidden=true;toast('Field Guide skipped');}});};}
-function guideShow(g){card.hidden=true;const seen=w=>NET.conn.invoke('GuideSeen',w).then(r=>{if(r.ok){applyMe(r.player);toast('Field Guide: chapter complete');}}).catch(()=>{});
+function guideShow(g){card.hidden=true;beginGuideAction(g);const seen=w=>NET.conn.invoke('GuideSeen',w).then(r=>{if(r.ok){applyMe(r.player);toast('Field Guide: chapter complete');}}).catch(()=>{});
  switch(g.show){
   case 'sector':openSectorMap(NET.me.homeSector);setTimeout(()=>toast(g.do==='claim'?'Tap an empty parcel next to your base, then Claim':'Tap a parcel you own (gold border), then Build'),1200);break;
   case 'hq':sectorToHome();setTimeout(()=>{if(typeof hqCard==='function')hqCard();},1100);break;
   case 'research':if(NET.me.research&&NET.me.research.labs){openTech();}else{sectorToHome();setTimeout(()=>toast('Build a Research lab in your base first'),1100);}break;
   case 'market':$('bMarket').click();setTimeout(()=>toast('Pick a resource, then place a buy or sell order'),600);break;
   case 'contracts':$('bContracts').click();setTimeout(()=>toast('Pick a contract you have the goods for, then ship it'),600);break;
-  case 'battle':sectorToProvince();setTimeout(()=>toast('Tap the red Militia camp to attack it, or tap a bot\'s base in a sector to raid it'),1400);break;
+  case 'battle':guideBattleCoach=1;enterVisit(30);setTimeout(()=>openGuideCamp(),900);break;
   case 'alliance':openAlly();break;
   case 'politics':$('nPolitics').click();setTimeout(()=>toast('Vote for a candidate, or vote on a law'),600);break;
   case 'record':$('bRecord').click();seen('record');break;
@@ -3145,7 +3187,7 @@ function defenseCard(){NET.conn.invoke('GetDefense').then(d=>{current=null;const
 /* ---------- Alliances ---------- */
 function openAlly(){card.hidden=true;$('allyEl').hidden=false;loadAlly();}
 function loadAlly(){NET.conn.invoke('GetAlliance').then(v=>{NET.ally=v;renderAlly();}).catch(er=>toast(er.message));}
-function allyCall(p){return p.then(r=>{if(!r.ok){toast(r.error);return;}if(r.player)applyMe(r.player);if(r.summary)toast(r.summary);loadAlly();}).catch(er=>toast(er.message));}
+function allyCall(p){return p.then(r=>{if(!r.ok){toast(r.error);loadAlly();return;}if(r.player)applyMe(r.player);if(r.summary)toast(r.summary);loadAlly();}).catch(er=>toast(er.message));}
 function renderAlly(){const v=NET.ally,el=$('allyEl');if(!v||el.hidden)return;const m=v.mine;
  let H='<button class="x" id="allyX" aria-label="Close alliance"><span class="ms">close</span></button>';
  if(m){const off=m.role==='leader'||m.role==='officer',lead=m.role==='leader';
@@ -3162,10 +3204,10 @@ function renderAlly(){const v=NET.ally,el=$('allyEl');if(!v||el.hidden)return;co
    if(m.invited.length)H+='<h4>Invited</h4>'+m.invited.map(r=>'<div class="arow"><span>'+esc(r.name)+'</span><small>by '+esc(r.by)+'</small></div>').join('');}
   if(lead)H+='<h4>Settings</h4><div class="acts"><input id="aDesc" style="flex:1" maxlength="200" value="'+esc(m.description||'')+'"><label class="note" style="display:flex;gap:.3em;align-items:center"><input type="checkbox" id="aOpen"'+(m.open?' checked':'')+' style="min-width:0"> Open to all</label><button id="aSave">Save</button></div>';
   H+='</div></div>';}
- else{H+='<h3>Alliances</h3><p class="note">Join forces: a shared bank, a private chat, help with research, and allies can\'t take each other\'s land</p>';
+ else{H+='<h3>Alliances</h3><div class="explain"><b>What is an alliance?</b><br>A player team. Members get private chat, a shared cash/fuel bank, and can help each other finish research sooner. Alliance members cannot raid or take land from one another. The limit is '+v.maxMembers+' members.</div>';
   if(v.invites.length)H+='<h4>Invitations</h4>'+v.invites.map(i=>'<div class="arow"><span><b>'+esc(i.alliance)+'</b> <small>invited by '+esc(i.by)+'</small></span><span><button class="go" data-inv="'+i.id+'" data-yes="1">Join</button><button data-inv="'+i.id+'" data-yes="0">Decline</button></span></div>').join('');
-  H+='<div class="two"><div><h4>Find an alliance</h4>'+(v.browse.length?v.browse.map(a=>'<div class="arow"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <small>'+a.members+' members · '+(a.open?'open':'invite only')+' · '+esc(a.description||'')+'</small></span><span>'+(a.requested?'<small>Requested</small>':'<button class="go" data-join="'+a.id+'">'+(a.open?'Join':'Ask to join')+'</button>')+'</span></div>').join(''):'<p class="note">No alliances yet. Found the first one</p>')+'</div>';
-  H+='<div><h4>Found an alliance · '+fmt(v.createCost)+' cash</h4><div class="acts"><input id="aName" maxlength="24" placeholder="Alliance name" style="flex:1"><input id="aTag" maxlength="5" placeholder="TAG" style="width:5em;min-width:0;text-transform:uppercase"></div><label class="note" style="display:flex;gap:.3em;align-items:center"><input type="checkbox" id="aNewOpen" checked style="min-width:0"> Anyone can join (untick for invite only)</label><div class="acts"><button class="go" id="aCreate">Found it</button></div></div></div>';}
+  H+='<div class="two"><div><h4>Find an alliance</h4><p class="formHelp"><b>Open</b> means Join adds you immediately. <b>Invite only</b> sends a request to its officers.</p>'+(v.browse.length?v.browse.map(a=>'<div class="arow"><span><b>'+esc(a.name)+'</b> ['+esc(a.tag)+'] <small>'+a.members+' / '+a.max+' members · '+(a.full?'FULL':a.open?'SPACE AVAILABLE · open':'SPACE AVAILABLE · invite only')+' · '+esc(a.description||'')+'</small></span><span>'+(a.full?'<button disabled>Full</button>':a.requested?'<small>Request sent</small>':'<button class="go" data-join="'+a.id+'" data-open="'+(a.open?'1':'0')+'">'+(a.open?'Join now':'Ask to join')+'</button>')+'</span></div>').join(''):'<p class="note">No alliances yet. Found the first one</p>')+'</div>';
+  H+='<div><h4>Create your own · '+fmt(v.createCost)+' cash</h4><p class="formHelp"><b>Name:</b> 3–24 characters, beginning with a letter. Example: Northern Traders.<br><b>Tag:</b> a separate 2–5 letter/number abbreviation with no spaces. Example: NT.</p><div class="acts"><input id="aName" maxlength="24" autocomplete="off" aria-label="Alliance name, 3 to 24 characters" placeholder="Name, e.g. Northern Traders" style="flex:1"><input id="aTag" maxlength="5" autocomplete="off" aria-label="Alliance tag, 2 to 5 letters or numbers" placeholder="Tag, e.g. NT" style="width:8em;min-width:0;text-transform:uppercase"></div><div class="formError" id="aFormError" aria-live="polite"></div><label class="note" style="display:flex;gap:.3em;align-items:center"><input type="checkbox" id="aNewOpen" checked style="min-width:0"> Open: players can join immediately</label><div class="acts"><button class="go" id="aCreate">Create alliance</button></div></div></div>';}
  el.innerHTML=H;$('allyX').onclick=()=>{el.hidden=true;hint.hidden=false;};
  const q=(id,fn)=>{if($(id))$(id).onclick=fn;},amt=()=>+(($('aAmt')||{}).value||0);
  q('aHelp',()=>allyCall(NET.conn.invoke('HelpAlliance')));q('aLeave',()=>{if(confirm('Leave the alliance?'))allyCall(NET.conn.invoke('LeaveAlliance'));});
@@ -3174,11 +3216,15 @@ function renderAlly(){const v=NET.ally,el=$('allyEl');if(!v||el.hidden)return;co
  q('aPayC',()=>allyCall(NET.conn.invoke('GrantFromAlliance',$('aTo').value.trim(),'cash',amt())));q('aPayF',()=>allyCall(NET.conn.invoke('GrantFromAlliance',$('aTo').value.trim(),'fuel',amt())));
  q('aInvGo',()=>allyCall(NET.conn.invoke('InviteToAlliance',$('aInv').value.trim())));
  q('aSave',()=>allyCall(NET.conn.invoke('EditAlliance',$('aDesc').value,$('aOpen').checked)));
- q('aCreate',()=>allyCall(NET.conn.invoke('CreateAlliance',$('aName').value.trim(),$('aTag').value.trim(),$('aNewOpen').checked)));
+ q('aCreate',()=>{const n=$('aName').value.trim(),t=$('aTag').value.trim(),er=$('aFormError');let msg='',bad=null;
+  if(n.length<3||n.length>24||!/^[\p{L}]/u.test(n)||/[^\p{L}\p{N} .'-]/u.test(n)){msg='Name must start with a letter and be 3–24 characters. Use letters, numbers, spaces, hyphens, apostrophes, or periods.';bad=$('aName');}
+  else if(t.length<2||t.length>5||/[^\p{L}\p{N}]/u.test(t)){msg='Tag must be 2–5 letters or numbers with no spaces, like NT or NWO.';bad=$('aTag');}
+  if(msg){er.textContent=msg;bad.focus();pointGuideAt(bad);return;}er.textContent='';allyCall(NET.conn.invoke('CreateAlliance',n,t,$('aNewOpen').checked));});
  el.querySelectorAll('[data-mem]').forEach(b=>b.onclick=()=>{const n=b.dataset.mem,a=b.dataset.act;if(a==='kick'){if(confirm('Remove '+n+'?'))allyCall(NET.conn.invoke('KickFromAlliance',n));}else if(a!=='leader'||confirm('Hand leadership to '+n+'?'))allyCall(NET.conn.invoke('SetAllianceRole',n,a));});
  el.querySelectorAll('[data-req]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('AnswerAlliance',+b.dataset.req,b.dataset.yes==='1')));
  el.querySelectorAll('[data-inv]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('AnswerAlliance',+b.dataset.inv,b.dataset.yes==='1')));
- el.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('RequestAlliance',+b.dataset.join)));}
+ el.querySelectorAll('[data-join]').forEach(b=>b.onclick=()=>allyCall(NET.conn.invoke('RequestAlliance',+b.dataset.join)));
+ if(guideActing==='alliance'&&!m){const join=el.querySelector('button[data-join][data-open="1"]')||el.querySelector('button[data-join]');if(join){pointGuideAt(join,'Tap to join');toast('Choose a team marked SPACE AVAILABLE. Open teams let you join immediately.');}else{pointGuideAt($('aName'));toast('All listed teams are full. Create one: enter a name, then a separate short tag.');}}}
 $('bAlly').onclick=()=>{if($('allyEl').hidden)openAlly();else $('allyEl').hidden=true;};
 /* ---------- The tech tree ---------- */
 function openTech(){const rs=NET.me&&NET.me.research;if(!rs){toast('Research is not available');return;}card.hidden=true;const el=$('techEl');el.hidden=false;renderTech();}

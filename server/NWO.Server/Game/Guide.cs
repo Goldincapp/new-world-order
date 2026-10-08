@@ -13,17 +13,17 @@ public static class Guide
 
     public static readonly Step[] Steps =
     [
-        new("claim", "Claim land", "Your home is one parcel in a sector of a thousand. Go to your sector and claim an empty parcel next to you. What's under it (oil, grain, timber, ore or ruins) decides what it's good for. The Caretaker still holds every sector and tithes what you make: build it up and it leaves.", "sector", Cash: 1500),
-        new("build", "Build on your land", "Tap a parcel you own and build on it. Anything can go anywhere, but geography decides the output: a rig on oil sands pumps, a rig on barren ground barely trickles.", "sector", Cash: 1000),
-        new("hq", "Upgrade your HQ", "Your HQ sets how many buildings you can run, unlocks bigger expansions and tier 2 and 3 research. Tap it in your base and upgrade.", "hq", Cash: 1000),
-        new("research", "Pick a research path", "Your Research lab holds a tech tree with five branches. Specialise: techs outside your branch get dearer, so choose what kind of player you want to be.", "research", Cash: 800),
-        new("order", "Trade on the market", "Everything you make can be sold, and anything you lack can be bought, from other players or the Caretaker. Place a buy or sell order on the market.", "market", Cash: 500),
-        new("ship", "Ship a delivery", "Sectors post contracts for goods. Ship one: the legal road pays tax and is safe; the back road skips tax but checkpoints and drones may stop you.", "contracts", Cash: 800),
-        new("battle", "Fight your first battle", "Militia camps and rival garrisons fight in lanes; bot bases are assaulted in an arena. Start any battle: from the Province map, or by tapping a bot's base in a sector.", "battle", Fuel: 150),
-        new("alliance", "Join an alliance", "Alliances share a bank and a private chat, help each other's research, and can't take each other's land. Join one, or found your own.", "alliance", Cash: 800),
-        new("vote", "Have your say", "Your nation is run by players: an elected President, taxes and fines voted by the council. Vote in the election or on a law.", "politics", Cash: 500),
-        new("record", "Your Caretaker record", "The Caretaker watches everything you do. Good standing brings bigger rations, lighter inspections and its sentries in battle; poor standing turns it against you. Open your record.", "record", Cash: 300),
-        new("sentinel", "The Sentinel and the Ashlands", "Region 1 ends at the Sentinel, a warden it takes 10 to 15 players to beat. Beating it opens the Ashlands: rich land where nations fight over every parcel. Read what's ahead.", "sentinel", Gold: 25),
+        new("claim", "Claim one plot", "A parcel is one buildable square. Your sector is the local map containing those parcels. Claim an empty square beside land you already own. Its resource tells you what it produces best.", "sector", Cash: 1500),
+        new("build", "Build on that plot", "Open a parcel with a gold border; that means it belongs to you. Choose Build, then pick a building. Matching the building to the parcel's resource gives better output.", "sector", Cash: 1000),
+        new("hq", "Upgrade your headquarters", "HQ means headquarters: the main building inside your base. Its level controls how many buildings you can run and which upgrades you can unlock.", "hq", Cash: 1000),
+        new("research", "Choose one upgrade", "Research unlocks permanent bonuses. Pick one affordable upgrade now; you can inspect the other branches later.", "research", Cash: 800),
+        new("order", "Make one market trade", "A buy order offers to purchase goods. A sell order offers goods you already own. Choose one resource and place either kind of order.", "market", Cash: 500),
+        new("ship", "Send one delivery", "A contract is a request for specific goods. Choose one you can afford. The legal road costs tax but is safer; smuggling avoids tax but can lose the cargo.", "contracts", Cash: 800),
+        new("battle", "Fight your first battle", "Command points are battle energy and refill during the fight. Pick a unit, then tap a lane to deploy it. The guide will open a militia camp and mark exactly what to press.", "battle", Fuel: 150),
+        new("alliance", "Join an alliance", "An alliance is a player team: members share a private chat and bank, can speed up each other's research, and cannot take each other's land. Join a team marked Space available, or create one with a 3–24 character name and a separate 2–5 letter/number tag.", "alliance", Cash: 800),
+        new("vote", "Cast one vote", "Players govern your nation. Elections choose the President; law votes set rules such as taxes and fines. Cast either kind of vote.", "politics", Cash: 500),
+        new("record", "Open your Caretaker record", "The Caretaker is the AI authority. Your record is its opinion of you. Helpful actions improve it; smuggling and attacks lower it and cause tougher inspections.", "record", Cash: 300),
+        new("sentinel", "Learn about the Sentinel", "The Sentinel is a shared boss battle for the whole server. Defeating it unlocks the Ashlands, a later region where nations can capture land.", "sentinel", Gold: 25),
     ];
 
     /// <summary>The guide starts once the home base tutorial is done.</summary>

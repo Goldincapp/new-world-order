@@ -110,14 +110,30 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
                 await db.SaveChangesAsync();
             }
         var alliances = await db.Alliances.Where(a => BotAlliances.Select(b => b.tag).Contains(a.Tag)).OrderBy(a => a.Id).ToListAsync();
+        // Leave room for real players. Older seeds filled these alliances past the player limit,
+        // so trim only AI members (never people or the leader) before assigning new bots.
+        var botTarget = Math.Max(1, Alliances.MaxMembers - 5);
+        foreach (var a in alliances)
+        {
+            var members = await db.Players.Where(p => p.AllianceId == a.Id).ToListAsync();
+            var excess = Math.Max(0, members.Count - botTarget);
+            foreach (var p in members.Where(p => p.IsBot && p.AllianceRole != "leader").OrderByDescending(p => p.AllianceJoinedAt).Take(excess))
+            {
+                p.AllianceId = null; p.AllianceRole = null; p.AllianceJoinedAt = null;
+            }
+        }
+        await db.SaveChangesAsync();
         var loose = await db.Players.Where(p => p.IsBot && p.AllianceId == null).ToListAsync();
+        var memberCounts = await db.Players.Where(p => p.AllianceId != null).GroupBy(p => p.AllianceId!.Value).ToDictionaryAsync(g => g.Key, g => g.Count());
         for (var k = 0; k < loose.Count; k++)
         {
             if (k % 4 == 3 || alliances.Count == 0) continue; // a quarter stay unaligned
-            var a = alliances[k % alliances.Count];
+            var a = alliances.Where(x => memberCounts.GetValueOrDefault(x.Id) < botTarget).OrderBy(x => memberCounts.GetValueOrDefault(x.Id)).FirstOrDefault();
+            if (a is null) break;
             var leader = !await db.Players.AnyAsync(p => p.AllianceId == a.Id && p.AllianceRole == "leader");
             loose[k].AllianceId = a.Id; loose[k].AllianceRole = leader ? "leader" : (k % 5 == 0 ? "officer" : "member"); loose[k].AllianceJoinedAt = DateTime.UtcNow;
             if (leader) a.LeaderId = loose[k].Id;
+            memberCounts[a.Id] = memberCounts.GetValueOrDefault(a.Id) + 1;
             await db.SaveChangesAsync();
         }
         await RefreshStyles(db);

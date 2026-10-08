@@ -79,9 +79,14 @@ public class Alliances(World world, IHubContext<GameHub> hub)
         {
             mine,
             invites = invites.Select(i => new { i.Id, alliance = invAlliances.TryGetValue(i.AllianceId, out var ia) ? $"{ia.Name} [{ia.Tag}]" : "?", i.By }),
-            browse = all.Select(x => new { x.Id, x.Name, x.Tag, x.Description, x.Open, members = counts.FirstOrDefault(c => c.Key == x.Id)?.n ?? 0, requested = myRequests.Contains(x.Id) })
-                .OrderByDescending(x => x.members).Take(30),
+            browse = all.Select(x =>
+                {
+                    var members = counts.FirstOrDefault(c => c.Key == x.Id)?.n ?? 0;
+                    return new { x.Id, x.Name, x.Tag, x.Description, x.Open, members, max = MaxMembers, full = members >= MaxMembers, requested = myRequests.Contains(x.Id) };
+                })
+                .OrderBy(x => x.full).ThenByDescending(x => x.Open).ThenByDescending(x => x.members).Take(30),
             createCost = CreateCost,
+            maxMembers = MaxMembers,
         };
     }
 
@@ -107,8 +112,8 @@ public class Alliances(World world, IHubContext<GameHub> hub)
         name = string.Join(' ', (name ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries));
         tag = (tag ?? "").Trim().ToUpperInvariant();
         if (me.AllianceId is not null) return (new Result(false, "Leave your alliance first."), null);
-        if (!ValidName(name)) return (new Result(false, "Alliance names are 3 to 24 letters, numbers and spaces."), null);
-        if (!ValidTag(tag)) return (new Result(false, "Tags are 2 to 5 letters or numbers."), null);
+        if (!ValidName(name)) return (new Result(false, "Alliance name: use 3 to 24 characters and start with a letter. Letters, numbers, spaces, hyphens, apostrophes and periods are allowed."), null);
+        if (!ValidTag(tag)) return (new Result(false, "Alliance tag: use 2 to 5 letters or numbers, with no spaces."), null);
         if (await db.Alliances.AnyAsync(a => a.Name.ToLower() == name.ToLower())) return (new Result(false, "That name is taken."), null);
         if (await db.Alliances.AnyAsync(a => a.Tag == tag)) return (new Result(false, "That tag is taken."), null);
         if (me.Cash < CreateCost) return (new Result(false, $"Founding an alliance costs {CreateCost:N0} cash."), null);

@@ -5,6 +5,11 @@ using NWO.Server.Data;
 using NWO.Server.Game;
 
 var builder = WebApplication.CreateBuilder(args);
+// The default Windows Event Log provider needs elevated permissions. A normal local playtest
+// must never lose an API response just because a framework warning could not be written there.
+// Console logs work in local terminals, redirected log files, Docker, and Railway.
+builder.Logging.ClearProviders();
+builder.Logging.AddSimpleConsole(o => o.SingleLine = true);
 
 var dbPath = Environment.GetEnvironmentVariable("NWO_DB") ?? "nwo.db";
 builder.Services.AddDbContext<GameDb>(o => o.UseSqlite($"Data Source={dbPath}"));
