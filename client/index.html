@@ -573,7 +573,9 @@ const LOW=matchMedia('(pointer:coarse)').matches||Math.min(innerWidth,innerHeigh
 /* Graphics switch: "new" (the diorama look: bright sky, warm grade, tilt-shift, faceted terrain, code-built scenery) or "classic". Remove NEWGFX and the code it guards to drop it. */
 const NEWGFX=!/[?&]classic=1/.test(location.search)&&(()=>{try{return localStorage.getItem('nwo.gfx')!=='classic';}catch(_){return true;}})();
 /** Which views get the diorama look. The Nation map and the globe keep their classic rendering. */
-const dioMode=m=>NEWGFX&&m!=='world'&&m!=='region';
+/** The Nation view in the bright look too (so zooming out from the nation map stays one style). */
+const BRIGHT_NATION=NEWGFX;
+const dioMode=m=>NEWGFX&&m!=='world'&&(m!=='region'||BRIGHT_NATION);
 /** Sky haze the fog fades into */
 const FOGC=NEWGFX?0xbcdcec:0x0c0f14;
 /* let the page report loaded and paint the loading screen before the heavy build */
@@ -930,7 +932,7 @@ rl('Militia camp','#ff3b2f',20.3,41.6,0.7,0.64);rl('Grain belt','#e8b923',30.6,5
 rl('Caretaker lands (AI)','#8f968a',24,47.8,0.66,0.62);rl('Fog of war: scout to reveal','#9aa3ad',37,59,0.95,0.8);
 rl('Locked region: opens next season','#6d757e',48,41,1.0,0.85);rl('Locked region: opens next season','#6d757e',6,30,1.0,0.85);
 function fogTex(c0){const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d');const gr=x.createRadialGradient(64,64,4,64,64,62);gr.addColorStop(0,c0);gr.addColorStop(1,'rgba(20,22,26,0)');x.fillStyle=gr;x.fillRect(0,0,128,128);const t=new THREE.CanvasTexture(cv);t.colorSpace=THREE.SRGBColorSpace;return t;}
-const fogT=fogTex(NEWGFX?'rgba(246,249,252,0.92)':'rgba(70,76,88,0.95)'),lockT=fogTex('rgba(16,18,22,1)');const fogs=[];
+const fogT=fogTex(NEWGFX?'rgba(246,249,252,0.92)':'rgba(70,76,88,0.95)'),lockT=fogTex(BRIGHT_NATION?'rgba(200,210,218,0.98)':'rgba(16,18,22,1)');const fogs=[];
 for(let x=-RW/2+0.3;x<RW/2;x+=0.72)for(let z=-RD/2+0.3;z<RD/2;z+=0.72){const lon=x/0.2508+18.5,lat=48-z/0.39;const locked=lockedLL(lon,lat),d=fogDist(x,z);
  if(!locked&&d<0)continue;const op=locked?0.97:Math.min(0.92,0.3+d*0.45);
  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:locked?lockT:fogT,transparent:true,opacity:op,depthWrite:false}));
@@ -1068,7 +1070,7 @@ function homeToSector(){const h=(window.NET&&NET.big&&cells[NET.homeKey])||cells
  const Hat=(x,z)=>Math.max(0.18,Hraw(x,z).h);
  const SEG_X=LOW?180:300,SEG_Z=Math.round(300*RD/RW),geo=new THREE.PlaneGeometry(RW-0.3,RD-0.3,SEG_X,SEG_Z);geo.rotateX(-Math.PI/2);
  const pos=geo.attributes.position,col=new Float32Array(pos.count*3);
- const C=h=>new THREE.Color(h),lowG=C(0x3d4d2c),dryG=C(0x5e5836),forest=C(0x24341e),rock=C(0x57524a),hiRock=C(0x7a766e),snow=C(0xe2e7ec),tundra=C(0x5a5d4f),desert=C(0x8f7a4f),beach=C(0x756c53),war=C(0x7a1a14),tmpC=new THREE.Color();
+ const C=h=>new THREE.Color(h),BN=BRIGHT_NATION,lowG=C(BN?0x72b83c:0x3d4d2c),dryG=C(BN?0xb4ae62:0x5e5836),forest=C(BN?0x3e8b34:0x24341e),rock=C(BN?0x8c8378:0x57524a),hiRock=C(BN?0xa8a198:0x7a766e),snow=C(BN?0xeff4f8:0xe2e7ec),tundra=C(BN?0x9aa87a:0x5a5d4f),desert=C(BN?0xe8bf74:0x8f7a4f),beach=C(BN?0xe8d9a0:0x756c53),war=C(0x7a1a14),tmpC=new THREE.Color();
  const ss=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
  const [wfx,wfz]=[LX(24),LZ(52.7)];
  for(let i=0;i<pos.count;i++){const x=pos.getX(i),z=pos.getZ(i),R=Hraw(x,z);pos.setY(i,R.h);
@@ -1372,7 +1374,7 @@ function setMode(m){mode=m;setTimeout(()=>{if(window.NET&&NET.me&&NET.me.home&&N
  if(dioMode(m)){hemi.color.set(0xdfefff);hemi.groundColor.set(0x5a4a30);hemi.intensity=1.25;sun.color.set(0xfff4e0);sun.intensity=2.3;sun.position.set(-8,15,7);}
  else if(true){hemi.color.set(0xc4d2ea);hemi.groundColor.set(0x4a3d2c);hemi.intensity=2.0;sun.color.set(0xffdcb8);sun.intensity=2.7;sun.position.set(-8,14,7);}
  else{hemi.color.set(0xdff3ff);hemi.groundColor.set(0xb89a70);hemi.intensity=1.7;sun.color.set(0xfff4e0);sun.intensity=2.4;sun.position.set(8,15,6);}
- window.__lightBase={sun:sun.intensity,hemi:hemi.intensity,col:sun.color.clone()};if(typeof BG_DARK!=='undefined')scene.background=m==='world'?BG_WORLD:(m==='region'?BG_OLD:BG_DARK);if(window.__setTilt)window.__setTilt(m);
+ window.__lightBase={sun:sun.intensity,hemi:hemi.intensity,col:sun.color.clone()};if(typeof BG_DARK!=='undefined')scene.background=m==='world'?BG_WORLD:(m==='region'&&!BRIGHT_NATION?BG_OLD:BG_DARK);if(window.__setTilt)window.__setTilt(m);
  controls.autoRotate=false;const flat=m==='hq'||m==='county'||m==='visit'||m==='province'||m==='region';controls.enableRotate=!flat&&m!=='battle';controls.screenSpacePanning=false;controls.mouseButtons={LEFT:flat?THREE.MOUSE.PAN:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:flat?THREE.MOUSE.ROTATE:THREE.MOUSE.PAN};controls.touches={ONE:flat?THREE.TOUCH.PAN:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};controls.enablePan=m!=='battle'&&m!=='world';controls.maxPolarAngle=m==='world'?Math.PI:(m==='region'?1.05:1.25);controls.maxDistance=m==='world'?12:(m==='hq'?60:(m==='region'?26:(m==='province'?42:34)));
  controls.minDistance=m==='world'?2.9:2.5;if(m==='siege'){$('bhud').hidden=false;$('hud').classList.add('inbattle');controls.enableRotate=false;controls.enablePan=false;controls.enableZoom=true;controls.maxDistance=42;controls.minDistance=10;}if(m==='county'&&window.NET&&NET.big){controls.maxDistance=SEAM()&&NAT.root?NAT_OUT+80:66;scene.fog=NEWGFX?new THREE.Fog(FOGC,62,150):new THREE.Fog(FOGC,48,105);}controls.zoomToCursor=m==='region'||m==='province';
  const h=home();flyTo(h[0],h[1],()=>controls.minDistance=h[2]);
@@ -1847,7 +1849,7 @@ const composer=new EffectComposer(renderer);composer.addPass(new RenderPass(scen
 const bloom=new UnrealBloomPass(new THREE.Vector2(screen.clientWidth,screen.clientHeight),NEWGFX?0.3:0.25,NEWGFX?0.5:0.4,NEWGFX?0.92:0.9);composer.addPass(bloom);
 const tiltH=new ShaderPass(HorizontalTiltShiftShader),tiltV=new ShaderPass(VerticalTiltShiftShader);tiltH.uniforms.r.value=tiltV.uniforms.r.value=0.5;tiltH.enabled=tiltV.enabled=false;composer.addPass(tiltH);composer.addPass(tiltV);
 /** A hint of miniature: blur away from the middle band of the screen. Off on the globe and in battles. */
-function setTilt(m){const k={county:1.45,hq:1.1,province:0.9,visit:1.2}[m]||0,on=NEWGFX&&k>0;tiltH.enabled=tiltV.enabled=on;if(on){tiltH.uniforms.h.value=k/Math.max(1,screen.clientWidth);tiltV.uniforms.v.value=k/Math.max(1,screen.clientHeight);}}
+function setTilt(m){const k={county:1.45,hq:1.1,province:0.9,visit:1.2,region:BRIGHT_NATION?0.8:0}[m]||0,on=NEWGFX&&k>0;tiltH.enabled=tiltV.enabled=on;if(on){tiltH.uniforms.h.value=k/Math.max(1,screen.clientWidth);tiltV.uniforms.v.value=k/Math.max(1,screen.clientHeight);}}
 composer.addPass(new OutputPass());window.__setTilt=setTilt;
 const grade=new ShaderPass({uniforms:{tDiffuse:{value:null},night:{value:0}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
  fragmentShader:'uniform sampler2D tDiffuse;uniform float night;varying vec2 vUv;void main(){vec4 c=texture2D(tDiffuse,vUv);vec3 col=c.rgb;float l=dot(col,vec3(.2126,.7152,.0722));col=mix(vec3(l),col,1.14);col*=vec3(1.05,1.015,0.965);col=pow(max(col,0.0),vec3(1.06));col*=mix(vec3(1.0),vec3(0.82,0.88,1.1),night*0.6);vec2 d=vUv-.5;col*=1.0-.38*dot(d,d)*1.8;gl_FragColor=vec4(col,c.a);}'});
@@ -1862,7 +1864,7 @@ const ripple=(()=>{const cv=document.createElement('canvas');cv.width=cv.height=
  for(let i=0;i<140;i++){x.strokeStyle='rgba(255,255,255,'+(0.18+Math.random()*0.35)+')';x.lineWidth=1+Math.random()*1.6;const px=Math.random()*256,py=Math.random()*256,w=8+Math.random()*26;x.beginPath();x.ellipse(px,py,w,w*0.18,0,0,Math.PI*2);x.stroke();}
  const t=new THREE.CanvasTexture(cv);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(3,3);t.colorSpace=THREE.SRGBColorSpace;return t;})();
 const WATER=[0x1d5870,0x1d4d62,0x16283a,0x4ab8f0];
-Object.values(mats).forEach(m=>{if(m.color&&WATER.includes(m.color.getHex())){m.map=ripple;m.emissive=new THREE.Color(0x0b2030);m.emissiveIntensity=0.6;if(NEWGFX&&m.color.getHex()!==0x16283a){m.color.set(0x3cb8c4);m.emissive.set(0x0c3a48);}m.needsUpdate=true;}});
+Object.values(mats).forEach(m=>{if(m.color&&WATER.includes(m.color.getHex())){m.map=ripple;m.emissive=new THREE.Color(0x0b2030);m.emissiveIntensity=0.6;if(NEWGFX&&(BRIGHT_NATION||m.color.getHex()!==0x16283a)){m.color.set(0x3cb8c4);m.emissive.set(0x0c3a48);}m.needsUpdate=true;}});
 /* glowing window, torch and fire materials that brighten at night */
 const glowMats=Object.values(mats).filter(m=>m.emissive&&[0xffa53a,0xff7a1a,0xff5a10,0xff6a1a].includes(m.emissive.getHex()));
 /* dust motes */
