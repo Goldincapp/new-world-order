@@ -69,7 +69,9 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .nav button{font:inherit;color:#dfe6ec;background:transparent;border:0;border-radius:calc(3*var(--u));padding:calc(1*var(--u)) calc(2.4*var(--u)) calc(.8*var(--u));display:flex;flex-direction:column;align-items:center;gap:calc(.2*var(--u));cursor:pointer;font-size:.8em}
 .nav button .ms{font-size:calc(4.8*var(--u))}
 .nav button[aria-pressed="true"]{background:var(--gold);color:var(--gold-ink)}
-.hint{position:absolute;left:5cqw;bottom:calc(4*var(--u));background:var(--hud);border:1px solid var(--hud-line);border-radius:calc(2*var(--u));padding:calc(.9*var(--u)) calc(1.8*var(--u)) calc(.7*var(--u));font-size:.82em;color:#e6edf2;max-width:26cqw}
+.hint{position:absolute;left:5cqw;bottom:calc(4*var(--u));background:var(--hud);border:1px solid var(--hud-line);border-radius:calc(2*var(--u));padding:calc(.9*var(--u)) calc(1.8*var(--u)) calc(.7*var(--u));font:inherit;font-size:.82em;color:#e6edf2;max-width:29cqw;text-align:left;cursor:pointer}
+.hint::after{content:"? Guide";display:inline-block;margin-left:.8em;color:var(--gold);font-weight:800;white-space:nowrap}
+.hint:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
 .card{position:absolute;left:5cqw;top:calc(19.5*var(--u));width:min(40cqw,300px);background:#fbf7ee;color:#2a2a2a;border-radius:calc(3*var(--u));padding:calc(2.6*var(--u)) calc(3*var(--u));box-shadow:0 calc(1.4*var(--u)) 0 rgba(0,0,0,.18);font-family:'IBM Plex Sans',system-ui,sans-serif;font-weight:400;font-size:clamp(7px,calc(3.1*var(--u)),13px);line-height:1.45}
 .card h3{font:800 1.35em/1.05 'Baloo 2','Trebuchet MS',sans-serif;margin:0;color:#1d1d1d}
@@ -395,7 +397,7 @@ button.guide-target::after{content:attr(data-guide-label);position:absolute;left
           <button id="nWorld" aria-pressed="false"><span class="ms">public</span>World</button>
           <button id="nPolitics" aria-pressed="false"><span class="ms">account_balance</span>Politics</button>
         </div>
-        <div class="hint" id="hint">Tap a parcel. Your land has the gold border.</div>
+        <button class="hint" id="hint" type="button" aria-label="Open a guide for this screen">Tap a parcel. Your land has the gold border.</button>
         <button class="secchip" id="secChip" hidden><span id="secText">Sector 12</span></button>
         <button class="secchip" id="visChip" hidden><span id="visText"></span></button>
         <div class="ticker" id="ticker" aria-live="polite"><span class="ms">campaign</span><span id="tickText">Crimson Pact captured Sector 9 from the Steppe Dominion</span></div>
@@ -1176,6 +1178,16 @@ const RESOURCE_HELP={
  gold:['Gold','A rare advanced currency. Higher research tiers, founding a nation, and coups can require it.',['Main sources','Goals, major battles, and special rewards']],
  power:['Power','Electricity stored for expanding your home base. Solar panels, Solar farms, and Wind turbines produce it.',['Used for','Larger walls and more room for home-base buildings']],
 };
+const SCREEN_HELP={
+ county:['Sector: your local area','The closest map view. A sector contains the parcels where players claim land, build, produce resources, and meet neighbours.',[['Parcel','One buildable square of land inside a sector'],['Gold border','Land that belongs to you'],['Caretaker','The AI authority still controlling unclaimed land and basic order']]],
+ province:['Province: a group of sectors','The regional map. Use it to move between sectors, follow shipments, find contracts, and see nearby conflicts.',[['Sector','A local area containing player parcels'],['Province','The larger region containing many sectors'],['Convoy','A shipment travelling between sectors']]],
+ region:['Nation: player-run government','A nation contains provinces and sectors. Its players elect leaders who can shape laws, taxes, trade, and wars.',[['Province','A major region inside a nation'],['Politics','Elections, offices, laws, taxes, and national decisions'],['Standing','How much the Caretaker trusts or distrusts your actions']]],
+ hq:['Home: your private base','Your home base sits on your first parcel. Place and upgrade buildings here to unlock production, research, storage, and defence.',[['HQ','Headquarters; upgrading it expands capacity and unlocks options'],['Building slots','The limit on structures you can place'],['Power','Electricity used to expand and strengthen your base']]],
+ world:['World: the largest map','The world is divided into regions. Enter an open region to reach its nations; additional regions unlock as the game expands.',[['Region','The largest playable territory below the world'],['Nation','A player-governed country inside a region'],['Locked region','Not yet open for settlement or travel']]],
+ visit:['Visiting another sector','You are away from home. Inspect bases, patrols, camps, and threats here before deciding whether to trade, ally, or fight.',[['Red ring','A hostile force or target'],['Patrol','A moving military group'],['Alliance','Players cooperating in chat, defence, trade, and war']]],
+};
+function glossaryCard(){showCard('Plain-language glossary','The terms you will see most often',[['World → Region','The map from largest scale to smaller areas'],['Nation → Province → Sector','A country, one of its regions, then a local settlement area'],['Parcel','One claimable, buildable square inside a sector'],['Home / HQ','Your private base and its central headquarters'],['Caretaker','The AI authority controlling unclaimed land and tracking behaviour'],['Alliance','A group of players cooperating in trade, defence, and war'],['Resources','Tap any counter at the top to learn what it does']],['Back to this screen','Close']);}
+function guideCard(topic){const g=SCREEN_HELP[topic]||SCREEN_HELP.county;showCard(g[0],'Tap this guide whenever a term is unclear',g[2].concat([['On this screen',g[1]]]),['All terms','Close']);}
 function resourceCard(k){const r=RESOURCE_HELP[k];if(!r)return;showCard(r[0],fmt(res[k]||0)+' available',[['What it is',r[1]],r[2],['Tip','Tap any resource counter at the top to open this explanation.']],['Close']);}
 Object.keys(RESOURCE_HELP).forEach(k=>{const el=$('p'+k[0].toUpperCase()+k.slice(1));if(!el)return;el.onclick=()=>resourceCard(k);el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();resourceCard(k);}};});
 /** Your land: how many parcels, where, and what they hold. */
@@ -1207,6 +1219,8 @@ function showCard(title,sub,rows,btns,slotsUsed){
  card.querySelectorAll('[data-a]').forEach(b=>b.onclick=e=>act(b.dataset.a,e));}
 let current=null;
 function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+ if(a==='All terms'){glossaryCard();return;}
+ if(a==='Back to this screen'){guideCard(mode);return;}
  if(window.NET&&!NET.me&&(a==='Try again'||a==='Play offline')){card.hidden=true;if(a==='Try again')comeBack();else{NET.offline=true;openBrief();}return;}if(window.NET&&NET.me&&homeAct(a))return;
  if(mode==='visit'&&visitAct(a))return;
  if(a==='Collect'&&window.NET&&NET.me){api('/collect',{}).then(r=>{applyMe(r.player);const c2=r.collected;floatText('+'+fmtN(c2.oil)+' oil',x-10,y-30);toast('Collected '+fmtN(c2.cash)+' cash, '+fmtN(c2.oil)+' oil, '+fmtN(c2.grain)+' grain');}).catch(er=>toast(er.message));return;}
@@ -1383,6 +1397,7 @@ function home0(m){const k=mode;mode=m;const h=home();mode=k;return h[1];}
 function home(){if(mode==='siege')return [new THREE.Vector3(0,0,0.5),new THREE.Vector3(0,25,27),10];if(mode==='county'&&window.NET&&NET.big){const c=cells[NET.homeKey]||{x:0,top:0.3,z:0};return [new THREE.Vector3(c.x,c.top,c.z),new THREE.Vector3(c.x+11,c.top+13,c.z+11),3];}if(mode==='visit')return [new THREE.Vector3(0,0,0),new THREE.Vector3(12.5,12,12.5),2.5];if(mode==='county')return [new THREE.Vector3(0,0,0),new THREE.Vector3(15,14,15),2.5];if(mode==='hq'){const sz=window.NET&&NET.me&&NET.me.home.hi?NET.me.home.hi-NET.me.home.lo+2*(NET.me.home.yard||0)-2:10,d=(0.95*sz+3)*(innerWidth<innerHeight?1.12:1);return [new THREE.Vector3(0,0,0),new THREE.Vector3(d,d*0.95,d),5];}if(mode==='battle')return [new THREE.Vector3(0,0,0.4),new THREE.Vector3(0,11.8,12.8),5];if(mode==='province')return [new THREE.Vector3(0,0,0.6),new THREE.Vector3(0,22,19),2];if(mode==='region')return [new THREE.Vector3(-0.9,0,-0.9),new THREE.Vector3(-0.9,13.2,8.6),2.2];return [new THREE.Vector3(0,0,0),new THREE.Vector3(0,1.4,7.4),2.9];}
 function back(){card.hidden=true;sel.visible=false;hint.hidden=false;const h=home();flyTo(h[0],h[1],()=>{controls.minDistance=h[2];controls.autoRotate=false;});}
 const hints={visit:'Red rings are enemies. Tap bases, patrols and camps. Zoom out to return to the province.',county:'Tap a parcel. Zoom into your HQ to go home, or zoom out to see the province.',hq:'Tap a building. Zoom out to return to your sector.',province:'Tap a sector, or zoom into one to enter it. Zoom out to rise to the nation.',world:'Zoom into the lit region, or tap it, to enter the nation view.',region:'Zoom into Aurelia to reveal its provinces and enter one. Zoom out to see the world.'};
+$('hint').onclick=()=>guideCard(mode);
 function setMode(m){mode=m;setTimeout(()=>{if(window.NET&&NET.me&&NET.me.home&&NET.me.home.grid)renderTutorial();if(m!=='hq'&&HB.placing)cancelPlacing();},0);if(window.__siegeG){window.__siegeG.visible=m==='siege';$('siegePanel').hidden=m!=='siege';}card.hidden=true;chatEl.hidden=true;polEl.hidden=true;$('board').hidden=true;$('stats').hidden=true;$('brief').hidden=true;$('ctSheet').hidden=true;battle.visible=m==='battle';$('bhud').hidden=m!=='battle';$('hud').classList.toggle('inbattle',m==='battle');controls.enableRotate=m!=='battle';controls.enableZoom=m!=='battle';$('secChip').hidden=m!=='county';if(m==='county')renderSec();sel.visible=false;closeMarket(true);county.visible=m==='county';hq.visible=m==='hq';visit.visible=m==='visit';$('visChip').hidden=m!=='visit';if(m!=='visit')vFollow=null;world.visible=m==='world';region.visible=m==='region';province.visible=m==='province';
  hint.textContent=hints[m]||'';hint.hidden=m==='battle';
  scene.fog=(m==='visit'||m==='county'||m==='hq'||m==='province'||m==='battle')?(NEWGFX?new THREE.Fog(FOGC,42,100):new THREE.Fog(FOGC,24,46)):null;
