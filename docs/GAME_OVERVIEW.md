@@ -352,6 +352,16 @@ Hold 10% of a sector's claimable land (about 98 parcels) to name it. Anyone who 
 - **Feedback log.** Every player message is also written to `ChatLog`, which survives world wipes. Read it with `GET /api/admin/chatlog?since=&channel=&name=&format=csv|json`.
 - **System messages.** System senders are "News", "Caretaker" and "Alert".
 
+### 5.17 In-game feedback (`FeedbackDesk.cs`)
+
+- **Sending.** A **Feedback** button in the side bar opens a panel with four kinds (bug, idea, too easy / too hard, other), a text box (2,000 characters) and an optional screenshot of the 3D view taken just before the panel opens. It posts to `POST /api/feedback` with context: view, sector, home sector, graphics setting, screen size and device. Limits: one every 20 s and 30 a day per player.
+- **Storage.** Feedback is kept in the `Feedback` table and survives world wipes.
+- **Reading it:**
+  - `GET /api/admin/feedback?status=new&format=md` gives a Markdown list to hand to an agent.
+  - `GET /api/admin/feedback/{id}/shot` returns the screenshot.
+  - `POST /api/admin/feedback/{id}?status=seen|done|wontdo&note=` marks progress.
+- **GitHub issues.** If `NWO_GITHUB_TOKEN` and `NWO_GITHUB_REPO` (`owner/repo`) are set, each piece of feedback also opens a GitHub issue labelled `feedback` and its kind. The player sees the issue link.
+
 ---
 
 ## 6. Client (`client/index.html`)
