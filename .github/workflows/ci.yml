@@ -16,3 +16,13 @@ jobs:
         run: dotnet restore server/NWO.Server/NWO.Server.csproj
       - name: Build
         run: dotnet build server/NWO.Server/NWO.Server.csproj --configuration Release --no-restore
+
+  client:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax-check the game client
+        run: node tools/check-client.mjs
