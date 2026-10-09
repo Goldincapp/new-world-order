@@ -80,6 +80,9 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<object> MyBook(string res) => market.Book(res, Me.Id);
 
+    /// <summary>The nearest standing militia camp for the guided first battle, or null if all are cleared.</summary>
+    public Task<int?> OpenCamp() => caretaker.OpenCamp();
+
     /// <summary>Entering any sector: its drones and militia camp, live while you are there.</summary>
     public async Task<object> VisitSector(int sector)
     {

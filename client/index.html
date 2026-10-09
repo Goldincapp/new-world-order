@@ -3157,7 +3157,7 @@ function clearGuideTarget(){if(guideTargetEl){guideTargetEl.classList.remove('gu
 function pointGuideAt(el,label){clearGuideTarget();if(!el)return;guideTargetEl=el;el.classList.add('guide-target');if(el.tagName==='BUTTON')el.dataset.guideLabel=label||'Tap this';}
 function pointGuideButton(root,text,label){const b=[...root.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(text));pointGuideAt(b,label);return b;}
 function beginGuideAction(g){guideActing=g.do;$('tutBar').hidden=true;clearGuideTarget();}
-function openGuideCamp(tries=0){const camp=vPicks.find(x=>x.userData&&x.userData.vk&&x.userData.vk.kind==='camp'&&!x.userData.vk.done);if(camp){vCard(camp.userData.vk,camp);setTimeout(()=>{pointGuideButton(card,'Attack camp','1. Tap Attack camp');toast('Step 1: tap the highlighted Attack camp button');},100);return;}if(tries<10)setTimeout(()=>openGuideCamp(tries+1),350);else toast('Look for the red Caretaker militia camp in Sector 30 and tap it');}
+function openGuideCamp(tries=0,n){const camp=vPicks.find(x=>x.userData&&x.userData.vk&&x.userData.vk.kind==='camp'&&!x.userData.vk.done);if(camp){vCard(camp.userData.vk,camp);setTimeout(()=>{pointGuideButton(card,'Attack camp','1. Tap Attack camp');toast('Step 1: tap the highlighted Attack camp button');},100);return;}if(tries<10)setTimeout(()=>openGuideCamp(tries+1,n),350);else toast('Look for the red Caretaker militia camp in Sector '+(n||30)+' and tap it');}
 function battleCoachStart(){if(!guideBattleCoach)return;guideBattleCoach=1;$('btip').textContent='Step 2: Command points are energy. Tap the highlighted Gunner (costs 2).';battleCoachRender();}
 function battleCoachRender(){if(!guideBattleCoach||mode!=='battle')return;if(guideBattleCoach===1){const gunner=$('ucards').querySelector('button[data-t="gunner"]');pointGuideAt(gunner,'2. Tap Gunner');}else if(guideBattleCoach===2)pointGuideAt(renderer.domElement);}
 function battleCoachUnitSelected(){if(!guideBattleCoach||guideBattleCoach>2)return;guideBattleCoach=2;$('btip').textContent='Step 3: tap one of the three tan lanes to deploy your unit.';pointGuideAt(renderer.domElement);}
@@ -3179,7 +3179,7 @@ function guideShow(g){card.hidden=true;beginGuideAction(g);const seen=w=>NET.con
   case 'research':if(NET.me.research&&NET.me.research.labs){openTech();}else{sectorToHome();setTimeout(()=>toast('Build a Research lab in your base first'),1100);}break;
   case 'market':$('bMarket').click();setTimeout(()=>toast('Pick a resource, then place a buy or sell order'),600);break;
   case 'contracts':$('bContracts').click();setTimeout(()=>toast('Pick a contract you have the goods for, then ship it'),600);break;
-  case 'battle':guideBattleCoach=1;enterVisit(30);setTimeout(()=>openGuideCamp(),900);break;
+  case 'battle':NET.conn.invoke('OpenCamp').catch(()=>30).then(n=>{if(!n){toast('Every militia camp has just been cleared. They return soon, or raid a bot base in a sector instead');return;}guideBattleCoach=1;enterVisit(n);setTimeout(()=>openGuideCamp(0,n),900);});break;
   case 'alliance':openAlly();break;
   case 'politics':$('nPolitics').click();setTimeout(()=>toast('Vote for a candidate, or vote on a law'),600);break;
   case 'record':$('bRecord').click();seen('record');break;

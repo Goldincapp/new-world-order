@@ -113,6 +113,16 @@ public class Caretaker(World world, IHubContext<GameHub> hub)
         };
     }
 
+    /// <summary>A militia camp that is standing right now, for the guide's first battle. Sector 30 first, then the others.</summary>
+    public async Task<int?> OpenCamp()
+    {
+        using var scope = world.Scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDb>();
+        var now = DateTime.UtcNow;
+        var open = await db.Camps.Where(c => c.ClearedUntil == null || c.ClearedUntil <= now).Select(c => c.Sector).ToListAsync();
+        return open.Count == 0 ? null : open.OrderBy(s => s == 30 ? 0 : 1).ThenBy(s => s).First();
+    }
+
     public static async Task<int> DronesAliveOver(GameDb db, int sector, DateTime now) =>
         Presence.Applies(sector) && Presence.Of(sector) < 20 ? 0 : await db.Drones.CountAsync(d => d.Sector == sector && (d.DownUntil == null || d.DownUntil <= now));
 
