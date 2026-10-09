@@ -1518,6 +1518,7 @@ const bground=add(new RoundedBoxGeometry(BL+0.44,0.12,BW+0.44,2,0.05),0x3f5a2e,0
 const laneStrips=LANES.map(z=>{const m=add(boxG,0x6e5c44,0,0.065,z,null,null,true);m.scale.set(BL-1,0.01,0.7);return m;});
 for(let i=0;i<26;i++){const x=(hash(i,4)-0.5)*BL,z=(hash(9,i)>0.5?1:-1)*(BW/2-0.35);if(Math.abs(x)>7)continue;pine(x,0.06,z+(hash(i,i)-0.5)*0.3,0.55);}
 for(let i=0;i<8;i++)rocks((hash(i,2)-0.5)*12,0.06,(hash(3,i)-0.5)*BW*0.8,0.35);
+const fieldOld=battle.children.slice();
 /* your barricade */
 [[-8.1,-2.4],[-8.1,-0.8],[-8.1,0.8],[-8.1,2.4]].forEach(p=>add(new RoundedBoxGeometry(0.5,0.35,1.3,2,0.08),0x8a7a58,p[0],0.24,p[1]));
 add(new THREE.CylinderGeometry(0.02,0.02,1.2,6),0x333333,-8.5,0.66,0);flags.push(add(new THREE.BoxGeometry(0.5,0.3,0.01),0xffc933,-8.25,1.1,0,null,{emissive:0xffc933,emissiveIntensity:0.3}));
@@ -1595,8 +1596,80 @@ function renderCards(){const el=$('ucards');el.innerHTML=((BT&&BT.deck)||['gunne
 function startBattle(o){const prev=mode;troopsLeft={...troops0};
  if(window.NET&&NET.conn&&!o.local&&!o.defend){netStartBattle(o,prev);return;}
  go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>initBattle(o,prev),700);}
-function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={prev,campAssault:o.campAssault,title:o.title,enemy:o.enemy||'Militia camp',t:120,cp:5,you:1600,youMax:1600,en:2600,enMax:2600,wave:3,waveN:0,done:false,lost:{},elost:{},sector:o.sector};setupRival(o);
+function initBattle(o,prev){{units.splice(0).forEach(u=>battle.remove(u.g));BT={prev,campAssault:o.campAssault,title:o.title,enemy:o.enemy||'Militia camp',t:120,cp:5,you:1600,youMax:1600,en:2600,enMax:2600,wave:3,waveN:0,done:false,lost:{},elost:{},sector:o.sector};setupRival(o);battleScenery(o);
   $('bEnemyN').textContent=BT.enemy;selUnit=null;renderCards();toast(o.title);}}
+/* ---------- Battle scenery: the field sits in the real land around where the fight is ----------
+   The same land, trees, rocks and water as the sector map, sampled around the battle's parcel; the field itself is levelled and the land rises or falls away from it. */
+const BS={g:null,key:null,lanes:null,on:false};
+function lanesShow(v){laneStrips.forEach(m=>m.visible=v&&!BS.on);if(BS.lanes)BS.lanes.visible=v;}
+/** A soft-edged patch of trampled earth for the defender's yard. */
+function yardTex(){if(yardTex.t)return yardTex.t;const c=document.createElement('canvas');c.width=c.height=64;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,64,64);for(let k=0;k<12;k++){x.fillStyle='rgba(255,255,255,0.14)';const m=2+k*1.6;x.fillRect(m,m,64-2*m,64-2*m);}
+ for(let i=0;i<70;i++){x.fillStyle='rgba(0,0,0,'+(0.15+hash(i,7)*0.35)+')';x.beginPath();x.arc(hash(i,5)*64,hash(6,i)*64,1+hash(i,i*2)*2.5,0,7);x.fill();}return yardTex.t=new THREE.CanvasTexture(c);}
+function battleSpot(o){const d=NAT.data,n=o.sector||(window.NET&&(NET.viewSector||NET.me&&NET.me.homeSector))||0,q=d&&d.sec[n];if(!q)return null;
+ if(o.spot)return [q.gx+o.spot[0],q.gy+o.spot[1],n+':'+o.spot.join(',')];
+ // somewhere dry near the middle of the sector, the same spot each time
+ for(let k=0;k<40;k++){const i=Math.floor(6+hash(n,k)*22),j=Math.floor(6+hash(k,n*1.3)*22),c=natCode(q.gx+i,q.gy+j);if(c!=='wa'&&c!=='xs'&&c!=='pa'&&c!=='ha')return [q.gx+i,q.gy+j,n+':'+i+','+j];}
+ return [q.gx+17,q.gy+17,n+':c'];}
+function laneTex(){const c=document.createElement('canvas');c.width=128;c.height=32;const x=c.getContext('2d'),g=x.createLinearGradient(0,0,0,32);x.fillStyle='#000';x.fillRect(0,0,128,32);g.addColorStop(0,'rgba(255,255,255,0)');g.addColorStop(0.32,'rgba(255,255,255,0.9)');g.addColorStop(0.68,'rgba(255,255,255,0.9)');g.addColorStop(1,'rgba(255,255,255,0)');x.fillStyle=g;x.fillRect(0,0,128,32);
+ for(let i=0;i<90;i++){x.fillStyle='rgba(0,0,0,'+(0.2+hash(i,3)*0.5)+')';x.beginPath();x.arc(hash(i,1)*128,hash(2,i)*32,1+hash(i,i)*3,0,7);x.fill();}
+ const ed=x.createLinearGradient(0,0,128,0);ed.addColorStop(0,'rgba(0,0,0,1)');ed.addColorStop(0.06,'rgba(0,0,0,0)');ed.addColorStop(0.94,'rgba(0,0,0,0)');ed.addColorStop(1,'rgba(0,0,0,1)');x.fillStyle=ed;x.fillRect(0,0,128,32);
+ return new THREE.CanvasTexture(c);}
+async function battleScenery(o){if(!NEWGFX)return;const d=NAT.data||await loadNation().catch(()=>null);if(!d||mode!=='battle')return;const sp=battleSpot(o);if(!sp)return;
+ const showField=on=>{BS.on=on;fieldOld.forEach(m=>{if(!laneStrips.includes(m))m.visible=!on;});battleSkirt.visible=!on;lanesShow(!(BT&&BT.arena));};
+ if(BS.key===sp[2]&&BS.g){BS.g.visible=true;showField(true);return;}
+ if(BS.g){battle.remove(BS.g);BS.own.forEach(x=>x.dispose());}
+ const X0=sp[0],Y0=sp[1],G=0.06,FX=BL/2+0.4,FZ=BW/2+0.35,W=40,Z0=-40,Z1=18,R=2,g=new THREE.Group();BS.g=g;BS.key=sp[2];BS.own=[];battle.add(g);
+ const fieldW=(x,z)=>NZ.ss(0,3.2,Math.hypot(Math.max(0,Math.abs(x)-FX),Math.max(0,Math.abs(z)-FZ)));
+ let base=0,nb=0;for(let z=-3;z<=3;z+=1.5)for(let x=-9;x<=9;x+=3){base+=natH(X0+x,Y0+z);nb++;}base/=nb;
+ const H=(x,z)=>{const t=fieldW(x,z);return G+(natH(X0+x,Y0+z)-base)*t+(NZ.fbm(x*0.45+3,z*0.45)-0.5)*0.05*(1-t)*(t>0?1:0);};
+ // one colour, splat mix and height per parcel, blended between parcels
+ const wet=c=>c==='wa'||c==='xs',cache=new Map(),ca=new THREE.Color(),cb=new THREE.Color();
+ const cell=(i,j)=>{const k=i+','+j;let v=cache.get(k);if(v)return v;let code=natCode(X0+i,Y0+j);
+  if(Math.abs(i)<=FX+1&&Math.abs(j)<=FZ+1&&(wet(code)||code==='pa'||code==='ha'))code='gr';
+  const two=natCol2(code),t=NZ.ss(0.3,0.7,NZ.fbm((X0+i)*0.16,(Y0+j)*0.16));ca.setHex(two[0]).lerp(cb.setHex(two[1]),t);
+  v={r:ca.r,g:ca.g,b:ca.b,sp:SPLAT[code]||[0.6,0.4,0],el:natElev(X0+i,Y0+j),code};cache.set(k,v);return v;};
+ const NX=2*W*R+1,NZ_=(Z1-Z0)*R+1,pos=new Float32Array(NX*NZ_*3),cols=new Float32Array(NX*NZ_*3),spl=new Float32Array(NX*NZ_*3),acc=new THREE.Color(),snow=new THREE.Color(0xeff4f8),rock=new THREE.Color(0x8a8178),dirt=new THREE.Color(0xa8916a);
+ for(let b=0;b<NZ_;b++)for(let a=0;a<NX;a++){const v=b*NX+a,x=-W+a/R,z=Z0+b/R;pos[v*3]=x;pos[v*3+1]=H(x,z);pos[v*3+2]=z;
+  const i0=Math.floor(x),j0=Math.floor(z);let tx=x-i0,tz=z-j0;tx=tx*tx*(3-2*tx);tz=tz*tz*(3-2*tz);acc.setRGB(0,0,0);let w0=0,w1=0,w2=0,el=0;
+  for(const [i,j,wt] of [[i0,j0,(1-tx)*(1-tz)],[i0+1,j0,tx*(1-tz)],[i0,j0+1,(1-tx)*tz],[i0+1,j0+1,tx*tz]]){if(wt<=0)continue;const c=cell(i,j);acc.r+=c.r*wt;acc.g+=c.g*wt;acc.b+=c.b*wt;w0+=c.sp[0]*wt;w1+=c.sp[1]*wt;w2+=c.sp[2]*wt;el+=c.el*wt;}
+  if(el>6.5)acc.lerp(snow,NZ.ss(6.5,8.5,el+(NZ.fbm(x*0.8,z*0.8)-0.5)*1.5));
+  // the field is trampled: a little drier and dustier than the land around it
+  const tf=1-fieldW(x,z);if(tf>0){acc.lerp(dirt,0.18*tf*(0.6+0.8*NZ.fbm(x*0.7,z*0.7)));w1+=0.25*tf;}
+  acc.multiplyScalar(0.94+0.12*NZ.fbm(x*0.9+5,z*0.9));cols[v*3]=acc.r;cols[v*3+1]=acc.g;cols[v*3+2]=acc.b;spl[v*3]=w0;spl[v*3+1]=w1;spl[v*3+2]=w2;}
+ const Y=v=>pos[v*3+1],c=new THREE.Color(),step=1/R;for(let b=0;b<NZ_;b++)for(let a=0;a<NX;a++){const v=b*NX+a,l=a>0?v-1:v,r=a<NX-1?v+1:v,up=b>0?v-NX:v,dn=b<NZ_-1?v+NX:v,avg=(Y(l)+Y(r)+Y(up)+Y(dn))/4;
+  const slope=Math.hypot(Y(r)-Y(l),Y(dn)-Y(up))/(2*step),ao=Math.max(0.8,Math.min(1.05,1-(avg-Y(v))*10)),rk=NZ.ss(0.35,0.8,slope);
+  c.setRGB(cols[v*3],cols[v*3+1],cols[v*3+2]).lerp(rock,rk*0.7).multiplyScalar(ao);cols[v*3]=c.r;cols[v*3+1]=c.g;cols[v*3+2]=c.b;
+  const t=spl[v*3]+spl[v*3+1]+spl[v*3+2]||1;spl[v*3]=spl[v*3]/t*(1-rk);spl[v*3+1]=spl[v*3+1]/t*(1-rk);spl[v*3+2]=spl[v*3+2]/t*(1-rk)+rk;}
+ const idx=[];for(let b=0;b<NZ_-1;b++)for(let a=0;a<NX-1;a++){const p=b*NX+a;if((a+b)%2)idx.push(p,p+NX,p+1,p+1,p+NX,p+NX+1);else idx.push(p,p+NX,p+NX+1,p,p+NX+1,p+1);}
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.BufferAttribute(pos,3));geo.setAttribute('color',new THREE.BufferAttribute(cols,3));geo.setAttribute('splat',new THREE.BufferAttribute(spl,3));geo.setIndex(idx);geo.computeVertexNormals();
+ const terr=new THREE.Mesh(geo,splatMat());terr.receiveShadow=true;g.add(terr);BS.own.push(geo);
+ // worn lanes the troops march down
+ const lt=laneTex();BS.own.push(lt);BS.lanes=new THREE.Group();g.add(BS.lanes);
+ LANES.forEach((z,k)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(BL-1.4,0.95),new THREE.MeshLambertMaterial({color:0xc4a774,alphaMap:lt,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2}));m.rotation.x=-Math.PI/2;m.position.set(0,G+0.008,z);m.receiveShadow=true;BS.lanes.add(m);BS.own.push(m.geometry,m.material);});
+ // trees, rocks, ruins and plants from the land, as on the sector map
+ const trees=[],oaks=[],rocks=[],ruins=[],bush=[],crop=[],reed=[],tufts=[],flw=[],FL=[0xfff4c0,0xffd45e,0xf6a3c8,0xffffff,0xb9a6ff],k0=LOW?0.5:1;let water=false;
+ const near=(x,z,m)=>Math.abs(x)<FX+m&&Math.abs(z)<FZ+m,onLane=(x,z)=>Math.abs(x)<BL/2-0.4&&LANES.some(l=>Math.abs(z-l)<0.5);
+ for(let j=Z0;j<Z1;j++)for(let i=-W;i<W;i++){const X=X0+i,Yc=Y0+j,cc=cell(i,j),code=cc.code;if(wet(code)){water=true;continue;}
+  const dist=Math.max(Math.abs(i),Math.abs(j));
+  if(near(i,j,1.2)){// the field: a little grass and the odd flower, kept off the lanes
+   const nd=(code==='ba'?1.2:2.2)*k0;for(let q=0;q<nd;q++){const x=i+(hash(X*3.1+q,Yc*0.7)-0.5),z=j+(hash(X*0.9,Yc*2.9+q)-0.5);if(onLane(x,z)||!near(x,z,0))continue;(hash(x*7.7,z*3.3)<0.06?flw:tufts).push([x,H(x,z),z,0.6+hash(z*2,x)*0.5,hash(x*7.7,z*3.3)<0.06?FL[Math.floor(hash(z,x)*FL.length)]:0xe8e8c0]);}
+   continue;}
+  const jx=(a,b)=>(hash(X*a,Yc*b)-0.5)*0.7;
+  if(code==='sc'){const nT=1+Math.floor(hash(X,Yc*2)*3);for(let q=0;q<nT;q++){const x=i+(hash(X+q,Yc)-0.5)*0.8,z=j+(hash(X,Yc+q)-0.5)*0.8;(hash(x,z)<0.6?trees:oaks).push([x,H(x,z),z,(0.25+hash(q,X+Yc)*0.15)*2]);}}
+  else if((code==='gr'||code==='xx')&&hash(X*2,Yc)<(code==='xx'?0.12:0.22)){const x=i+jx(1,1),z=j+jx(1.3,0.7);(hash(x,z)<0.5?trees:oaks).push([x,H(x,z),z,0.6]);}
+  else if(code==='ro'&&hash(X,Yc*3)<0.6){const x=i+jx(1,2),z=j+jx(2,1);rocks.push([x,H(x,z)-0.03,z,(0.18+hash(X+1,Yc)*0.18)*0.9]);}
+  else if(code==='ru'){ruins.push([i-0.18,H(i,j),j+0.1,0.5,0.25+hash(X,Yc)*0.3,0.08]);ruins.push([i+0.15,H(i,j),j-0.15,0.08,0.18+hash(Yc,X)*0.25,0.45]);}
+  else if(code==='ba'&&hash(X*1.9,Yc*2.3)<0.05)rocks.push([i,H(i,j),j,0.1]);
+  if((code==='gr'||code==='sc')&&hash(X*4.1,Yc*3.3)<0.45){const x=i+jx(1.7,1.1),z=j+jx(0.6,1.9);bush.push([x,H(x,z),z,(0.12+hash(X,Yc)*0.1)*1.5]);}
+  if(code==='fe')for(let q=0;q<3;q++)crop.push([i,H(i,j-0.3+q*0.3),j-0.3+q*0.3]);
+  if(dist<18){const nd=({gr:5,sc:3,ba:2,ru:1,ro:0.6,fe:0.4,xx:0.6}[code]||0)*k0;for(let q=0;q<nd;q++){if(q+1>nd&&hash(X*1.7+q,Yc*2.3)>nd%1)break;const x=i+(hash(X*3.1+q*1.3,Yc*0.7)-0.5)*0.95,z=j+(hash(X*0.9,Yc*2.9+q*1.7)-0.5)*0.95;
+   if(hash(x*7.7,z*3.3)<(code==='gr'?0.08:0.03))flw.push([x,H(x,z),z,0.8+hash(x,z)*0.5,FL[Math.floor(hash(z,x)*FL.length)]]);else tufts.push([x,H(x,z),z,0.7+hash(z*2,x)*0.7,0xe8f0c8]);}}}
+ kitInst(g,'pine',trees,{shadow:!LOW});kitInst(g,'oak',oaks,{shadow:!LOW});kitInst(g,'rock',rocks,{solid:true,shadow:!LOW});kitInst(g,'bush',bush);kitInst(g,'tuft',tufts);kitInst(g,'flower',flw);
+ const m4=new THREE.Matrix4(),inst=(geo,color,list,place)=>{if(!list.length)return;const im=new THREE.InstancedMesh(geo,new THREE.MeshStandardMaterial({color,roughness:0.9}),list.length);list.forEach((p,i)=>{place(m4,p);im.setMatrixAt(i,m4);});im.instanceMatrix.needsUpdate=true;im.receiveShadow=true;g.add(im);BS.own.push(geo,im.material);};
+ inst(new THREE.BoxGeometry(1,1,1),0xb0a490,ruins,(m,p)=>m.makeScale(p[3],p[4],p[5]).setPosition(p[0],p[1]+p[4]/2,p[2]));
+ inst(new THREE.BoxGeometry(0.86,0.05,0.12),0x86a83a,crop,(m,p)=>m.makeTranslation(p[0],p[1]+0.02,p[2]));
+ if(water){const wl=0.2-base+G,ws=waterSurface(2*W,(x,z)=>H(x,z),wl,1);g.add(ws);BS.own.push(ws.geometry,ws.material);}
+ showField(true);}
 function lossText(o){return Object.entries(o).map(([t,n])=>n+' '+UT[t].n.toLowerCase()+(n>1?'s':'')).join(', ')||'none';}
 let war18=0;
 function leaveBattleNow(){card.hidden=true;arenaOff();guideBattleCoach=0;clearGuideTarget();if(window.NET&&NET.bUnits){NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();}const back=(BT&&BT.prev&&BT.prev!=='battle'&&BT.prev!=='siege')?BT.prev:'province';BT=null;units.splice(0).forEach(u=>battle.remove(u.g));go(back,V3(0,0,0),home0(back),null);}
@@ -1651,12 +1724,12 @@ const UNAMES={gunner:'Gunner',launcher:'Launcher',tank:'Tank',heli:'Heli',militi
 function pickArmy(){const R=RIVALS[pendingRival];showCard('Choose your army','Pick up to 4 unit types · artillery always comes',[['Enemy has',gText(R.garrison)],['Counters','Launchers break walls and tanks; gunners stop helicopters; tanks crush gunners'],['Selected',chosen.map(t=>UNAMES[t]).join(', ')||'Nothing yet']],Object.keys(UNAMES).map(t=>UNAMES[t]+(chosen.includes(t)?' ✓':'')).concat(['Launch attack']));}
 /* ---------- Base assault arena: an HQ and two guard towers, deploy anywhere in your half ---------- */
 let arenaG=null;const AR={structs:new Map()};
-function arenaBuild(){if(arenaG){battle.remove(arenaG);}laneStrips.forEach(m=>m.visible=false);arenaG=new THREE.Group();battle.add(arenaG);AR.structs.clear();const P0=P;P=arenaG;
+function arenaBuild(){if(arenaG){battle.remove(arenaG);}lanesShow(false);arenaG=new THREE.Group();battle.add(arenaG);AR.structs.clear();const P0=P;P=arenaG;
  // your deploy zone, shown while a card is picked
  AR.zone=add(new THREE.PlaneGeometry(8,6),0x3d7fd6,-5,0.075,0,null,{transparent:true,opacity:0.16,depthWrite:false},true);AR.zone.rotation.x=-Math.PI/2;AR.zone.visible=false;
  add(boxG,0xe8e0cc,-1,0.08,0,null,{transparent:true,opacity:0.35},true).scale.set(0.04,0.01,6.1);
  // the defender's ground: packed earth, sandbag lines
- const dg=add(new THREE.PlaneGeometry(6.4,6.1),0x5a4a36,6,0.07,0,null,{roughness:1},true);dg.rotation.x=-Math.PI/2;
+ const dg=add(new THREE.PlaneGeometry(6.4,6.1),0x5a4a36,6,0.07,0,null,{roughness:1},true);dg.rotation.x=-Math.PI/2;if(BS.on){dg.material=new THREE.MeshLambertMaterial({color:0xa58a62,alphaMap:yardTex(),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2});dg.scale.set(1.15,1.1,1);}
  [-2.7,2.7].forEach(z=>{for(let i=0;i<5;i++)add(new RoundedBoxGeometry(0.5,0.22,0.3,1,0.06),0x8a7a58,3.4+i*1.1,0.18,z);});
  P=P0;}
 function arenaStructMesh(kind,x,z){const g=new THREE.Group();g.position.set(x,0.07,z);arenaG.add(g);
@@ -1664,7 +1737,7 @@ function arenaStructMesh(kind,x,z){const g=new THREE.Group();g.position.set(x,0.
  else{if(MODELS.towerBase){const b=castlePiece('towerBase',0.8,1.0,0.8);g.add(b);if(MODELS.towerTop){const t=castlePiece('towerTop',0.85,0.9,0.85);t.position.y=1.0;g.add(t);}}
   else{const P0=P;P=g;add(new THREE.CylinderGeometry(0.32,0.38,1.2,12),0x5f5a53,0,0.6,0);add(new THREE.ConeGeometry(0.42,0.4,12),0x7a2a22,0,1.4,0);P=P0;}}
  const bar=new THREE.Mesh(hpBarG,new THREE.MeshBasicMaterial({color:0xff5a4a,depthTest:false}));bar.renderOrder=12;bar.scale.set(2.2,1.6,1);bar.position.y=kind==='hq'?2.1:1.7;g.add(bar);g.userData.bar=bar;return g;}
-function arenaOff(){laneStrips.forEach(m=>m.visible=true);if(arenaG){battle.remove(arenaG);arenaG=null;}AR.structs.clear();if(typeof campM!=='undefined')campM.visible=true;}
+function arenaOff(){lanesShow(true);if(arenaG){battle.remove(arenaG);arenaG=null;}AR.structs.clear();if(typeof campM!=='undefined')campM.visible=true;}
 function applyArenaState(st){BT.t=st.t;BT.cp=st.cp;Object.assign(troopsLeft,st.troops);
  let hp=0;st.structs.forEach(([id,kind,x,z,f])=>{let m=AR.structs.get(id);if(!m){m=arenaStructMesh(kind,x,z);AR.structs.set(id,m);m.userData.f=1;}
   if(f<=0&&m.visible){m.visible=false;boom(x,0.6,z,true);boom(x+0.3,0.4,z-0.2,true);toast(kind==='hq'?'The HQ is down!':'Guard tower destroyed: one star');}
@@ -1950,7 +2023,7 @@ function detailTex(kind){const cv=document.createElement('canvas');cv.width=cv.h
 const DT={grass:detailTex('grass'),dirt:detailTex('dirt'),rock:detailTex('rock'),sand:detailTex('sand'),soil:detailTex('soil'),strata:detailTex('strata')};
 const DMAP=[[DT.grass,[0x4d6b34,0x486530,0x537338,0x5a7a40,0x4a6832,0x557438,0x3f5a2e]],[DT.dirt,[0x8a7456,0x6e5c44,0x9a8462,0x5a4a38,0x6e5c2a]],[DT.sand,[0xa8905a]],[DT.soil,[0x5e4128,0x46702a,0xa8862a,0x8a7228,0x46652a]],[DT.strata,[0x9a6b43,0x4a3526,0x3f2d20,0x271c15,0x6e4a2f]],[DT.rock,[0x34373e,0x8d8f96,0xa9aab0,0x93949b,0x4f5157,0x6f6a62,0x5f5a53]]];
 Object.values(mats).forEach(m=>{if(!m.color||m.vertexColors||m.map)return;const h=m.color.getHex();const e=DMAP.find(([t,list])=>list.includes(h));if(e){m.map=e[0];m.bumpMap=e[0];m.bumpScale=0.8;m.roughness=0.95;m.needsUpdate=true;}});
-skirt(battle,BL/2+0.24,BW/2+0.24,0.04,0.7,21);
+const battleSkirt=skirt(battle,BL/2+0.24,BW/2+0.24,0.04,0.7,21);
 {const cv=document.createElement('canvas');cv.width=1024;cv.height=512;const x=cv.getContext('2d');const img=x.createImageData(1024,512);
  for(let yy=0;yy<512;yy++)for(let xx=0;xx<1024;xx++){const n=NZ.fbm(xx/70,yy/55);const pole=Math.sin(Math.PI*yy/512);const a=Math.max(0,Math.min(1,(n-0.56)*3.4))*pole*pole;const o=(yy*1024+xx)*4;img.data[o]=img.data[o+1]=img.data[o+2]=238;img.data[o+3]=a*120;}
  x.putImageData(img,0,0);const ct=new THREE.CanvasTexture(cv);ct.colorSpace=THREE.SRGBColorSpace;
@@ -2892,7 +2965,7 @@ function openSectorMap(n){NET.viewSector=n;go('county',V3(0,0,0),V3(2,40,2),'Sec
 
 /* ---------- Server-run battles: the client sends commands and draws what the server decides ---------- */
 NET.bUnits=new Map();
-function netStartBattle(o,prev){const kind=o.kind||(o.rival?'raid':(o.campAssault||/militia camp/i.test(o.enemy||'')?'camp':'ambush'));
+function netStartBattle(o,prev){const kind=o.kind||(o.rival?'raid':(o.campAssault||/militia camp/i.test(o.enemy||'')?'camp':'ambush'));if(!o.spot&&prev==='county'&&current&&current.i!=null)o={...o,spot:[current.i,current.j]};
  NET.conn.invoke('StartBattle',kind,o.sector||0,o.rivalKey||o.rival||null,o.deck||null).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);
   go('battle',V3(0,0,0.4),V3(0,11.8,12.8),null);setTimeout(()=>{initBattle({...o,deck:r.battle.deck},prev);BT.server=r.battle.id;BT.title=r.battle.title;BT.enemy=r.battle.enemy;$('bEnemyN').textContent=BT.enemy;
    NET.bUnits.forEach(u=>battle.remove(u.g));NET.bUnits.clear();
