@@ -13,7 +13,7 @@ public static class Guide
 
     public static readonly Step[] Steps =
     [
-        new("claim", "Claim one plot", "A parcel is one buildable square. Your sector is the local map containing those parcels. Claim an empty square beside land you already own. Its resource tells you what it produces best.", "sector", Cash: 1500),
+        new("claim", "Claim one plot", "A parcel is one buildable square. Your sector is the local map containing those parcels. Claim any empty square: one near your base is easy to watch over. Its resource tells you what it produces best.", "sector", Cash: 1500),
         new("build", "Build on that plot", "Open a parcel with a gold border; that means it belongs to you. Choose Build, then pick a building. Matching the building to the parcel's resource gives better output.", "sector", Cash: 1000),
         new("hq", "Upgrade your headquarters", "HQ means headquarters: the main building inside your base. Its level controls how many buildings you can run and which upgrades you can unlock.", "hq", Cash: 1000),
         new("research", "Choose one upgrade", "Research unlocks permanent bonuses. Pick one affordable upgrade now; you can inspect the other branches later.", "research", Cash: 800),
