@@ -409,7 +409,7 @@ Before sign-in (or in the offline demo), the old prototype county appears. It's 
   - Smooth vertex-coloured terrain with grass, sand and rock detail textures splatted by land type, darker hollows and rocky slopes.
   - Depth-shaded water with glints and foam.
   - Code-built low-poly pines, oaks, bushes, rocks, swaying grass and flowers, and cloud puffs.
-  - **Battles sit in the real land.** Lane battles and base assaults are fought on a levelled field cut into the nation map around where the fight is: the parcel you tapped, or a fixed dry spot in the sector. The land, trees, ruins, crops and water around the field are the same as on the sector map. The lanes are worn dirt paths, and a defender's yard is trampled earth. Without the nation map (offline, or Classic), the old floating field is used.
+  - **Battles sit in the real land.** Lane battles and base assaults are fought on a levelled clearing (rounded, with an uneven edge) cut into the nation map around where the fight is: the parcel you tapped, or a fixed dry spot in the sector. The land, trees, ruins, crops and water around the field are the same as on the sector map. The lanes are worn dirt paths, and a defender's yard is an irregular patch of trampled earth ringed by loose sandbags. Without the nation map (offline, or Classic), the old floating field is used.
 - **Unchanged views.** Nation and World keep the classic render.
 - **"Classic"** restores the old look everywhere. `?classic=1` forces it for one load.
 
