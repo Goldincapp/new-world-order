@@ -144,6 +144,7 @@ html.app .screen{border-radius:0}
 .rotate{display:none;color:var(--mute);font-size:13px;margin:0}
 @media (max-width:560px){.rotate{display:block}}
 .clouds{position:absolute;inset:0;pointer-events:none;z-index:6;overflow:hidden}
+.bootveil{position:absolute;inset:0;z-index:0;background:linear-gradient(#bfe6f5 0%,#d9eef0 55%,#e6efd8 100%);display:flex;align-items:center;justify-content:center;transition:opacity .5s}.bootveil span{font:700 16px 'Baloo 2','Trebuchet MS',sans-serif;color:#45667a;opacity:.85}.bootveil.off{opacity:0;pointer-events:none}
 .clouds i{position:absolute;width:80cqw;height:80cqw;margin:-40cqw 0 0 -40cqw;border-radius:50%;background:radial-gradient(circle,rgba(66,71,80,.99) 0%,rgba(44,48,56,.95) 38%,rgba(20,22,26,0) 70%);opacity:0;transform:scale(.3)}
 .clouds.on i{animation:puff 1.45s ease-in-out forwards}
 @keyframes puff{0%{opacity:0;transform:scale(.3)}42%{opacity:1;transform:scale(1.5)}58%{opacity:1;transform:scale(1.6)}100%{opacity:0;transform:scale(2.5)}}
@@ -1415,7 +1416,7 @@ function home(){if(mode==='siege')return [new THREE.Vector3(0,0,0.5),new THREE.V
 function back(){card.hidden=true;sel.visible=false;hint.hidden=false;const h=home();flyTo(h[0],h[1],()=>{controls.minDistance=h[2];controls.autoRotate=false;});}
 const hints={visit:'Red rings are enemies. Tap bases, patrols and camps. Zoom out to return to the province.',county:'Tap a parcel. Zoom into your HQ to go home, or zoom out to see the province.',hq:'Tap a building. Zoom out to return to your sector.',province:'Tap a sector, or zoom into one to enter it. Zoom out to rise to the nation.',world:'Zoom into the lit region, or tap it, to enter the nation view.',region:'Zoom into Aurelia to reveal its provinces and enter one. Zoom out to see the world.'};
 $('hint').onclick=()=>guideCard(mode);
-function setMode(m){mode=m;setTimeout(()=>{if(window.NET&&NET.me&&NET.me.home&&NET.me.home.grid)renderTutorial();if(m!=='hq'&&HB.placing)cancelPlacing();},0);if(window.__siegeG){window.__siegeG.visible=m==='siege';$('siegePanel').hidden=m!=='siege';}card.hidden=true;chatEl.hidden=true;polEl.hidden=true;$('board').hidden=true;$('stats').hidden=true;$('brief').hidden=true;$('ctSheet').hidden=true;battle.visible=m==='battle';$('bhud').hidden=m!=='battle';$('hud').classList.toggle('inbattle',m==='battle');controls.enableRotate=m!=='battle';controls.enableZoom=m!=='battle';$('secChip').hidden=m!=='county';if(m==='county')renderSec();sel.visible=false;closeMarket(true);county.visible=m==='county';hq.visible=m==='hq';visit.visible=m==='visit';$('visChip').hidden=m!=='visit';if(m!=='visit')vFollow=null;world.visible=m==='world';region.visible=m==='region';province.visible=m==='province';
+function setMode(m){mode=m;if(m!=='county')liftVeil();setTimeout(()=>{if(window.NET&&NET.me&&NET.me.home&&NET.me.home.grid)renderTutorial();if(m!=='hq'&&HB.placing)cancelPlacing();},0);if(window.__siegeG){window.__siegeG.visible=m==='siege';$('siegePanel').hidden=m!=='siege';}card.hidden=true;chatEl.hidden=true;polEl.hidden=true;$('board').hidden=true;$('stats').hidden=true;$('brief').hidden=true;$('ctSheet').hidden=true;battle.visible=m==='battle';$('bhud').hidden=m!=='battle';$('hud').classList.toggle('inbattle',m==='battle');controls.enableRotate=m!=='battle';controls.enableZoom=m!=='battle';$('secChip').hidden=m!=='county';if(m==='county')renderSec();sel.visible=false;closeMarket(true);county.visible=m==='county';hq.visible=m==='hq';visit.visible=m==='visit';$('visChip').hidden=m!=='visit';if(m!=='visit')vFollow=null;world.visible=m==='world';region.visible=m==='region';province.visible=m==='province';
  hint.textContent=hints[m]||'';hint.hidden=m==='battle';
  scene.fog=(m==='visit'||m==='county'||m==='hq'||m==='province'||m==='battle')?(NEWGFX?new THREE.Fog(FOGC,42,100):new THREE.Fog(FOGC,24,46)):null;
  renderer.toneMapping=dioMode(m)?THREE.NoToneMapping:THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=dioMode(m)?1:1.25;if(window.__grades){window.__grades[0].enabled=!dioMode(m);window.__grades[1].enabled=dioMode(m);}
@@ -2695,6 +2696,9 @@ function splatMat(){const m=new THREE.MeshLambertMaterial({vertexColors:true});
    just makes that board active and shifts the world so it sits at the origin (the camera shifts with it, so nothing jumps). */
 const NAT={data:null,boards:new Map(),cur:null,root:null,overview:null,labels:[],busy:false,last:0};
 const SEAM=()=>NEWGFX&&!!NAT.data;window.__NAT=NAT;
+/* A returning player sees plain sky until their own land is ready, never the old demo sector flashing up first. */
+window.__veil=(()=>{if(!NEWGFX||!hasPlayed())return null;const v=document.createElement('div'),h=document.querySelector('.hud');if(!h)return null;v.className='bootveil';v.innerHTML='<span>Loading your land…</span>';h.parentNode.insertBefore(v,h);setTimeout(liftVeil,15000);return v;})();
+function liftVeil(){const v=window.__veil;if(!v||v.done)return;v.done=true;v.classList.add('off');setTimeout(()=>v.remove(),600);}
 async function loadNation(){if(NAT.data)return NAT.data;try{const d=await api('/nation');d.byCell={};d.sec={};d.sectors.forEach(q=>{d.sec[q.n]=q;d.byCell[(q.gx/d.size)+','+(q.gy/d.size)]=q.n;});
   // base height of every atlas cell, so the surface is one continuous function across the whole nation
   const hc=new Float32Array(d.aw*d.ah);for(let y=0;y<d.ah;y++){const row=d.codes[y],er=d.elev[y];for(let x=0;x<d.aw;x++){const c=row.substr(x*2,2),e=+er[x],X=x-d.margin,Y=y-d.margin;
@@ -2899,7 +2903,7 @@ function spinView(d){const o=camera.position.clone().sub(controls.target);o.appl
 /** The Province button on the seamless map: rise up to see the whole nation. */
 function natOverviewView(){const d=NAT.data,S=d.size;const tx=controls.target.x,tz=controls.target.z;flyTo(V3(tx,0,tz),V3(tx,Math.max(d.width,d.height)*0.55,tz+Math.max(d.width,d.height)*0.42));}
 
-function buildBigSector(snap){if(NAT.root&&!(SEAM()&&NAT.data.sec[snap.sector]))NAT.root.visible=false;if(SEAM()&&NAT.data.sec[snap.sector]){natShow(snap);
+function buildBigSector(snap){setTimeout(liftVeil,60);if(NAT.root&&!(SEAM()&&NAT.data.sec[snap.sector]))NAT.root.visible=false;if(SEAM()&&NAT.data.sec[snap.sector]){natShow(snap);
   sun.shadow.camera.left=sun.shadow.camera.bottom=-20;sun.shadow.camera.right=sun.shadow.camera.top=20;sun.shadow.camera.updateProjectionMatrix();
   if(mode==='county'){controls.maxDistance=NAT_OUT+80;if(!diving&&!NET.noFly){const hm=home();flyTo(hm[0],hm[1]);}}
   if(/[?&]ov/.test(location.search)&&!NET.ovDone){NET.ovDone=true;setTimeout(()=>{briefEl.hidden=true;anim=null;controls.target.set(0,0,0);camera.position.set(20,30,24);controls.update();},3000);}
