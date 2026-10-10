@@ -2865,7 +2865,9 @@ function mapShipBuild(sh){const a=mapShipEnd(sh.from,sh.mine),b=mapShipEnd(sh.to
  const tr=makeTruck(g,sh.mine?0xffc933:(back?0xb5523a:0x8a8f98));tr.scale.setScalar(2.2);add(new RoundedBoxGeometry(0.2,0.13,0.2,1,0.02),CARGOCOL[sh.cargo]||0x9aa3ad,0,0.33,-0.07,tr);tr.userData.ship=sh;sh.mtTruck=tr;
  sh.mtag=label((sh.mine?'You':sh.who)+' · '+sh.qty+' '+sh.cargo+(back?' · back road':''),sh.mine?'#ffc933':(back?'#e08a6a':'#d0d6dc'),0,0,0,0.75,g,true);return true;}
 function mapShips(){if(!NAT.root)return;SHIPS.forEach(sh=>{if(!sh.server)return;if(!sh.mt&&!mapShipBuild(sh))return;
- const p=sh.status==='confiscated'?Math.min(prog(sh),sh.checkAt):prog(sh),[pos,next]=pathAt(sh.mpts,p);sh.mtTruck.position.copy(pos);if(next.distanceTo(pos)>0.01)sh.mtTruck.lookAt(next.x,pos.y,next.z);
+ const p=sh.status==='confiscated'?Math.min(prog(sh),sh.checkAt):prog(sh),[pos,next]=pathAt(sh.mpts,p);sh.mtTruck.position.copy(pos);
+ // face down the road (the route is in map coordinates, so turn by heading rather than lookAt, which works in world space)
+ if(next.distanceTo(pos)>0.01){const want=Math.atan2(next.x-pos.x,next.z-pos.z),cur=sh.mtTruck.rotation.y;let dA=((want-cur+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI;sh.mtTruck.rotation.set(0,sh.mtYaw===undefined?want:cur+dA*0.2,0);sh.mtYaw=1;}
  sh.mtag.position.set(pos.x,pos.y+1.5,pos.z);if(sh.status==='confiscated')sh.mline.material.color.set(0xff3b2f);});
  if(NAT.follow){const sh=NAT.follow;if(!SHIPS.includes(sh)||!sh.mtTruck){NAT.follow=null;return;}const w=sh.mtTruck.getWorldPosition(new THREE.Vector3()),off=camera.position.clone().sub(controls.target);controls.target.lerp(w,0.1);camera.position.copy(controls.target).add(off);}}
 /** Watch a truck on the map from any view: opens your sector map first if it isn't up yet. */
