@@ -88,7 +88,6 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var c = await db.Contracts.FirstOrDefaultAsync(x => x.Id == contractId);
             if (c is null || c.Status != "open") return new Result(false, "Someone else is already delivering that one.");
-            if (c.Sector == me.HomeSector) return new Result(false, "That need is in your own sector. Build there instead.");
             if (Ledger.Get(me, c.Resource) < c.Qty) return new Result(false, $"You need {c.Qty:N0} {c.Resource}. Produce it or buy it on the market.");
             if (me.Cash < envelope) return new Result(false, "You don't have that much cash for the envelope.");
 
@@ -108,8 +107,9 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
             await db.SaveChangesAsync();
             view = View(s);
             Guide.Advance(db, me, "ship");
+            var dest = c.Sector == me.HomeSector ? $"across Sector {c.Sector} to the hall" : $"to Sector {c.Sector}";
             return new Result(true, Player: Dto.Me(me), Summary: legal
-                ? $"Truck sent on the main road to Sector {c.Sector}. Tax and the Caretaker fee are paid on delivery."
+                ? $"Truck sent on the main road {dest}. Tax and the Caretaker fee are paid on delivery."
                 : envelope > 0 ? $"Truck sent by back road with a {envelope:N0} envelope hidden in the cargo." : "Truck sent by back road. Keep your fingers crossed.");
         });
         if (view is not null)

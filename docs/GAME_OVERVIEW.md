@@ -270,7 +270,7 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 
 ### 5.8 Logistics: contracts, trucks, smuggling (`Logistics.cs`)
 
-- **Contracts.** Sectors post contracts for goods; there are 6 open at a time.
+- **Contracts.** Sectors post contracts for goods; there are 6 open at a time. A contract in your own sector is a short haul from your base to the sector hall (taxed or smuggled like any other).
 - **Ship.**
   - **Legal road:** pays the nation's delivery tax (8% default) and the Caretaker's 5% fee.
   - **Back road:** untaxed and 1.3× slower. It risks the Caretaker checkpoint: a 35% base chance, scaled by standing, drones over the destination, Back channels research and sector presence.
@@ -280,7 +280,7 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
   - **Costs and limits:** an inspection costs 150, up to 20 a day per player.
   - **Wrong calls:** searching a clean truck costs compensation. The first two cost 300 each, then every miss in a row doubles it.
   - **Envelopes:** smugglers can leave an envelope (a bribe to the inspector), which the inspector takes or refuses.
-- **Trucks** use the car-kit models on the maps.
+- **Trucks** use the car-kit models on the maps. On the seamless sector map every truck drives across the land from its sender's base (or sector hall) to the destination sector's hall: the main road runs fairly direct, the back road swings wide and winds through the countryside. Tap a truck for its card (inspect it, or track it); after you send one, the camera follows it until you drag the map.
 
 ### 5.9 Battles (`Battles.cs`, `BattleSim.cs`, `ArenaSim.cs`)
 
