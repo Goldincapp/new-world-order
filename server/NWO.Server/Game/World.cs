@@ -36,12 +36,18 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         var settlers = owned.Select(p => p.OwnerId).Distinct().Count();
         var r2 = Region2.Contains(sector);
         var open = r2 ? (await db.Server.FindAsync(1))?.Region2Open ?? false : !Economy.Closed.Contains(sector);
+        var now = DateTime.UtcNow;
+        var drones = await db.Drones.Where(d => d.Sector == sector).OrderBy(d => d.Idx).Select(d => new { d.Idx, d.DownUntil }).ToListAsync();
+        var camp = await db.Camps.FindAsync(sector);
         return new
         {
             sector, open, region = r2 ? 2 : 1, name = (await db.SectorNames.FindAsync(sector)) is { } sn ? new { sn.Name, by = sn.OwnerName } : null, needToName = SectorNames.Needed(sector), caretaker = await Presence.View(db, sector, Guid.Empty), claimCost = r2 ? Region2.ClaimCost : Economy.ClaimCost, settlers, size = SectorTemplate.Size, biome = SectorTemplate.Biome(sector),
             hall = new { i = SectorTemplate.Hall.i, j = SectorTemplate.Hall.j },
             rows = SectorTemplate.Rows(sector),
             parcels = owned.Select(p => ParcelView(sector, p.I, p.J, p)),
+            // the Caretaker's drones and militia camp here, drawn on the map as you scroll past
+            drones = drones.Select(d => new { idx = d.Idx, down = d.DownUntil > now }),
+            camp = camp is null ? null : new { cleared = camp.ClearedUntil > now, by = camp.ClearedBy },
         };
     }
 

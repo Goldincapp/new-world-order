@@ -226,6 +226,7 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
   - **In base battles:** good standing may bring Caretaker sentries to your side; poor standing brings them against you.
 - **Drones.** Three over each Caretaker sector and one over each settled sector. Players can shoot them down in a flak mini-game (20 fuel ammo, 180 salvage). They respawn in 2 hours and cost standing.
 - **Militia camps.** Assault costs 100 fuel and must be won within 10 minutes. Clearing a camp keeps the sector safe for 24 h; the camp returns after that.
+- **On the map.** Every sector's drones and militia camp are drawn on the seamless sector map as you scroll (they come with each sector's snapshot). Tap a drone to shoot it down, or a camp to assault it; the battle is fought on the camp's spot. Drones patrol their own stretch of the sector, and your standing sets how close they come: from 60 up, their patrol loop moves clear of your base (further the higher your standing, at least 5 to 13 parcels) and they don't hover over where you're looking; below 40 they drift over to circle your base and tail you around their sector; in between they ignore you.
 
 ### 5.6 Caretaker presence and outposts (`Presence.cs`)
 

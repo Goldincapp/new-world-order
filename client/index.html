@@ -1390,7 +1390,8 @@ window.addEventListener('pointerup',()=>{if(HB.dragging){HB.dragging=false;contr
 renderer.domElement.addEventListener('pointermove',e=>{if(followShip&&e.buttons&&Math.hypot(e.clientX-dx,e.clientY-dy)>8){followShip=null;toast('Stopped tracking');}});
 renderer.domElement.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-dx,e.clientY-dy)>6)return;if(!sheet.hidden)return;const r=renderer.domElement.getBoundingClientRect();
  ndc.set((e.clientX-r.left)/r.width*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);
- if(mode==='county'){let h=ray.intersectObjects(picks,false)[0];if(!h)return;
+ if(mode==='county'){if(SEAM()&&NAT.root){const cp=[...NAT.boards.values()].flatMap(B=>B.ct?B.ct.picks:[]),ch=cp.length&&ray.intersectObjects(cp,true)[0];if(ch){let o=ch.object;while(o&&!o.userData.ct)o=o.parent;if(o){ctCard(o.userData.ct);return;}}}
+ let h=ray.intersectObjects(picks,false)[0];if(!h)return;
   if(h.object.userData.board&&h.object.userData.board!==NAT.cur){const B=h.object.userData.board;if(!(B.n&&B.snap)){if(B.n){toast('Loading that sector…');return;}const p=B.group.worldToLocal(h.point.clone()),X=B.gx+Math.round(p.x+16.5),Y=B.gy+Math.round(p.z+16.5),fac=nationAt(X,Y);
     current=null;showCard(fac?fac.name:'Open sea',fac?(fac===FAC.you?'Aurelia · beyond the settled sectors':'Another nation'):'',fac?[['Land',fac===FAC.you?'Border wilds: part of Aurelia, but no sector covers it':'Foreign land. Only Aurelia\'s sectors can be settled for now'],['Here',({ba:'Barren ground',sc:'Woods',gr:'Grassland',fe:'Farmland',ro:'Rock and mountains',oi:'Dry land',ru:'Old ruins',wa:'Water',pa:'An old road',xs:'Sea'})[natCode(X,Y)]||'Land']]:[['Sea','Nothing to claim out here']],['Close']);return;}
    activateBoard(B);NET.viewSector=B.n;NET.noFly=true;watchHome().finally(()=>{NET.noFly=false;});ray.setFromCamera(ndc,camera);h=ray.intersectObjects(picks,false)[0];if(!h||h.object.userData.board!==NAT.cur)return;toast('Sector '+B.n);}
@@ -2789,7 +2790,7 @@ function buildBoard(c,r,snap,lod){lod=lod===true?2:lod===false?1:(lod||1);const 
   add(new RoundedBoxGeometry(1.6,0.7,1.6,2,0.06),0xe2d4b4,hall.x,hall.top+0.35,hall.z);add(new THREE.ConeGeometry(1.25,0.6,4),0xb5523a,hall.x,hall.top+1.0,hall.z).rotation.y=Math.PI/4;
   add(new THREE.CylinderGeometry(0.02,0.02,1.2,6),0x444444,hall.x+0.6,hall.top+1.1,hall.z+0.6);const hf=add(boxG,0xe7c46a,hall.x+0.85,hall.top+1.55,hall.z+0.6,null,{emissive:0xe7c46a,emissiveIntensity:0.3});hf.scale.set(0.36,0.22,0.01);flags.push(hf);P=P0;
   label((snap&&snap.name?snap.name.name+' · ':'')+'Sector '+n+' hall','#e7c46a',hall.x,hall.top+2.2,hall.z,1.1,g,true);
-  if(snap){snap.parcels.filter(p=>p.home).forEach(v=>addBase(v,B));boardOutposts(B);}}
+  if(snap){snap.parcels.filter(p=>p.home).forEach(v=>addBase(v,B));boardOutposts(B);boardCaretaker(B);}}
  return B;}
 const SECTOR_HALL='17,17';
 /** Is a map cell inside Aurelia's border? */
@@ -2803,6 +2804,53 @@ function boardOutposts(B){const snap=B.snap;if(!snap||!snap.caretaker||snap.care
   add(new THREE.TorusGeometry(0.42,0.03,6,24),0x8fd3ff,c.x,c.top+0.05,c.z,null,{emissive:0x5fb8ff,emissiveIntensity:0.6},true).rotation.x=Math.PI/2;
   label('Caretaker outpost','#8fd3ff',c.x,c.top+2.3,c.z,0.8,B.group,true);}
  P=P0;}
+/* ---------- The Caretaker on the map: its drones patrol every sector and its militia camps stand where they are ----------
+   How close the drones come depends on your standing: in good standing they keep their distance from you and your base;
+   in poor standing they drift over to watch you. */
+const CTK={sel:null};
+function ctSpot(B,seed,minHall){const snap=B.snap,own=new Set((snap.parcels||[]).map(p=>p.i+','+p.j)),S=NAT.data.size;
+ for(let k=0;k<80;k++){const i=3+Math.floor(hash(B.n*3.7+seed,k)*(S-6)),j=3+Math.floor(hash(k*1.3,B.n*2.1+seed)*(S-6)),c=B.cells[i+','+j];
+  if(!c||own.has(i+','+j)||/wa|pa|ha|xx|xs|ro|sc/.test(c.code)||c.outside)continue;if(Math.hypot(i-snap.hall.i,j-snap.hall.j)<minHall)continue;return c;}return null;}
+function boardCaretaker(B){const snap=B.snap,P0=P;B.ct={drones:[],picks:[],fires:[]};
+ // the militia camp: tents round a fire, a watchtower and a ring of sandbags
+ if(snap.camp){const c=ctSpot(B,11,7);if(c){const g=new THREE.Group(),done=snap.camp.cleared;g.position.set(c.x,c.top,c.z);B.group.add(g);P=g;
+  for(let i=0;i<6;i++){const a=i/6*Math.PI*2+0.3;add(new THREE.ConeGeometry(0.26,0.38,4),done?0x6a6458:(i%2?0x5a5040:0x4a4234),Math.cos(a)*0.9,0.19,Math.sin(a)*0.9).rotation.y=a;}
+  add(new THREE.CylinderGeometry(0.16,0.18,0.04,10),0x2a2622,0,0.02,0);
+  if(!done){const fi=add(new THREE.SphereGeometry(0.08,8,6),0xff7a2a,0,0.08,0,null,{emissive:0xff5a10,emissiveIntensity:2.2},true);B.ct.fires.push(fi);
+   for(let i=0;i<5;i++){const a=i/5*Math.PI*2+1,q=new THREE.Group();q.position.set(Math.cos(a)*0.42,0,Math.sin(a)*0.42);q.rotation.y=-a;g.add(q);
+    add(boxG,0x2a2a2a,0,0.03,0,q).scale.set(0.045,0.06,0.03);add(boxG,0x7a3a2a,0,0.095,0,q).scale.set(0.06,0.07,0.04);add(new THREE.SphereGeometry(0.021,8,6),0xd9b08c,0,0.15,0,q);}}
+  for(let i=0;i<10;i++){if(i%4===3)continue;const a=i/10*Math.PI*2;add(boxG,0x8a7a58,Math.cos(a)*1.55,0.08,Math.sin(a)*1.55).scale.set(0.5,0.16,0.12);g.children[g.children.length-1].rotation.y=-a+Math.PI/2;}
+  const tx=1.1,tz=-0.9;[[-0.12,-0.12],[0.12,-0.12],[-0.12,0.12],[0.12,0.12]].forEach(l=>add(boxG,0x4a3a2a,tx+l[0],0.38,tz+l[1]).scale.set(0.035,0.76,0.035));
+  add(boxG,0x5a4a38,tx,0.78,tz).scale.set(0.38,0.04,0.38);add(new THREE.ConeGeometry(0.3,0.2,4),0x3a2a20,tx,0.95,tz).rotation.y=Math.PI/4;
+  add(new THREE.CylinderGeometry(0.01,0.01,0.5,6),0x555555,tx+0.18,1.05,tz);if(!done){const fl=add(boxG,0xb3261e,tx+0.29,1.2,tz);fl.scale.set(0.2,0.12,0.01);flags.push(fl);}
+  label(done?'Abandoned militia camp':'Caretaker militia camp',done?'#8f968a':'#ff6a5a',0,1.7,0,0.85,g,true);
+  g.userData.ct={kind:'camp',n:B.n,done,by:snap.camp.by,spot:[c.i,c.j]};B.ct.picks.push(g);P=P0;}}
+ // the drones, each patrolling its own stretch of the sector
+ (snap.drones||[]).forEach((dr,k)=>{if(dr.down)return;const a=ctSpot(B,31+k*7,0)||B.cells[snap.hall.i+','+snap.hall.j];const d=makeDrone(B.group,1.3);
+  Object.assign(d,{idx:dr.idx,alive:true,fall:0,cx:a.x,cz:a.z,r:4+hash(B.n,k)*4,sp:0.07+hash(k,B.n)*0.05,off:hash(B.n*2,k)*6.28,pos:new THREE.Vector3(a.x,a.top+2.4,a.z)});
+  d.g.userData.ct={kind:'drone',n:B.n,D:d};B.ct.picks.push(d.g);B.ct.drones.push(d);});}
+const _ctV=new THREE.Vector3(),_ctW=new THREE.Vector3();
+function ctTick(t,dt){const s=window.NET&&NET.me?NET.me.standing:54,mb=myBaseOnMap(),base=mb&&mb.pos;
+ NAT.boards.forEach(B=>{if(!B.ct)return;B.ct.fires.forEach(f=>f.scale.setScalar(0.8+0.4*Math.sin(t*11+B.n)));if(!B.ct.drones.length)return;
+  const bl=base?B.group.worldToLocal(_ctV.copy(base)).clone():null,fl=B.group.worldToLocal(_ctW.copy(controls.target)).clone();
+  B.ct.drones.forEach(d=>{if(!d.alive){if(d.fall>1.2)return;d.fall+=dt;d.g.position.y-=dt*2.2;d.g.rotation.z+=dt*6;d.beam.visible=d.spot.visible=false;return;}
+   const a=t*d.sp+d.off;let cx=d.cx,cz=d.cz;
+   // good standing: its whole patrol loop moves clear of your base
+   if(s>=60&&bl){const keep=5+(Math.min(100,s)-60)*0.2,need=keep+d.r*1.3,dx=cx-bl.x,dz=cz-bl.z,dd=Math.hypot(dx,dz)||0.01;if(dd<need){cx=bl.x+dx/dd*need;cz=bl.z+dz/dd*need;}}
+   let x=cx+Math.cos(a)*d.r+Math.sin(a*2.3)*d.r*0.25,z=cz+Math.sin(a)*d.r*0.8;
+   if(s>=60){// and it doesn't hover over where you're looking
+    const keep=5+(Math.min(100,s)-60)*0.2;[[fl,keep*0.6]].forEach(([p,k])=>{if(!p)return;const dx=x-p.x,dz=z-p.z,dd=Math.hypot(dx,dz)||0.01;if(dd<k){x=p.x+dx/dd*k;z=p.z+dz/dd*k;}});}
+   else if(s<40){// poor standing: it comes over to watch your base, and tails you round its sector
+    const pull=(40-Math.max(0,s))/40;[[bl,0.45+0.5*pull,2.2],[fl,0.35*pull,3]].forEach(([p,w,rr])=>{if(!p||Math.hypot(p.x,p.z)>NAT.data.size*0.75)return;const ox=p.x+Math.cos(a*3)*rr,oz=p.z+Math.sin(a*3)*rr;x+=(ox-x)*w;z+=(oz-z)*w;});}
+   const lim=NAT.data.size/2+1;x=Math.max(-lim,Math.min(lim,x));z=Math.max(-lim,Math.min(lim,z));const y=B.H(x,z)+2.4+Math.sin(t*1.7+d.off)*0.15;d.pos.lerp(_ctV.set(x,y,z),Math.min(1,dt*1.2));const p=d.pos;
+   d.g.position.copy(p);d.g.rotation.y=-a;d.g.rotation.x=Math.sin(t*1.3+d.off)*0.06;d.rotors.forEach(r=>r.rotation.y+=dt*40);
+   const sw=Math.sin(t*0.9+d.off)*0.8,sx=p.x+Math.cos(a+1.2)*sw,sz=p.z+Math.sin(a+1.2)*sw,sg=B.H(sx,sz),hh=p.y-sg;
+   d.beam.scale.set(1.3,hh,1.3);d.beam.position.set((p.x+sx)/2,sg+hh/2,(p.z+sz)/2);d.beam.rotation.set(Math.atan2(sz-p.z,hh)*-1,0,Math.atan2(sx-p.x,hh));
+   d.spot.position.set(sx,sg+0.03,sz);d.spot.scale.setScalar(1.3*(1+0.08*Math.sin(t*5)));});});}
+function ctCard(v){CTK.sel=v;current=null;sel.visible=false;const s=window.NET&&NET.me?NET.me.standing:54,mood=s>=60?'It keeps its distance from you':s<40?'It is watching you closely':'It leaves you be, for now';
+ if(v.kind==='camp'){if(v.done){showCard('Abandoned militia camp','Sector '+v.n+(v.by?' · cleared by '+v.by:''),[['Militia','Gone for now. They come back later'],['Next','Settlers here are safer while it stays empty']],['Close']);return;}
+  showCard('Caretaker militia camp','Sector '+v.n+' · Caretaker (AI)',[['Force','Militia fighters holding this ground'],['Loot','Cash and fuel if you clear it'],['If cleared','The sector is safer and the Caretaker notices'],['Fight','A lane battle, here on this spot']],['Assault the camp','Close']);return;}
+ showCard('Caretaker drone','Sector '+v.n+' · Caretaker (AI)',[['Watching','Unclaimed land, convoys and armed players'],['Towards you',mood+' (standing '+s+')'],['Armour','Light: one volley brings it down'],['Risk','Shooting it lowers your standing']],['Shoot down drone','Close']);}
 function disposeBoard(B){NAT.root.remove(B.group);B.group.traverse(o=>{if(o.geometry&&!Object.values(KIT).includes(o.geometry))o.geometry.dispose();});NAT.boards.delete(B.key);}
 /** The low-detail whole-nation mesh for the far view, with sea and the land around the border. */
 function buildOverview(){const d=NAT.data,st=LOW?3:2,x0=-d.margin,y0=-d.margin,NX=Math.floor(d.aw/st)+1,NY=Math.floor(d.ah/st)+1,pos=new Float32Array(NX*NY*3),col=new Float32Array(NX*NY*3),c=new THREE.Color(),snow=new THREE.Color(0xeff4f8);
@@ -3422,6 +3470,10 @@ function warScoreCard(){api('/region2').then(b=>{current=null;const rows=b.playe
 function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}
 
  if(a.startsWith('Petition the Caretaker')&&NET.big){card.hidden=true;NET.conn.invoke('PetitionCaretaker',NET.big.sector).then(r=>{if(r.player)applyMe(r.player);if(!r.ok){toast(r.error);}else toast('The Caretaker steps back from this sector');NET.noFly=true;watchHome().finally(()=>{NET.noFly=false;});}).catch(er=>toast(er.message));return true;}
+ if(a==='Assault the camp'&&CTK.sel&&CTK.sel.kind==='camp'){const t=CTK.sel;card.hidden=true;startBattle({title:'Assault on the militia camp: Sector '+t.n,enemy:'Militia camp',sector:t.n,campAssault:!!(window.NET&&NET.conn),spot:t.spot});return true;}
+ if(a==='Shoot down drone'&&CTK.sel&&CTK.sel.kind==='drone'&&window.NET&&NET.conn){const t=CTK.sel,D=t.D;card.hidden=true;
+  NET.conn.invoke('StartDroneHunt',t.n,D.idx).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);
+   DroneHunt.open({sector:t.n,onDone:won=>{if(!won){toast('The drone got away. Your flak shells are spent.');return;}NET.conn.invoke('ShootDrone',t.n,D.idx).then(r2=>{if(!r2.ok){toast(r2.error);return;}applyMe(r2.player);D.alive=false;toast(r2.summary);}).catch(er=>toast(er.message));}});}).catch(er=>toast(er.message));return true;}
  if(a==='Petition (on cooldown)'){toast('The Caretaker heard a petition here in the last day');return true;}
  if(a==='Outpost on alert'){toast('The outpost was attacked recently. Try again later');return true;}
  if(a.startsWith('Assault the outpost')&&NET.big){if(confirm('Attack the Caretaker? It will remember, whatever happens.')){card.hidden=true;netStartBattle({kind:'outpost',sector:NET.big.sector,title:'Caretaker outpost',enemy:'Caretaker outpost'},'county');}return true;}
@@ -3481,7 +3533,7 @@ const clock=new THREE.Clock(),tmp=new THREE.Vector3();
 renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),0.05),t=clock.elapsedTime;
  screen.style.background=mode==='world'?'#0e1a2b':((mode!=='world')?'radial-gradient(ellipse at 50% 35%,#232a33 0%,#0c0f14 75%)':'#bfe6f5');shadowCatch.visible=mode!=='world';
  const dNow=camera.position.distanceTo(controls.target);
- if(mode==='county'){aimSpot(t);const seam=SEAM()&&NAT.root&&NAT.root.visible;
+ if(mode==='county'){aimSpot(t);const seam=SEAM()&&NAT.root&&NAT.root.visible;if(seam)try{ctTick(t,dt);}catch(e){if(!ctTick.warned){ctTick.warned=1;console.warn('drones',e);}}
   if(seam){const d=NAT.data,rx=NAT.root.position.x,rz=NAT.root.position.z,eu=NAT.eu,bx0=eu?eu.x0:-d.margin,bz0=eu?eu.y0:-d.margin,bx1=eu?eu.x0+eu.w*eu.step:d.width+d.margin,bz1=eu?eu.y0+eu.h*eu.step:d.height+d.margin;controls.target.x=Math.max(rx+bx0,Math.min(rx+bx1,controls.target.x));controls.target.z=Math.max(rz+bz0,Math.min(rz+bz1,controls.target.z));
    if(scene.fog){scene.fog.near=Math.max(40,dNow*0.9);scene.fog.far=Math.max(120,dNow*2.6);}}
   else if(NET.big){const L=NET.big.size/2;controls.target.x=Math.max(-L,Math.min(L,controls.target.x));controls.target.z=Math.max(-L,Math.min(L,controls.target.z));}
