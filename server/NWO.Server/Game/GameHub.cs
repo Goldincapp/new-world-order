@@ -67,6 +67,10 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<World.Result> UpgradeHq() => world.UpgradeHq(Me.Id);
 
+    public Task<Operations.StartResult> StartOperation(string operation) => Operations.Start(db, Me.Id, operation);
+
+    public Task<Operations.EndResult> CompleteOperation(string operation, int score) => Operations.Complete(world, Me.Id, operation, score);
+
     /// <summary>Start receiving live order books and trades, and get the current ones.</summary>
     public async Task<object[]> WatchMarket()
     {

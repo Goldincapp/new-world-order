@@ -57,7 +57,8 @@ Core server patterns:
 
 1. **Sign up.** Pick a name (3 to 16 letters, numbers, `._-`). No email or password: the device keeps a secret token, and a year-long cookie backs it up. The player gets a home plot in the least-crowded open Region 1 sector.
 2. **Home base tutorial (7 steps, each pays cash).** Inside a 14×14 walled grid: place a Barracks, Warehouse, Research lab, Crop plot, Oil pump and Solar panel, then Collect. Starting cash covers all of it.
-3. **Field Guide (11 chapters, each pays and can be skipped).** Claim land → build on it → upgrade HQ → pick a research path → place a market order → ship a delivery → fight a battle → join an alliance → vote → read your Caretaker record → learn about the Sentinel.
+3. **Field Guide (14 chapters, each pays and can be skipped).** Last Stand → claim land → build on it → Extraction Run → upgrade HQ → research → market → delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel.
+4. **Operations.** Three mobile action games break up the strategy onboarding. Last Stand is a 40-second tap-to-target base defence, Extraction Run is a 50-second drag-to-move supply recovery, and Leviathan Assault is a 45-second dodge-and-auto-fire boss encounter. Each gives one obvious Field Guide reward; completed Operations remain replayable without repeat tutorial payouts. Threat rises with HQ level while run length stays fixed.
 
 **Every session after that (the core loop, 5 to 15 minutes)**
 

@@ -388,6 +388,7 @@ button.guide-target::after{content:attr(data-guide-label);position:absolute;left
           <button class="hbtn" id="bLeases" aria-label="Leases"><span class="ms">real_estate_agent</span><span class="l">Leases</span></button>
           <button class="hbtn" id="bRes" aria-label="Resource map"><span class="ms">layers</span><span class="l">Resources</span></button>
           <button class="hbtn" id="bRecord" aria-label="Caretaker record"><span class="ms">visibility</span><span class="l">Record</span></button>
+          <button class="hbtn" id="bOps" aria-label="Field operations" hidden><span class="ms">sports_esports</span><span class="l">Operations</span></button>
           <button class="hbtn" id="bStats" aria-label="Stats"><span class="ms">monitoring</span><span class="l">Stats</span></button>
           <button class="hbtn" id="bAlly" aria-label="Alliance" hidden><span class="ms">shield</span><span class="l">Alliance</span></button>
           <button class="hbtn" id="bAlliance" aria-label="Chat"><span class="ms">forum</span><i id="unread" hidden>0</i><span class="l">Chat</span></button>
@@ -568,6 +569,7 @@ button.guide-target::after{content:attr(data-guide-label);position:absolute;left
 <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
 <script src="flak.js"></script>
 <script src="nwo-geo.js"></script>
+<script src="operations.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 <script type="module">
 import * as THREE from 'three';
@@ -2318,11 +2320,13 @@ SHIPS.forEach(sh=>{if(!sh.mine&&sh.contraband&&Math.random()<0.6)sh.env=[300,600
 const API_BASE=(window.NWO_API||'').replace(/\/$/,'');
 const NET={token:null,me:null,conn:null,online:0,offline:false};
 window.NET=NET;
+const OPS=window.NWOOperations({connection:()=>NET.conn,player:()=>NET.me||{},applyPlayer:p=>applyMe(p),toast:t=>toast(t),refreshGuide:()=>renderTutorial()});
+$('bOps').onclick=()=>OPS.menu();
 try{NET.token=localStorage.getItem('nwo.token');}catch(e){}
 async function api(path,body){const r=await fetch(API_BASE+'/api'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(NET.token?{Authorization:'Bearer '+NET.token}:{})},body:body?JSON.stringify(body):undefined});
  const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||('Server error '+r.status)),{status:r.status});return j;}
 $('pLand').onclick=()=>{if(window.NET&&NET.me)landCard();};$('pLand').onkeydown=e=>{if(e.key==='Enter'&&window.NET&&NET.me)landCard();};
-function applyMe(p){NET.me=p;try{provinceForMe();}catch(_){}try{const n=(p.parcels||[]).length,el=$('vLand');if(el){if(el.textContent!==String(n)&&el.textContent!=='0'){$('pLand').classList.add('bump');setTimeout(()=>$('pLand').classList.remove('bump'),160);}el.textContent=n;}}catch(_){}setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBase();},0);Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
+function applyMe(p){NET.me=p;$('bOps').hidden=!(p.operations&&p.operations.unlocked&&p.operations.unlocked.length);try{provinceForMe();}catch(_){}try{const n=(p.parcels||[]).length,el=$('vLand');if(el){if(el.textContent!==String(n)&&el.textContent!=='0'){$('pLand').classList.add('bump');setTimeout(()=>$('pLand').classList.remove('bump'),160);}el.textContent=n;}}catch(_){}setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBase();},0);Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
  $('meName').textContent=p.name;$('meSub').textContent=p.nation+' · Sector '+p.homeSector;$('meAv').textContent=p.homeSector;
  OFFLINE.oil=p.pending.oil;OFFLINE.grain=p.pending.grain;OFFLINE.cash=p.pending.cash;OFFLINE.fuel=p.pending.fuel;collected=!(p.pending.oil||p.pending.grain||p.pending.cash||p.pending.fuel);
  const h=briefEl.querySelector('.bh h3');if(h)h.textContent=(NET.fresh?'Welcome, ':'Welcome back, ')+p.name;
@@ -3127,6 +3131,7 @@ function guideShow(g){card.hidden=true;beginGuideAction(g);const seen=w=>NET.con
   case 'market':$('bMarket').click();setTimeout(()=>toast('Pick a resource, then place a buy or sell order'),600);break;
   case 'contracts':$('bContracts').click();setTimeout(()=>toast('Pick a contract you have the goods for, then ship it'),600);break;
   case 'battle':guideBattleCoach=1;enterVisit(30);setTimeout(()=>openGuideCamp(),900);break;
+  case 'operation':OPS.start(g.do);break;
   case 'alliance':openAlly();break;
   case 'politics':$('nPolitics').click();setTimeout(()=>toast('Vote for a candidate, or vote on a law'),600);break;
   case 'record':$('bRecord').click();seen('record');break;
