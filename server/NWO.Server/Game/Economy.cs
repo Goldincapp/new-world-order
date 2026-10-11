@@ -79,7 +79,8 @@ public static class Economy
     public static Dictionary<string, double> RatesPerHour(Player p)
     {
         var r = new Dictionary<string, double> { ["cash"] = 40, ["oil"] = 0, ["grain"] = 0, ["fuel"] = 0 };
-        r["power"] = 0;
+        // The HQ's own generator keeps the lights on for the people it houses; growing past that needs more power
+        r["power"] = Society.HqPower(p);
         // The Caretaker tithes what's made in sectors it still holds
         var home = new Dictionary<string, double>(r.Keys.ToDictionary(k => k, _ => 0.0));
         HomeBase.AddRates(p, p.HomeTiles, home);
@@ -104,19 +105,28 @@ public static class Economy
         if (Research.Has(p, "refining")) r["fuel"] *= 1.5;
         var labs = Math.Min(2, p.HomeTiles.Count(t => t.Type == "research"));
         if (labs > 0) foreach (var k in r.Keys.ToList()) r[k] *= 1 + 0.05 * labs;
+        // Buildings need workers, and the people living in the base eat grain and use power
+        var staffed = Society.Staffing(p);
+        foreach (var k in r.Keys.ToList()) r[k] *= staffed;
+        r["grain"] -= Society.Pop(p) * Society.FoodPerPerson;
+        r["power"] -= Society.Pop(p) * Society.PowerPerPerson;
         return r;
     }
 
     public static Dictionary<string, double> Pending(Player p, DateTime now)
     {
         var hours = Math.Clamp((now - p.LastCollectAt).TotalHours, 0, Storage(p).TotalHours);
-        return RatesPerHour(p).ToDictionary(kv => kv.Key, kv => Math.Floor(kv.Value * hours));
+        // What people eat and use can only come out of what's in store
+        return RatesPerHour(p).ToDictionary(kv => kv.Key, kv => kv.Value >= 0
+            ? Math.Floor(kv.Value * hours)
+            : -Math.Min(Math.Floor(-kv.Value * hours), Math.Floor(Ledger.Get(p, kv.Key))));
     }
 
     public static Dictionary<string, double> Collect(GameDb db, Player p, DateTime now, string reason = "Collected production")
     {
         var got = Pending(p, now);
         foreach (var (res, amount) in got) Ledger.Add(db, p, res, amount, reason);
+        Society.Advance(p, now);
         p.LastCollectAt = now;
         return got;
     }

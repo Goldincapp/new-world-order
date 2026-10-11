@@ -87,7 +87,7 @@ api.MapPost("/auth/guest", async (HttpContext ctx, GuestRequest req, GameDb db) 
     if (await db.Players.AnyAsync(p => p.Name.ToLower() == lower)) return Results.Conflict(new { error = "That name is taken." });
 
     var token = Auth.NewToken();
-    var p = new Player { Name = name!, TokenHash = Auth.Hash(token) };
+    var p = new Player { Name = name!, TokenHash = Auth.Hash(token), Population = 4, PopulationAt = DateTime.UtcNow };
     db.Players.Add(p);
     await Economy.GrantStarterLand(db, p);
     db.Records.Add(new RecordEntry { PlayerId = p.Id, Delta = 0, Kind = "order", Text = "Registered as a settler in Region 1" });
@@ -481,6 +481,7 @@ static class Dto
             p.Name, p.Nation, p.HomeSector, p.Standing,
             resources = new { cash = Math.Floor(p.Cash), oil = Math.Floor(p.Oil), fuel = Math.Floor(p.Fuel), grain = Math.Floor(p.Grain), gold = Math.Floor(p.Gold), power = Math.Floor(p.Power) },
             pending = Economy.Pending(p, now),
+            people = Math.Floor(Society.PopulationNow(p, now)), housing = Society.Capacity(p),
             ratesPerHour = Economy.RatesPerHour(p),
             parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x) }),
             home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, owner = p.IsOwner, guide = Guide.View(p), allianceId = p.AllianceId, allianceRole = p.AllianceRole, warScore = Region2.Score(p),

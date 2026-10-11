@@ -173,6 +173,19 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 - **Caretaker ration crate:** every 20 hours, 20 to 110 grain and 0 to 25 fuel depending on standing tier.
 - **Caretaker tithe:** up to 15% of everything made in a sector it still holds (see 5.6).
 
+### 5.2a The nested economy: people, food, energy, work (`Society.cs`)
+
+Every home base runs a small economy, and the same ledger adds up to the sector and the nation.
+- **People.** Each base has a population, tracked on timestamps like production (`Player.Population`, `PopulationAt`). New players start with 4; players from before this existed start full.
+- **Housing** caps it: 6 + 4 × HQ level, +4 per Barracks, +12 per Housing building on your land.
+- **Needs.** Each person eats 0.4 grain and uses 0.25 power an hour, taken out of production, so rates can go negative. Consumption only ever takes what is in store, so balances never go below zero.
+- **HQ generator.** The HQ makes (6 + 4 × HQ level) × 0.25 power an hour, enough for the people the HQ itself houses. Growing past that needs solar or wind.
+- **Growth.** While food and power hold (this hour's balance is positive, or there is some left in store) the population closes most of the gap to its housing in about 6 hours. If either runs out it shrinks 4% an hour, down to 2.
+- **Work.** Buildings need workers: workshop 3, research lab 2, warehouse 1, crop plot, oil pump and generator 1 each; farm, rig, sawmill and mine 3, land warehouse 2, solar farm and wind turbine 1. Output runs from 80% with nobody to 100% fully staffed.
+- **Sector and nation.** A sector's ledger is the sum of the real players' bases whose home is there (AI neighbours aren't counted); the nation's is the sum of all of them. Hub `EconomyView` returns all three.
+- **Needs board.** When contracts are posted, 70% of new ones go to sectors short of food (a grain order) or power (a fuel order for generators), for about six hours of the shortfall rounded up to 50 (50 to 300), issued by "Hungry settlers" or the sector council. A sector gets at most one open order per shortage.
+- **In the HUD.** A People chip (people/housing, red when food or power has run out) opens the Economy card, with Your base, Sector and Nation tabs.
+
 ### 5.3 Home base (`HomeBase.cs`, `Defense.cs`)
 
 - **Moving home.** "Move my base here" (`RelocateBase`, `World.Relocate`) moves the base to any open Region 1 parcel: a free one, which is claimed as part of the move, or one you already own. It costs 5,000 cash and 50 fuel, plus the claim cost for a free parcel, and you can move once a day (once a minute with dev tools). The buildings come along, and the old home parcel stays yours as land. Parcels can be claimed in any open sector, not just your home sector.
@@ -565,7 +578,7 @@ Railway is not yet linked to the GitHub repo, so pushing to GitHub doesn't deplo
 - **Untested end to end:** an outpost falling to a group, and the salvage being shared.
 
 **Proposed next (design, not built yet):**
-- **Nested economy.** Each home base gets a population capped by housing and kept growing by food and energy; sectors and the nation add up their homes, sector needs orders come from real shortfalls, and tax, prices and laws flow back down. See [`docs/nested-economy.html`](nested-economy.html) (open it in a browser; it has an interactive example).
+- **Nested economy, next steps.** The first version is built (see 5.2a and [`docs/nested-economy.html`](nested-economy.html)). Still to do: delivering food or fuel to a short sector should actually feed its homes, national food and power balances should move market prices, and the government should be able to spend the treasury on services.
 
 **Rules for anyone working on this:**
 - **Secrets:** never commit or print secrets (the admin key; any third-party keys are read from env vars only).

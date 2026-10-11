@@ -58,7 +58,7 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .pill[role=button]{cursor:pointer}.pill[role=button]:focus-visible{outline:2px solid #ffd34d;outline-offset:2px}
 .pill .ms{font-size:1.25em}
 .pill.bump{transform:scale(1.12)}
-.pill.land{cursor:pointer}.pill.land .ms{color:#9fdc7a}.pill.power .ms{color:#ffe066}.pill.cash .ms{color:#8fe3a0}.pill.oil .ms{color:#c9c9c9}.pill.fuel .ms{color:#ff9a7a}.pill.grain .ms{color:#f2cd4b}.pill.gold .ms{color:var(--gold)}
+.pill.land{cursor:pointer}.pill.people{cursor:pointer}.pill.people .ms{color:#8fd3ff}.pill.people.short .ms{color:#ff6a5a}.pill.land .ms{color:#9fdc7a}.pill.power .ms{color:#ffe066}.pill.cash .ms{color:#8fe3a0}.pill.oil .ms{color:#c9c9c9}.pill.fuel .ms{color:#ff9a7a}.pill.grain .ms{color:#f2cd4b}.pill.gold .ms{color:var(--gold)}
 .side{position:absolute;right:3.2cqw;top:calc(14*var(--u));display:flex;flex-direction:column;gap:calc(1.2*var(--u))}
 .hbtn{width:calc(10.5*var(--u));height:calc(10.5*var(--u));border-radius:calc(3*var(--u));background:var(--hud);border:1px solid var(--hud-line);color:#fff;display:grid;place-items:center;cursor:pointer;padding:0;position:relative;font:inherit}
 .hbtn .ms{font-size:calc(5.4*var(--u))}
@@ -377,6 +377,7 @@ button.guide-target::after{content:attr(data-guide-label);position:absolute;left
             <div class="pill gold" id="pGold" role="button" tabindex="0" aria-label="Gold. Tap for help"><span class="ms">paid</span><span id="vGold">120</span></div>
             <div class="pill power" id="pPower" role="button" tabindex="0" aria-label="Power. Tap for help"><span class="ms">bolt</span><span id="vPower">0</span></div>
             <div class="pill land" id="pLand" role="button" tabindex="0" aria-label="Your land"><span class="ms">crop_square</span><span id="vLand">0</span></div>
+            <div class="pill people" id="pPeople" role="button" tabindex="0" aria-label="People. Tap for your economy" hidden><span class="ms">groups</span><span id="vPeople">0</span></div>
           </div>
         </div>
         <div class="side">
@@ -1199,6 +1200,19 @@ function guideCard(topic){const g=SCREEN_HELP[topic]||SCREEN_HELP.county;showCar
 function resourceCard(k){const r=RESOURCE_HELP[k];if(!r)return;showCard(r[0],fmt(res[k]||0)+' available',[['What it is',r[1]],r[2],['Tip','Tap any resource counter at the top to open this explanation.']],['Close']);}
 Object.keys(RESOURCE_HELP).forEach(k=>{const el=$('p'+k[0].toUpperCase()+k.slice(1));if(!el)return;el.onclick=()=>resourceCard(k);el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();resourceCard(k);}};});
 /** Your land: how many parcels, where, and what they hold. */
+/* ---------- The nested economy: your base, your sector and the nation as the same ledger ---------- */
+const ECON={view:null,tab:'home'};
+const sgn=v=>(v>0?'+':'')+(Math.round(v*10)/10).toLocaleString('en-GB');
+function econRows(L){return [['People',fmt(L.people)+' of '+fmt(L.housing)+' housing'],['Food',sgn(L.food.net)+' grain/h · '+sgn(L.food.made).replace('+','')+' grown, '+(Math.round(L.food.eaten*10)/10)+' eaten'],['Energy',sgn(L.power.net)+' power/h · '+sgn(L.power.made).replace('+','')+' made, '+(Math.round(L.power.used*10)/10)+' used'],['Work',fmt(L.work.filled)+' of '+fmt(L.work.jobs)+' jobs filled · output '+L.work.output+'%']];}
+const ECON_STATUS={growing:'Growing: food and power are covered, so people keep moving in',full:'Full: build Housing on your land (or upgrade your HQ) to grow',starving:'Starving: grain has run out, so people are leaving. Plant crops or buy grain',['no power']:'No power: it has run out, so people are leaving. Add solar panels'};
+function econCard(tab){if(!(window.NET&&NET.conn)){toast('Sign in to see your economy');return;}ECON.tab=tab||ECON.tab;
+ NET.conn.invoke('EconomyView').then(v=>{ECON.view=v;econShow();}).catch(er=>toast(er.message));}
+function econShow(){const v=ECON.view;if(!v)return;const t=ECON.tab;chatEl.hidden=true;current=null;
+ const tabs=['Your base','Sector '+v.sector.n,'Nation'].filter((x,i)=>i!==['home','sector','nation'].indexOf(t));
+ if(t==='home'){const L=v.home;showCard('Your base economy',(ECON_STATUS[L.status]||'')||'People, food, energy and work in your walls',econRows(L).concat([['How it works','Each person eats '+v.rates.food+' grain and uses '+v.rates.power+' power an hour. A Housing block on your land houses '+v.rates.housingBlock+'. Buildings need workers to run at full output']]),tabs.concat(['Close']));return;}
+ if(t==='sector'){const S=v.sector,L=S.ledger,short=[];if(L.food.net<0)short.push('grain');if(L.power.net<0)short.push('fuel');
+  showCard('Sector '+S.n+' economy',S.homes+' home base'+(S.homes===1?'':'s')+' added together',econRows(L).concat([['Needs board',short.length?'Short of '+short.join(' and ')+': the hall posts orders for it, so delivering here pays':'Nothing short: no orders from this sector for now']]),tabs.concat(['Close']));return;}
+ const N=v.nation,L=N.ledger;showCard('Aurelia\'s economy',N.homes+' home bases in '+N.sectors+' sectors added together',econRows(L).concat([['Short of food',N.shortOfFood+' sector'+(N.shortOfFood===1?'':'s')+(N.hungry.length?' · hungriest: '+N.hungry.map(h=>'Sector '+h.sector+' ('+sgn(h.food)+'/h)').join(', '):'')],['Short of power',N.shortOfPower+' sector'+(N.shortOfPower===1?'':'s')],['Tax','Legal deliveries pay the nation\'s tax; the President and council set it in Politics']]),tabs.concat(['Close']));}
 function landCard(){const ps=(NET.me&&NET.me.parcels)||[];const by={};ps.forEach(p=>{(by[p.sector]=by[p.sector]||[]).push(p);});
  const rows=Object.keys(by).sort((a,b)=>by[b].length-by[a].length).map(k=>{const l=by[k],kinds={};l.forEach(p=>{const r=p.home?'home':(p.resource||'none');kinds[r]=(kinds[r]||0)+1;});
   return ['Sector '+k,l.length+' parcel'+(l.length===1?'':'s')+' · '+Object.entries(kinds).map(([r,c])=>c+' '+(r==='home'?'home':(RESNAME[r]||r).toLowerCase())).join(', ')];});
@@ -2411,8 +2425,8 @@ window.NET=NET;
 try{NET.token=localStorage.getItem('nwo.token');}catch(e){}
 async function api(path,body){const r=await fetch(API_BASE+'/api'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(NET.token?{Authorization:'Bearer '+NET.token}:{})},body:body?JSON.stringify(body):undefined});
  const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||('Server error '+r.status)),{status:r.status});return j;}
-$('pLand').onclick=()=>{if(window.NET&&NET.me)landCard();};$('pLand').onkeydown=e=>{if(e.key==='Enter'&&window.NET&&NET.me)landCard();};
-function applyMe(p){NET.me=p;try{provinceForMe();}catch(_){}try{const n=(p.parcels||[]).length,el=$('vLand');if(el){if(el.textContent!==String(n)&&el.textContent!=='0'){$('pLand').classList.add('bump');setTimeout(()=>$('pLand').classList.remove('bump'),160);}el.textContent=n;}}catch(_){}setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBase();},0);Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
+$('pLand').onclick=()=>{if(window.NET&&NET.me)landCard();};$('pPeople').onclick=()=>econCard('home');$('pPeople').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();econCard('home');}};$('pLand').onkeydown=e=>{if(e.key==='Enter'&&window.NET&&NET.me)landCard();};
+function applyMe(p){NET.me=p;try{const el=$('vPeople');if(el&&p.housing!=null){$('pPeople').hidden=false;el.textContent=p.people+'/'+p.housing;$('pPeople').classList.toggle('short',(p.ratesPerHour&&(p.ratesPerHour.grain<0&&res.grain<=0||p.ratesPerHour.power<0&&res.power<=0)));}}catch(_){}try{provinceForMe();}catch(_){}try{const n=(p.parcels||[]).length,el=$('vLand');if(el){if(el.textContent!==String(n)&&el.textContent!=='0'){$('pLand').classList.add('bump');setTimeout(()=>$('pLand').classList.remove('bump'),160);}el.textContent=n;}}catch(_){}setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBase();},0);Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
  $('meName').textContent=p.name;$('meSub').textContent=p.nation+' · Sector '+p.homeSector;$('meAv').textContent=p.homeSector;
  OFFLINE.oil=p.pending.oil;OFFLINE.grain=p.pending.grain;OFFLINE.cash=p.pending.cash;OFFLINE.fuel=p.pending.fuel;collected=!(p.pending.oil||p.pending.grain||p.pending.cash||p.pending.fuel);
  const h=briefEl.querySelector('.bh h3');if(h)h.textContent=(NET.fresh?'Welcome, ':'Welcome back, ')+p.name;
@@ -3497,6 +3511,7 @@ function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}
  if(a==='Shoot down drone'&&CTK.sel&&CTK.sel.kind==='drone'&&window.NET&&NET.conn){const t=CTK.sel,D=t.D;card.hidden=true;
   NET.conn.invoke('StartDroneHunt',t.n,D.idx).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);
    DroneHunt.open({sector:t.n,onDone:won=>{if(!won){toast('The drone got away. Your flak shells are spent.');return;}NET.conn.invoke('ShootDrone',t.n,D.idx).then(r2=>{if(!r2.ok){toast(r2.error);return;}applyMe(r2.player);D.alive=false;toast(r2.summary);}).catch(er=>toast(er.message));}});}).catch(er=>toast(er.message));return true;}
+ if(ECON.view&&(a==='Your base'||a==='Nation'||a==='Sector '+ECON.view.sector.n)){ECON.tab=a==='Your base'?'home':a==='Nation'?'nation':'sector';econShow();return true;}
  if(a==='Petition (on cooldown)'){toast('The Caretaker heard a petition here in the last day');return true;}
  if(a==='Outpost on alert'){toast('The outpost was attacked recently. Try again later');return true;}
  if(a.startsWith('Assault the outpost')&&NET.big){if(confirm('Attack the Caretaker? It will remember, whatever happens.')){card.hidden=true;netStartBattle({kind:'outpost',sector:NET.big.sector,title:'Caretaker outpost',enemy:'Caretaker outpost'},'county');}return true;}

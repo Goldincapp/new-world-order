@@ -55,6 +55,9 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     /// <summary>A neighbouring sector's current state, for drawing it beside the one you're in, without switching live updates.</summary>
     public Task<object> PeekSector(int sector) => world.Snapshot(sector);
 
+    /// <summary>The nested economy: your base, your sector and the nation as the same ledger.</summary>
+    public Task<object> EconomyView() => Society.Overview(db, Me.Id);
+
     public Task<World.Result> Claim(int sector, int i, int j) => world.Claim(Me.Id, sector, i, j);
 
     /// <summary>Move your home base to this parcel (claiming it if it's free).</summary>

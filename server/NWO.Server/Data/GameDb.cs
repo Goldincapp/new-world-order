@@ -44,6 +44,9 @@ public class Player
 
     /// <summary>Production since this moment is waiting to be collected.</summary>
     public DateTime LastCollectAt { get; set; } = DateTime.UtcNow;
+    /// <summary>People living in the home base, as of PopulationAt. Null PopulationAt means not tracked yet (counts as full).</summary>
+    public double Population { get; set; }
+    public DateTime? PopulationAt { get; set; }
     public DateTime LastSeenAt { get; set; } = DateTime.UtcNow;
     /// <summary>When the Caretaker last delivered this settler's ration crate.</summary>
     public DateTime LastRationAt { get; set; } = DateTime.MinValue;
