@@ -564,6 +564,9 @@ Railway is not yet linked to the GitHub repo, so pushing to GitHub doesn't deplo
 - **Graphics gaps:** the camera is perspective, not the reference style's orthographic diorama camera, and the HUD hasn't been restyled (navy panels with gold trim).
 - **Untested end to end:** an outpost falling to a group, and the salvage being shared.
 
+**Proposed next (design, not built yet):**
+- **Nested economy.** Each home base gets a population capped by housing and kept growing by food and energy; sectors and the nation add up their homes, sector needs orders come from real shortfalls, and tax, prices and laws flow back down. See [`docs/nested-economy.html`](nested-economy.html) (open it in a browser; it has an interactive example).
+
 **Rules for anyone working on this:**
 - **Secrets:** never commit or print secrets (the admin key; any third-party keys are read from env vars only).
 - **Destructive operations:** wipes and account resets delete real players' progress. Only do them when the owner asks.

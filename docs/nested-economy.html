@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nested Economy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one ledger that repeats at three scales, stacked like the zoom from home to sector to nation; the loop runs up the right (totals) and down the left (policy). */
+:root{
+  --bg:#eef3ee; --panel:#ffffff; --ink:#1d2621; --muted:#5d6b63; --line:#cdd8d0;
+  --home:#c9961f; --home-soft:#fbf0d2;
+  --sector:#2f8a7a; --sector-soft:#d9efe9;
+  --nation:#3c63b5; --nation-soft:#dfe7f7;
+  --ct:#3aa7c9; --ct-soft:#d8f0f7;
+  --good:#3f8f3f; --bad:#c2452d;
+  --display:'Baloo 2','Trebuchet MS',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161a; --panel:#1a2127; --ink:#e7ece8; --muted:#9aa8a1; --line:#2c363d;
+  --home:#f0c04a; --home-soft:#3a3018; --sector:#5cc4b0; --sector-soft:#173431;
+  --nation:#7fa2f0; --nation-soft:#1c2740; --ct:#6fd3f0; --ct-soft:#16323b;
+  --good:#7cc77c; --bad:#f07a62; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161a; --panel:#1a2127; --ink:#e7ece8; --muted:#9aa8a1; --line:#2c363d;
+  --home:#f0c04a; --home-soft:#3a3018; --sector:#5cc4b0; --sector-soft:#173431;
+  --nation:#7fa2f0; --nation-soft:#1c2740; --ct:#6fd3f0; --ct-soft:#16323b;
+  --good:#7cc77c; --bad:#f07a62; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:400 16px/1.55 var(--body);margin:0}
+.wrap{max-width:1060px;margin:0 auto;padding-inline:20px;padding-block:28px 64px;display:grid;gap:44px}
+h1,h2,h3{font-family:var(--display);line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(2rem,5vw,3.1rem);font-weight:800}
+h2{font-size:clamp(1.4rem,3vw,1.9rem);font-weight:700}
+h3{font-size:1.15rem;font-weight:700}
+p{margin:0;max-width:66ch}
+.lede{color:var(--muted);font-size:1.08rem}
+.eyebrow{font:600 .74rem/1 var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+header{display:grid;gap:12px}
+.tag{display:inline-flex;align-items:center;gap:6px;font:600 .78rem/1 var(--body);padding:6px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted);width:max-content}
+.tag i{width:8px;height:8px;border-radius:50%;background:var(--home)}
+section{display:grid;gap:18px}
+.diagram{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
+.diagram svg{display:block;min-width:720px;width:100%;height:auto}
+svg text{font-family:var(--body)}
+.loop{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;counter-reset:s}
+.step{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:grid;gap:6px;align-content:start;min-width:0}
+.step b{font-family:var(--display);font-size:1.05rem}
+.step .n{font:500 .8rem/1 var(--mono);color:var(--muted)}
+.step p{font-size:.94rem;color:var(--muted)}
+.ledger{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:640px;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:.94rem}
+th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 .74rem/1.2 var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td:first-child{font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:0}
+.c-home{color:var(--home)}.c-sector{color:var(--sector)}.c-nation{color:var(--nation)}.c-ct{color:var(--ct)}
+/* the working example */
+.sim{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:18px}
+@media (max-width:820px){.sim{grid-template-columns:1fr}}
+.homes{display:grid;gap:12px}
+.home{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--home);border-radius:12px;padding:14px 16px;display:grid;gap:10px}
+.home h3{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.home h3 small{font:500 .82rem/1 var(--mono);color:var(--muted)}
+.ctrls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:460px){.ctrls{grid-template-columns:1fr}}
+.ctrl{display:grid;gap:4px;font-size:.84rem;color:var(--muted)}
+.ctrl span{display:flex;justify-content:space-between}
+.ctrl output{font:500 .84rem var(--mono);color:var(--ink)}
+input[type=range]{width:100%;accent-color:var(--home)}
+input[type=range]:focus-visible{outline:2px solid var(--home);outline-offset:3px}
+.bars{display:grid;gap:6px}
+.bar{display:grid;grid-template-columns:76px minmax(0,1fr) 92px;gap:8px;align-items:center;font-size:.84rem}
+.bar .t{height:10px;border-radius:99px;background:var(--line);position:relative;overflow:hidden}
+.bar .f{position:absolute;inset:0 auto 0 0;border-radius:99px;transition:width .25s}
+.bar .v{font:500 .8rem var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.ok{color:var(--good)}.short{color:var(--bad)}
+.roll{display:grid;gap:12px;align-content:start}
+.tier{border-radius:12px;padding:14px 16px;display:grid;gap:8px;border:1px solid var(--line)}
+.tier.sector{background:var(--sector-soft)}
+.tier.nation{background:var(--nation-soft)}
+.tier h3{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.tier h3 small{font:500 .8rem var(--mono);color:var(--muted)}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;font-size:.9rem}
+.kv span:nth-child(even){font:500 .86rem var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.note{font-size:.86rem;color:var(--muted)}
+.arrowdown{justify-self:center;color:var(--muted);font:500 .8rem var(--mono)}
+.callout{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:grid;gap:10px}
+.callout ul{margin:0;padding-left:1.1em;display:grid;gap:6px}
+@media (prefers-reduced-motion:reduce){.bar .f{transition:none}.flow{animation:none!important}}
+.flow{stroke-dasharray:6 7;animation:dash 1.6s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-26}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header>
+  <span class="tag"><i></i>Design proposal · New World Order</span>
+  <h1>Nested Economy</h1>
+  <p class="lede">Every scale of the game runs the same small economy: people who need housing, food, energy and work. A home base balances its own. A sector is the sum of the home bases in it, and a nation is the sum of its sectors. Totals flow up as needs and surpluses; taxes, prices and services flow back down. That round trip is the loop.</p>
+</header>
+
+<section aria-labelledby="h-diagram">
+  <div class="eyebrow">The loop at a glance</div>
+  <h2 id="h-diagram">Totals go up, policy comes down</h2>
+  <div class="diagram">
+  <svg viewBox="0 0 1000 640" role="img" aria-label="Three stacked tiers, Home base, Sector and Nation, each with the same ledger of people, housing, food, energy and work. Arrows on the right carry totals upward; arrows on the left carry taxes, prices and services downward. The Caretaker sits beside the stack, giving rations and taking a tithe.">
+    <defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker>
+      <marker id="ahs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--sector)"/></marker>
+      <marker id="ahn" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--nation)"/></marker>
+      <marker id="ahh" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--home)"/></marker>
+    </defs>
+
+    <!-- tiers, top to bottom: nation, sector, home -->
+    <g>
+      <rect x="190" y="30" width="620" height="150" rx="16" fill="var(--nation-soft)" stroke="var(--nation)" stroke-width="2"/>
+      <text x="214" y="64" style="font-family:var(--display)" font-size="26" font-weight="700" fill="var(--nation)">Nation</text>
+      <text x="214" y="88" font-size="14" fill="var(--muted)">Sum of all 50 sectors · market prices, tax, laws</text>
+    </g>
+    <g>
+      <rect x="190" y="245" width="620" height="150" rx="16" fill="var(--sector-soft)" stroke="var(--sector)" stroke-width="2"/>
+      <text x="214" y="279" style="font-family:var(--display)" font-size="26" font-weight="700" fill="var(--sector)">Sector</text>
+      <text x="214" y="303" font-size="14" fill="var(--muted)">Sum of its home bases · needs board, trucks, the hall</text>
+    </g>
+    <g>
+      <rect x="190" y="460" width="620" height="150" rx="16" fill="var(--home-soft)" stroke="var(--home)" stroke-width="2"/>
+      <text x="214" y="494" style="font-family:var(--display)" font-size="26" font-weight="700" fill="var(--home)">Home base</text>
+      <text x="214" y="518" font-size="14" fill="var(--muted)">One player's settlement · buildings make, people use</text>
+    </g>
+
+    <!-- the same five ledger chips in every tier -->
+    <defs><g id="chips" font-size="13" font-weight="600">
+        <rect x="214" y="0" width="104" height="34" rx="17" fill="var(--panel)" stroke="var(--line)"/><text x="266" y="22" text-anchor="middle" fill="var(--ink)">People</text>
+        <rect x="326" y="0" width="104" height="34" rx="17" fill="var(--panel)" stroke="var(--line)"/><text x="378" y="22" text-anchor="middle" fill="var(--ink)">Housing</text>
+        <rect x="438" y="0" width="104" height="34" rx="17" fill="var(--panel)" stroke="var(--line)"/><text x="490" y="22" text-anchor="middle" fill="var(--ink)">Food</text>
+        <rect x="550" y="0" width="104" height="34" rx="17" fill="var(--panel)" stroke="var(--line)"/><text x="602" y="22" text-anchor="middle" fill="var(--ink)">Energy</text>
+        <rect x="662" y="0" width="104" height="34" rx="17" fill="var(--panel)" stroke="var(--line)"/><text x="714" y="22" text-anchor="middle" fill="var(--ink)">Work</text>
+      </g></defs>
+    <g>
+      <use href="#chips" y="120"/>
+      <use href="#chips" y="335"/>
+      <use href="#chips" y="550"/>
+    </g>
+
+    <!-- up the right: totals -->
+    <g fill="none" stroke-width="3">
+      <path class="flow" d="M830 540 C 900 540, 900 330, 830 330" stroke="var(--sector)" marker-end="url(#ahs)"/>
+      <path class="flow" d="M830 325 C 900 325, 900 115, 830 115" stroke="var(--nation)" marker-end="url(#ahn)"/>
+    </g>
+    <g font-size="13" fill="var(--ink)">
+      <text x="905" y="425" font-weight="600" fill="var(--sector)">Sum up</text>
+      <text x="905" y="443" fill="var(--muted)">surplus → trucks</text>
+      <text x="905" y="461" fill="var(--muted)">shortfall → needs</text>
+      <text x="905" y="210" font-weight="600" fill="var(--nation)">Sum up</text>
+      <text x="905" y="228" fill="var(--muted)">trade → prices</text>
+      <text x="905" y="246" fill="var(--muted)">deliveries → tax</text>
+    </g>
+
+    <!-- down the left: policy -->
+    <g fill="none" stroke-width="3">
+      <path class="flow" d="M170 115 C 100 115, 100 325, 170 325" stroke="var(--nation)" marker-end="url(#ahn)"/>
+      <path class="flow" d="M170 330 C 100 330, 100 540, 170 540" stroke="var(--sector)" marker-end="url(#ahs)"/>
+    </g>
+    <g font-size="13" text-anchor="end">
+      <text x="96" y="210" font-weight="600" fill="var(--nation)">Policy down</text>
+      <text x="96" y="228" fill="var(--muted)">tax rate, laws,</text>
+      <text x="96" y="246" fill="var(--muted)">grain &amp; fuel prices</text>
+      <text x="96" y="425" font-weight="600" fill="var(--sector)">Orders down</text>
+      <text x="96" y="443" fill="var(--muted)">contracts with</text>
+      <text x="96" y="461" fill="var(--muted)">rewards, services</text>
+    </g>
+
+    <!-- the Caretaker's floor and cut -->
+    <g>
+      <rect x="350" y="404" width="300" height="44" rx="10" fill="var(--ct-soft)" stroke="var(--ct)" stroke-dasharray="4 4"/>
+      <text x="500" y="422" text-anchor="middle" font-size="13" font-weight="600" fill="var(--ct)">The Caretaker</text>
+      <text x="500" y="439" text-anchor="middle" font-size="12" fill="var(--muted)">ration crate up to every home · tithe from every sector it holds</text>
+    </g>
+
+    <!-- home base internal balance -->
+    <g font-size="12" fill="var(--muted)">
+      <text x="606" y="494" text-anchor="start">made − used = balance</text>
+    </g>
+  </svg>
+  </div>
+</section>
+
+<section aria-labelledby="h-loop">
+  <div class="eyebrow">One turn of the loop</div>
+  <h2 id="h-loop">How a single home ripples out and comes back</h2>
+  <div class="loop">
+    <div class="step"><span class="n">1 · Home base</span><b>Build to house and feed people</b><p>Housing sets how many people can live in a base. People eat food, use energy and fill jobs; jobs are what make cash, oil and fuel.</p></div>
+    <div class="step"><span class="n">2 · Home base</span><b>Balance comes out plus or minus</b><p>Each resource ends the hour as made minus used. A surplus can be sold or shipped. A shortfall stops the population growing until it's covered.</p></div>
+    <div class="step"><span class="n">3 · Sector</span><b>The sector adds up its homes</b><p>Every home's balance is summed. Where the sector comes up short, its hall posts a delivery order with a reward. That is the needs board players already fill.</p></div>
+    <div class="step"><span class="n">4 · Sector</span><b>Trucks move the surplus</b><p>Homes with spare grain or power ship it to sectors that need it, on the main road (taxed) or the back road (smuggled). Every truck shows on the map.</p></div>
+    <div class="step"><span class="n">5 · Nation</span><b>The nation sees the whole picture</b><p>Sector totals add up to national supply and demand. That moves market prices, and every legal delivery pays the nation's tax.</p></div>
+    <div class="step"><span class="n">6 · Back down</span><b>Policy lands on every home</b><p>Players in government set the tax rate and laws, and spend the treasury on services. Cheaper food or better power lets homes grow, which starts the next turn.</p></div>
+  </div>
+</section>
+
+<section aria-labelledby="h-ledger">
+  <div class="eyebrow">Same ledger, three scales</div>
+  <h2 id="h-ledger">What each line means at each level</h2>
+  <div class="ledger">
+  <table>
+    <thead><tr><th>Line</th><th class="c-home">Home base</th><th class="c-sector">Sector</th><th class="c-nation">Nation</th></tr></thead>
+    <tbody>
+      <tr><td>People</td><td>Settlers living inside your walls</td><td>Everyone living in the sector's bases</td><td>Total population; sets how many votes and how much tax there is to raise</td></tr>
+      <tr><td>Housing</td><td>Housing blocks cap your people</td><td>Spare homes attract new settlers to the sector</td><td>Where the nation can still grow</td></tr>
+      <tr><td>Food</td><td>Crop plots and farms against what your people eat</td><td>Shortfall becomes a grain order on the needs board</td><td>National grain supply sets the grain price</td></tr>
+      <tr><td>Energy</td><td>Solar panels and turbines against what your buildings draw</td><td>Shortfall becomes a power or fuel order</td><td>Fuel price, and what war or a siege can afford</td></tr>
+      <tr><td>Work</td><td>Jobs filled by your people run your rigs and workshops</td><td>A busy sector out-produces the Caretaker and loosens its grip</td><td>Output that tax is drawn from</td></tr>
+      <tr><td class="c-ct">Caretaker</td><td>Ration crate keeps a struggling home alive</td><td>Takes a tithe while it still holds the sector</td><td>Its record of every player shapes inspections and standing</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section aria-labelledby="h-sim">
+  <div class="eyebrow">Try it · example numbers</div>
+  <h2 id="h-sim">Change one home and watch the totals move</h2>
+  <p class="note">Three home bases in one sector. Move the sliders on any home; the sector and nation update. The numbers are illustrative, for showing the shape of the loop, not tuned game values.</p>
+  <div class="sim">
+    <div class="homes" id="homes"></div>
+    <div class="roll">
+      <div class="tier sector">
+        <h3><span class="c-sector">Sector 31</span><small id="secPop"></small></h3>
+        <div class="kv" id="secKv"></div>
+        <p class="note" id="secNeeds"></p>
+      </div>
+      <div class="arrowdown" aria-hidden="true">↑ adds into ↑</div>
+      <div class="tier nation">
+        <h3><span class="c-nation">Aurelia</span><small id="natPop"></small></h3>
+        <div class="kv" id="natKv"></div>
+        <p class="note" id="natNote"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section aria-labelledby="h-build">
+  <div class="eyebrow">For the team</div>
+  <h2 id="h-build">What already exists and what this adds</h2>
+  <div class="callout">
+    <ul>
+      <li><b>Already in the game:</b> home buildings that produce (crop plots, oil pumps, solar panels, housing), the sector needs board with delivery rewards, trucks on the main or back road, the nation's tax, the market, and the Caretaker's rations and tithe.</li>
+      <li><b>New:</b> a population per home base, capped by housing and kept growing only while food and energy are covered; each building's upkeep in food, energy and workers; sector and nation totals worked out from the homes, and needs orders generated from real shortfalls instead of at random.</li>
+      <li><b>Where it would show:</b> a ledger card on the Home view, the same card for a sector when you tap its hall, and a nation card in Politics. One layout at every scale, so a player learns it once.</li>
+    </ul>
+  </div>
+</section>
+</div>
+
+<script>
+const HOMES=[{name:'Your base',tag:'player',house:3,crop:2,solar:2},{name:'Kira',tag:'AI neighbour',house:4,crop:4,solar:1},{name:'Fenn',tag:'AI neighbour',house:2,crop:1,solar:3}];
+// per-unit rates for the example
+const R={people:10,eat:1,power:0.6,crop:9,solar:5,job:0.5};
+const OTHER={people:9400,food:180,energy:-120}; // the other 49 sectors, summed (example)
+function calc(h){const people=h.house*R.people,food=h.crop*R.crop-people*R.eat,energy=h.solar*R.solar-people*R.power,jobs=Math.round(people*R.job);return{people,food:+food.toFixed(1),energy:+energy.toFixed(1),jobs};}
+const fmt=n=>(n>0?'+':'')+n.toLocaleString('en-GB',{maximumFractionDigits:1});
+function bar(label,val,scale,unit){const pct=Math.min(100,Math.abs(val)/scale*100),good=val>=0;return '<div class="bar"><span>'+label+'</span><span class="t"><span class="f" style="width:'+pct+'%;background:var(--'+(good?'good':'bad')+')"></span></span><span class="v '+(good?'ok':'short')+'">'+fmt(val)+' '+unit+'</span></div>';}
+function render(){
+  const el=document.getElementById('homes');
+  el.innerHTML=HOMES.map((h,i)=>{const c=calc(h);return '<div class="home"><h3><span>'+h.name+'</span><small>'+c.people+' people · '+h.tag+'</small></h3>'+
+   '<div class="ctrls">'+[['house','Housing blocks'],['crop','Crop plots'],['solar','Solar panels']].map(([k,l])=>'<label class="ctrl" for="h'+i+k+'"><span>'+l+'<output id="o'+i+k+'">'+h[k]+'</output></span><input type="range" id="h'+i+k+'" min="0" max="8" step="1" value="'+h[k]+'" data-i="'+i+'" data-k="'+k+'"></label>').join('')+'</div>'+
+   '<div class="bars">'+bar('Food',c.food,40,'grain/h')+bar('Energy',c.energy,30,'power/h')+'</div></div>';}).join('');
+  el.querySelectorAll('input').forEach(inp=>inp.addEventListener('input',e=>{const t=e.target;HOMES[+t.dataset.i][t.dataset.k]=+t.value;const keep=t.id;render();const again=document.getElementById(keep);if(again)again.focus();}));
+  const all=HOMES.map(calc),S={people:0,food:0,energy:0,jobs:0};all.forEach(c=>{S.people+=c.people;S.food+=c.food;S.energy+=c.energy;S.jobs+=c.jobs;});
+  document.getElementById('secPop').textContent=S.people+' people';
+  document.getElementById('secKv').innerHTML='<span>Food balance</span><span class="'+(S.food>=0?'ok':'short')+'">'+fmt(+S.food.toFixed(1))+' grain/h</span><span>Energy balance</span><span class="'+(S.energy>=0?'ok':'short')+'">'+fmt(+S.energy.toFixed(1))+' power/h</span><span>Jobs filled</span><span>'+S.jobs+'</span>';
+  const needs=[];if(S.food<0)needs.push('a grain order for '+Math.ceil(-S.food*6)+' grain (six hours of shortfall)');if(S.energy<0)needs.push('a power order for '+Math.ceil(-S.energy*6)+' power');
+  const spare=[];if(S.food>0)spare.push(Math.floor(S.food*6)+' grain');if(S.energy>0)spare.push(Math.floor(S.energy*6)+' power');
+  document.getElementById('secNeeds').innerHTML=(needs.length?'The hall posts '+needs.join(' and ')+' on the needs board.':'No shortfalls, so the hall posts no orders.')+(spare.length?' Homes here have '+spare.join(' and ')+' spare every six hours to ship out.':'');
+  const N={people:S.people+OTHER.people,food:S.food+OTHER.food,energy:S.energy+OTHER.energy};
+  document.getElementById('natPop').textContent=N.people.toLocaleString('en-GB')+' people';
+  document.getElementById('natKv').innerHTML='<span>This sector</span><span>'+S.people+' people</span><span>Other 49 sectors</span><span>'+OTHER.people.toLocaleString('en-GB')+' people</span><span>Food balance</span><span class="'+(N.food>=0?'ok':'short')+'">'+fmt(+N.food.toFixed(1))+' grain/h</span><span>Energy balance</span><span class="'+(N.energy>=0?'ok':'short')+'">'+fmt(+N.energy.toFixed(1))+' power/h</span>';
+  const grain=N.food<0?'Grain is short nationwide, so the grain price rises and farming pays more.':N.food>200?'Grain is plentiful, so its price falls and homes can grow cheaply.':'Grain is roughly balanced; its price holds steady.';
+  const power=N.energy<0?' Power is short, so fuel gets dearer; the government might subsidise solar.':' Power covers demand.';
+  document.getElementById('natNote').textContent=grain+power;}
+render();
+</script>
+</body>
+</html>
