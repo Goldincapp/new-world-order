@@ -145,6 +145,10 @@ class M:
         cls.glass = worn('dark_glass', (0.05, 0.06, 0.07), rough=0.3, metal=0.2, wear=0.1)
         cls.water = worn('tank', (0.3, 0.32, 0.3), rough=0.6, metal=0.5, rust=(0.4, 0.2, 0.1), wear=0.6)
         cls.lamp = glow('lamp', (1.0, 0.85, 0.55), 3)
+        cls.cyan = glow('cyan_screen', (0.1, 0.65, 1.0), 2.0)
+        cls.crop = worn('crop', (0.36, 0.37, 0.17), rough=0.9, wear=0.3, scale=20, pitted=0.3)
+        cls.soil = worn('soil', (0.24, 0.19, 0.14), rough=1, wear=0.0, scale=14, pitted=0.6)
+        cls.panel = worn('solar_glass', (0.12, 0.2, 0.36), rough=0.25, metal=0.3, wear=0.5, scale=6, plates=True)
         cls.red = glow('red_eye', (1.0, 0.04, 0.02), 2.5)
 
 # ---------- modelling helpers ----------
@@ -345,3 +349,12 @@ def export(objs, path):
     except TypeError:
         bpy.ops.export_scene.gltf(filepath=path, export_format='GLB', use_selection=True, export_apply=True)
     print('exported', path, os.path.getsize(path))
+
+def finish(name, parts, size, tex_dir, normal=True):
+    """Bake everything but the lights into one textured mesh; lights stay a separate glowing mesh."""
+    glow_mats = {M.lamp.name, M.red.name, M.cyan.name}
+    lights = [o for o in parts if o.data.materials and o.data.materials[0].name in glow_mats]
+    solid = [o for o in parts if o not in lights]
+    objs = [bake(join(solid, name), size, tex_dir, normal)]
+    if lights: objs.append(join(lights, name + '_lights'))
+    return objs

@@ -19,7 +19,7 @@ GLOW = None
 
 def finish(name, parts, size, normal=True):
     """Bake everything but the lights into one textured mesh; lights stay a separate glowing mesh."""
-    glow_mats = {M.lamp.name, M.red.name}
+    glow_mats = {M.lamp.name, M.red.name, M.cyan.name}
     lights = [o for o in parts if o.data.materials and o.data.materials[0].name in glow_mats]
     solid = [o for o in parts if o not in lights]
     body = K.bake(join(solid, name), size, TEX, normal)
