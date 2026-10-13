@@ -167,6 +167,13 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
         p.TutorialStep = Math.Max(p.TutorialStep, HomeBase.Tutorial.Length); p.GuideStep = Guide.Steps.Length;
         return new World.Result(true, Player: Dto.Me(p));
     });
+    public async Task<World.Result> SkipGuideStep() => await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == Me.Id);
+        return Guide.SkipOptional(p)
+            ? new World.Result(true, Player: Dto.Me(p))
+            : new World.Result(false, "This objective is part of the core path.");
+    });
 
     // ---------- Alliances
     public Task<object> GetAlliance() => alliances.View(Me.Id);

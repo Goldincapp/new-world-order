@@ -26,7 +26,13 @@ public static class Operations
     };
 
     static int GuideIndex(string operation) => Array.FindIndex(Guide.Steps, s => s.Do == operation);
-    static bool IsUnlocked(Player p, string operation) => GuideIndex(operation) is var i && i >= 0 && p.GuideStep >= i;
+    static int TutorialIndex(string operation) => Array.FindIndex(HomeBase.Tutorial, s => s.Do == operation);
+    static bool IsUnlocked(Player p, string operation)
+    {
+        var ti = TutorialIndex(operation);
+        if (ti >= 0) return p.TutorialStep >= ti;
+        return GuideIndex(operation) is var gi && gi >= 0 && p.GuideStep >= gi;
+    }
 
     public static async Task<StartResult> Start(GameDb db, Guid playerId, string operation)
     {
@@ -57,8 +63,11 @@ public static class Operations
         return await world.Locked(async db =>
         {
             var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == playerId);
-            var rewarded = Guide.Active(p) && Guide.Steps[p.GuideStep].Do == operation;
-            if (rewarded) Guide.Advance(db, p, operation);
+            var homeReward = p.TutorialStep < HomeBase.Tutorial.Length && HomeBase.Tutorial[p.TutorialStep].Do == operation;
+            var guideReward = Guide.Active(p) && Guide.Steps[p.GuideStep].Do == operation;
+            var rewarded = homeReward || guideReward;
+            if (homeReward) HomeBase.Advance(db, p, operation);
+            else if (guideReward) Guide.Advance(db, p, operation);
             return new EndResult(true,
                 Summary: rewarded ? $"{rule.Name} complete. Field Guide reward secured." : $"{rule.Name} complete. Training score recorded locally.",
                 Player: Dto.Me(p), Rewarded: rewarded);

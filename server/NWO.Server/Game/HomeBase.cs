@@ -37,17 +37,15 @@ public static class HomeBase
         ["generator"] = new("Generator", 700, 1, 1, "fuel", 4, "Turns scrap into fuel", Field: true),
     };
 
-    /// <summary>The tutorial, in order. Each step is done by placing that building (or collecting), and pays a reward.</summary>
-    public record Step(string Do, string Text, double Cash, double Power = 0);
+    /// <summary>The first chapter: one visible need, one action and one reward at a time.</summary>
+    public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
     public static readonly Step[] Tutorial =
     [
-        new("barracks", "Every settler needs defenders. Place a Barracks inside your walls.", 300),
-        new("warehouse", "Production piles up while you're away. A Warehouse lets it pile up longer.", 300),
-        new("research", "Knowledge is power. A Research lab makes everything your land produces go further.", 400),
-        new("crops", "Rations keep you alive, but not growing. Plant a Crop plot.", 250),
-        new("oilpump", "Oil runs the world. Set up an Oil pump: it pays most on oil sands.", 250),
-        new("solar", "The grid is gone. Install a Solar panel for your own electricity.", 250, 20),
-        new("collect", "Your base is working. Collect what it has made.", 200),
+        new("barracks", "Give survivors shelter", "Build one Barracks. It houses defenders and unlocks your first field operation.", Cash: 300),
+        new("laststand", "Hold the line", "Raiders found the settlement. Survive the short attack and destroy at least 12 of them; tap a target to focus your turret.", Cash: 600, Fuel: 80),
+        new("crops", "Feed your settlers", "Build one Crop plot. Grain is food: when it runs out, people leave.", Cash: 250),
+        new("solar", "Keep the lights on", "Build one Solar panel. Power runs the settlement and lets its population grow.", Cash: 250, Power: 20),
+        new("collect", "Bank your production", "Your base is now producing. Collect everything it has made and see the resource counters increase.", Cash: 300),
     ];
 
     public static (int lo, int hi) Bounds(Player p)
@@ -155,8 +153,11 @@ public static class HomeBase
         var step = Tutorial[p.TutorialStep];
         if (step.Do != did) return;
         if (step.Cash > 0) Ledger.Add(db, p, "cash", step.Cash, $"Tutorial reward: {step.Do}");
+        if (step.Fuel > 0) Ledger.Add(db, p, "fuel", step.Fuel, $"Tutorial reward: {step.Do}");
         if (step.Power > 0) Ledger.Add(db, p, "power", step.Power, $"Tutorial reward: {step.Do}");
         p.TutorialStep++;
+        // Last Stand used to be the first Field Guide step. New players already completed it here.
+        if (p.TutorialStep >= Tutorial.Length && p.GuideStep == 0 && Guide.Steps[0].Do == "laststand") p.GuideStep = 1;
     }
 
     /// <summary>What the home base produces per hour, and the bonuses it gives the rest of the player's land.</summary>
@@ -185,12 +186,24 @@ public static class HomeBase
                 step = p.TutorialStep + 1,
                 of = Tutorial.Length,
                 Tutorial[p.TutorialStep].Do,
+                Tutorial[p.TutorialStep].Title,
                 Tutorial[p.TutorialStep].Text,
                 reward = Tutorial[p.TutorialStep].Cash,
-                rewardPower = Tutorial[p.TutorialStep].Power
+                rewardFuel = Tutorial[p.TutorialStep].Fuel,
+                rewardPower = Tutorial[p.TutorialStep].Power,
+                chapter = "Survival",
+                titles = Tutorial.Select(x => x.Title),
+                rewards = Tutorial.Select(RewardText)
             } : null,
         };
     }
+
+    static string RewardText(Step s) => string.Join(", ", new[]
+    {
+        s.Cash > 0 ? $"+{s.Cash:N0} cash" : null,
+        s.Fuel > 0 ? $"+{s.Fuel:N0} fuel" : null,
+        s.Power > 0 ? $"+{s.Power:N0} power" : null,
+    }.Where(x => x is not null));
 
     /// <summary>Starts a settler over: home base, land, money and tutorial back to day one. Name, nation and record stay.</summary>
     public static async Task Restart(GameDb db, Player p)
@@ -206,7 +219,7 @@ public static class HomeBase
         var start = new Player();
         foreach (var r in Ledger.Resources)
             Ledger.Add(db, p, r, Ledger.Get(start, r) - Ledger.Get(p, r), "Started over");
-        p.HqLevel = 1; p.HomeLevel = 0; p.TutorialStep = 0;
+        p.HqLevel = 1; p.HomeLevel = 0; p.TutorialStep = 0; p.GuideStep = 0;
         p.LastCollectAt = DateTime.UtcNow;
     }
 }

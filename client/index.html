@@ -326,6 +326,10 @@ html.app .screen{border-radius:0}
 .techNode.done{background:#eaf3e2;border-color:#9cc48a}.techNode.busy{background:#fff6dc;border-color:#e0bf5a}.techNode.locked{opacity:.62}
 @media (orientation:portrait){html.app .techEl{inset:calc(10*var(--u)) 2.5cqw calc(16*var(--u));font-size:calc(3.3*var(--u))}html.app .techGrid{grid-template-columns:1fr}}
 .tutbar.guide{flex-wrap:wrap;max-width:min(94cqw,calc(150*var(--u)))}.tutbar.guide>span:nth-child(2){flex:1;min-width:16em}.tutbar .gbtns{display:flex;gap:.4em}@media (orientation:portrait){html.app .tutbar.guide>span:nth-child(2){min-width:0;flex-basis:100%}html.app .tutbar.guide{max-width:none}}.tutbar button.sk{background:transparent;color:#c9a24a;border:1px solid #6b5a30}
+.onboarding-focus #pOil,.onboarding-focus #pGold,.onboarding-focus #pLand,.onboarding-focus #pPeople{display:none!important}
+.onboarding-focus:not(.show-fuel) #pFuel,.onboarding-focus:not(.show-grain) #pGrain,.onboarding-focus:not(.show-power) #pPower{display:none!important}
+.onboarding-focus .side>.hbtn:not(#bOps):not(#bFeedback){display:none!important}
+.onboarding-focus .nav button:not(#nHome){display:none!important}
 .guide-target{outline:calc(.45*var(--u)) solid #ffd34d!important;outline-offset:calc(.35*var(--u));box-shadow:0 0 calc(4*var(--u)) rgba(255,211,77,.9)!important;animation:guidePulse 1s ease-in-out infinite}
 button.guide-target{position:relative;z-index:50!important}
 button.guide-target::after{content:attr(data-guide-label);position:absolute;left:50%;bottom:calc(100% + 1.1em);transform:translateX(-50%);background:#ffd34d;color:#17120a;border-radius:99px;padding:.45em .8em;font:800 .8rem/1 system-ui,sans-serif;white-space:nowrap;pointer-events:none;box-shadow:0 .25em 1em rgba(0,0,0,.45)}
@@ -1992,14 +1996,13 @@ $('secChip').onclick=()=>{if(statsEl.hidden)openStats('sector');else{statsEl.hid
 /* ---------- Login briefing ---------- */
 const briefEl=$('brief');let collected=false;const OFFLINE={oil:1420,grain:380,cash:2140,fuel:60};
 const GOALS=[{k:'fuel',t:'Deliver fuel to a sector in need',rw:'+20 gold',gold:20,done:false},{k:'vote',t:'Vote on a law in the council',rw:'+10 gold',gold:10,done:false},{k:'housing',t:'Build one housing block',rw:'+600 cash',cash:600,done:false}];
-const TUTORIAL_REWARDS=['+300 cash','+300 cash','+400 cash','+250 cash','+250 cash','+250 cash, +20 power','+200 cash'];
 function goalDone(k){const g=GOALS.find(x=>x.k===k);if(!g||g.done)return;g.done=true;if(g.gold)res.gold+=g.gold;if(g.cash)res.cash+=g.cash;renderRes(g.gold?['gold']:['cash']);setTimeout(()=>toast('Daily goal complete: '+g.t+' ('+g.rw+')'),2200);if(!briefEl.hidden)renderBrief();}
 /* The real briefing for signed-in players: what happened, what's ready, what to do next */
 function renderBriefNet(){const me=NET.me,h=me.home||{},pend=me.pending||{},rate=me.ratesPerHour||{};
  briefEl.querySelector('.bh h3').textContent='Welcome back, '+me.name;
  briefEl.querySelector('.bh .note').textContent=(NET.away?'You were away '+NET.away+' · ':'')+me.nation+' · Sector '+me.homeSector;
  const items=[];const t=h.tutorial;if(NET.awayMade)items.push(['savings','While you were away: +'+NET.awayMade+', banked automatically','good']);
- if(t)items.push(['school','Tutorial step '+t.step+' of '+t.of+': '+t.text+' Reward: '+tutorialRewardText(t)+'.','warn']);
+ if(t)items.push(['school',t.chapter+' · '+t.title+': '+t.text+' Reward: '+tutorialRewardText(t)+'.','warn']);
  if(me.research){if(me.research.current)items.push(['science','Researching '+me.research.current.name+' · '+timeLeft(me.research.current.endsAt),'']);else if(me.research.labs)items.push(['science','Your Research lab is idle. Tap it in your base to pick a tech','warn']);}
  if(me.ration&&me.ration.ready)items.push(['inventory_2','The Caretaker left your ration crate: collect it below','good']);
  items.push(['factory','Your land makes '+fmtN(rate.cash||0)+' cash, '+fmtN(rate.oil||0)+' oil, '+fmtN(rate.grain||0)+' grain and '+fmtN(rate.power||0)+' power an hour','']);
@@ -2009,10 +2012,10 @@ function renderBriefNet(){const me=NET.me,h=me.home||{},pend=me.pending||{},rate
  const anyPend=(pend.cash||0)+(pend.oil||0)+(pend.grain||0)+(pend.fuel||0)+(pend.power||0)>=1;
  $('brCollect').innerHTML=[['Cash',pend.cash],['Oil',pend.oil],['Grain',pend.grain],['Power',pend.power]].map(x=>'<div><span>'+x[0]+'</span><br><b>+'+fmtN(x[1]||0)+'</b></div>').join('');
  $('brCollectBtn').textContent=anyPend||(me.ration&&me.ration.ready)?'Collect all':'Nothing to collect yet';
- const gd=me.guide;const steps=!t&&gd?gd.titles:['Barracks','Warehouse','Research lab','Crop plot','Oil pump','Solar panel','Collect'];const done=t?t.step-1:gd?gd.step-1:steps.length;
- $('brGoals').innerHTML=steps.map((g,i)=>'<div class="goal'+(i<done?' done':'')+'"><span class="ms">'+(i<done?'check_circle':'radio_button_unchecked')+'</span><span class="t">'+g+'</span><span class="rw">'+(t?TUTORIAL_REWARDS[i]:'')+'</span></div>').join('');
+ const gd=me.guide;const steps=t?t.titles:gd?gd.titles:[];const rewards=t?t.rewards:[];const done=t?t.step-1:gd?gd.step-1:steps.length;
+ $('brGoals').innerHTML=steps.map((g,i)=>'<div class="goal'+(i<done?' done':'')+'"><span class="ms">'+(i<done?'check_circle':'radio_button_unchecked')+'</span><span class="t">'+g+'</span><span class="rw">'+(rewards[i]||'')+'</span></div>').join('');
  const st=briefEl.querySelector('.streak');if(st){st.style.display='none';if(st.previousElementSibling)st.previousElementSibling.style.display='none';}
- $('brGo').textContent='Go to my base';$('brSave').hidden=false;const gh=$('brGoals').previousElementSibling;if(gh)gh.textContent=me.home&&me.home.tutorial?'Getting started':'Field Guide';}
+ $('brGo').textContent='Go to my base';$('brSave').hidden=false;const gh=$('brGoals').previousElementSibling;if(gh)gh.textContent=t?t.chapter:(gd?gd.chapter:'Field Guide');}
 function renderBrief(){if(window.NET&&NET.me){renderBriefNet();return;}const need=secNeeds();const poll=Math.round(cands[0][1]/cands.reduce((a,c)=>a+c[1],0)*100);
  const items=[...(window.NET&&NET.me&&NET.me.ration&&NET.me.ration.ready?[['inventory','A Caretaker drone left your ration crate: +'+NET.me.ration.crate.grain+' grain'+(NET.me.ration.crate.fuel?', +'+NET.me.ration.crate.fuel+' fuel':'')+'. Collect it below','good']]:[]),['inventory_2','Your parcels produced '+fmtN(OFFLINE.oil)+' oil and '+fmtN(OFFLINE.grain)+' grain',''],['real_estate_agent','Lease on Sector 23 paid 186 oil','good'],['trending_up','Oil price up 4% since yesterday (now '+price.toFixed(2)+'): a good time to sell',''],
   need.length?['home_work','Sector 12 needs '+need.join(', ')+': the governor is paying contracts','warn']:['home_work','Sector 12 has everything it needs','good'],['shield','Mara_V raided your convoy overnight: your escort held','good'],['gavel','Customs confiscated a back-road shipment near Sector 8',''],
@@ -2025,7 +2028,7 @@ function openBrief(){if(/[?&](ov|sv)/.test(location.search))return;card.hidden=t
 function closeBrief(){briefEl.hidden=true;hint.hidden=false;if(window.NET&&NET.me&&NET.me.home)renderTutorial();}
 $('brx').onclick=closeBrief;
 $('brCollectBtn').onclick=e=>{if(NET.me){if(collected&&!(NET.me.ration&&NET.me.ration.ready)){toast('Nothing to collect yet. Your land keeps producing while you are away');return;}
-  const ration=NET.me.ration&&NET.me.ration.ready,tutBefore=NET.me.home&&NET.me.home.tutorial;api('/collect',{}).then(async r=>{const c=r.collected;applyMe(r.player);if(ration){const rr=await NET.conn.invoke('ClaimRation');if(rr.ok){applyMe(rr.player);setTimeout(()=>toast('Caretaker ration crate collected'),2400);}}collected=true;renderBrief();const rr=screen.getBoundingClientRect();floatText('+'+fmtN(c.oil)+' oil',e.clientX-rr.left-40,e.clientY-rr.top-40);toast('Collected '+fmtN(c.cash)+' cash, '+fmtN(c.oil)+' oil and '+fmtN(c.grain)+' grain');if(tutBefore&&tutBefore.do==='collect')setTimeout(()=>toast('Tutorial complete! Reward received: '+tutorialRewardText(tutBefore)),1900);}).catch(er=>toast(er.message));return;}
+  const ration=NET.me.ration&&NET.me.ration.ready,tutBefore=NET.me.home&&NET.me.home.tutorial;api('/collect',{}).then(async r=>{const c=r.collected;applyMe(r.player);if(ration){const rr=await NET.conn.invoke('ClaimRation');if(rr.ok){applyMe(rr.player);setTimeout(()=>toast('Caretaker ration crate collected'),2400);}}collected=true;renderBrief();const rr=screen.getBoundingClientRect();floatText('+'+fmtN(c.oil)+' oil',e.clientX-rr.left-40,e.clientY-rr.top-40);toast('Collected '+fmtN(c.cash)+' cash, '+fmtN(c.oil)+' oil and '+fmtN(c.grain)+' grain');if(tutBefore&&tutBefore.do==='collect')setTimeout(()=>toast('Survival chapter complete · '+tutorialRewardText(tutBefore)+' · Expansion unlocked'),1900);}).catch(er=>toast(er.message));return;}
  if(collected){toast('Already collected. Come back later for more');return;}collected=true;res.oil+=OFFLINE.oil;res.grain+=OFFLINE.grain;res.cash+=OFFLINE.cash;res.fuel+=OFFLINE.fuel;renderRes(['oil','grain','cash','fuel']);
  const r=screen.getBoundingClientRect();floatText('+'+fmtN(OFFLINE.oil)+' oil',e.clientX-r.left-40,e.clientY-r.top-40);toast('Collected everything your land made while you were away');renderBrief();};
 $('brGfx').textContent='Graphics: '+(WASTE?'Wasteland':NEWGFX?'New':'Classic');
@@ -2482,11 +2485,12 @@ try{NET.token=localStorage.getItem('nwo.token');}catch(e){}
 async function api(path,body){const r=await fetch(API_BASE+'/api'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',...(NET.token?{Authorization:'Bearer '+NET.token}:{})},body:body?JSON.stringify(body):undefined});
  const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||('Server error '+r.status)),{status:r.status});return j;}
 $('pLand').onclick=()=>{if(window.NET&&NET.me)landCard();};$('pPeople').onclick=()=>econCard('home');$('pPeople').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();econCard('home');}};$('pLand').onkeydown=e=>{if(e.key==='Enter'&&window.NET&&NET.me)landCard();};
+function applyOnboardingFocus(p){const h=$('hud'),t=p.home&&p.home.tutorial;h.classList.toggle('onboarding-focus',!!t);h.classList.toggle('show-fuel',!!t&&t.step>=3);h.classList.toggle('show-grain',!!t&&t.step>=3);h.classList.toggle('show-power',!!t&&t.step>=4);}
 function applyMe(p){NET.me=p;$('bOps').hidden=!(p.operations&&p.operations.unlocked&&p.operations.unlocked.length);try{const el=$('vPeople');if(el&&p.housing!=null){$('pPeople').hidden=false;el.textContent=p.people+'/'+p.housing;$('pPeople').classList.toggle('short',(p.ratesPerHour&&(p.ratesPerHour.grain<0&&res.grain<=0||p.ratesPerHour.power<0&&res.power<=0)));}}catch(_){}try{provinceForMe();}catch(_){}try{const n=(p.parcels||[]).length,el=$('vLand');if(el){if(el.textContent!==String(n)&&el.textContent!=='0'){$('pLand').classList.add('bump');setTimeout(()=>$('pLand').classList.remove('bump'),160);}el.textContent=n;}}catch(_){}setTimeout(()=>{if(p.home&&p.home.grid)buildHomeBase();},0);Object.assign(res,p.resources);renderRes(['cash','oil','fuel','grain','gold']);
  $('meName').textContent=p.name;$('meSub').textContent=p.nation+' · Sector '+p.homeSector;$('meAv').textContent=p.homeSector;
  OFFLINE.oil=p.pending.oil;OFFLINE.grain=p.pending.grain;OFFLINE.cash=p.pending.cash;OFFLINE.fuel=p.pending.fuel;collected=!(p.pending.oil||p.pending.grain||p.pending.cash||p.pending.fuel);
  const h=briefEl.querySelector('.bh h3');if(h)h.textContent=(NET.fresh?'Welcome, ':'Welcome back, ')+p.name;
- const sub=briefEl.querySelector('.bh .note');if(sub)sub.textContent=p.nation+' · Sector '+p.homeSector+' · '+p.parcels.length+' parcels · '+Math.round(p.ratesPerHour.oil)+' oil an hour';}
+ const sub=briefEl.querySelector('.bh .note');if(sub)sub.textContent=p.nation+' · Sector '+p.homeSector+' · '+p.parcels.length+' parcels · '+Math.round(p.ratesPerHour.oil)+' oil an hour';applyOnboardingFocus(p);}
 function awayText(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?h+'h '+m+'m':m+'m';}
 async function connectLive(){if(!window.signalR||!NET.token)return;if(NEWGFX)await loadNation();
  const c=new signalR.HubConnectionBuilder().withUrl(API_BASE+'/hub',{accessTokenFactory:()=>NET.token}).withAutomaticReconnect().build();
@@ -3433,26 +3437,26 @@ function battleCoachStart(){if(!guideBattleCoach)return;guideBattleCoach=1;$('bt
 function battleCoachRender(){if(!guideBattleCoach||mode!=='battle')return;if(guideBattleCoach===1){const gunner=$('ucards').querySelector('button[data-t="gunner"]');pointGuideAt(gunner,'2. Tap Gunner');}else if(guideBattleCoach===2)pointGuideAt(renderer.domElement);}
 function battleCoachUnitSelected(){if(!guideBattleCoach||guideBattleCoach>2)return;guideBattleCoach=2;$('btip').textContent='Step 3: tap one of the three tan lanes to deploy your unit.';pointGuideAt(renderer.domElement);}
 function battleCoachDeployed(){if(!guideBattleCoach)return;guideBattleCoach=0;clearGuideTarget();$('btip').textContent='Good. Command points refill over time. Deploy more units and defeat the red force.';toast('Unit deployed. Keep spending command points as they refill.');}
- function tutorialRewardText(t){const rewards=[];if(t&&t.reward)rewards.push('+'+fmt(t.reward)+' cash');if(t&&t.rewardPower)rewards.push('+'+fmt(t.rewardPower)+' power');return rewards.join(' and ')||'No reward';}
+ function tutorialRewardText(t){const rewards=[];if(t&&t.reward)rewards.push('+'+fmt(t.reward)+' cash');if(t&&t.rewardFuel)rewards.push('+'+fmt(t.rewardFuel)+' fuel');if(t&&t.rewardPower)rewards.push('+'+fmt(t.rewardPower)+' power');return rewards.join(' and ')||'No reward';}
  function clearTutorialHqMark(){$('tutHq').hidden=true;}
  function promptTutorialHq(t){clearGuideTarget();clearTutorialHqMark();if(mode!=='hq')return;setTimeout(()=>{if(mode!=='hq'||!NET.me.home.tutorial||NET.me.home.tutorial.do!==t.do)return;$('tutHq').hidden=false;toast('1 of 5: tap the highlighted Headquarters in the center of your base');},100);}
 $('tutHq').onclick=()=>hqCard();
  function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');
- const g=NET.me&&NET.me.guide;if(guideActing&&(!g||g.do!==guideActing)){guideActing=null;clearGuideTarget();}
+ const g=NET.me&&NET.me.guide,activeDo=t?t.do:g&&g.do;if(guideActing&&activeDo!==guideActing){guideActing=null;clearGuideTarget();}
  if(!t&&g&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){if(guideActing===g.do){b.hidden=true;return;}renderGuide(g);return;}
  if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
-  b.hidden=false;b.classList.remove('guide');const k=homeKindOf(t.do);b.innerHTML='<b>Step '+t.step+' of '+t.of+'</b><span>'+esc(t.text)+' <span class="reward">Reward: '+esc(tutorialRewardText(t))+'</span></span>'+(k?'<button id="tutGo">Show me where to start</button>':t.do==='collect'?'<button id="tutGo">Show Collect all</button>':'');
-  if($('tutGo'))$('tutGo').onclick=()=>{if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>promptTutorialHq(t),950);}else promptTutorialHq(t);}else{openBrief();setTimeout(()=>{pointGuideAt($('brCollectBtn'),'Tap Collect all');toast('Tap the highlighted Collect all button to finish the tutorial');},100);}};}
+  b.hidden=false;b.classList.remove('guide');const k=homeKindOf(t.do),op=t.do==='laststand';b.innerHTML='<b>'+esc(t.chapter)+' · '+t.step+'/'+t.of+'</b><span><strong>'+esc(t.title)+'.</strong> '+esc(t.text)+' <span class="reward">Reward: '+esc(tutorialRewardText(t))+'</span></span>'+(k?'<button id="tutGo">Build '+esc(k.name)+'</button>':op?'<button id="tutGo">Start Last Stand</button>':t.do==='collect'?'<button id="tutGo">Show Collect all</button>':'');
+  if($('tutGo'))$('tutGo').onclick=()=>{b.hidden=true;if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>promptTutorialHq(t),950);}else promptTutorialHq(t);}else if(op){guideActing=t.do;OPS.start(t.do);}else{openBrief();setTimeout(()=>{pointGuideAt($('brCollectBtn'),'Tap Collect all');toast('Tap the highlighted Collect all button to finish the Survival chapter');},100);}};}
 /* ---------- The Field Guide: one short chapter per system, done by doing it ---------- */
 function renderGuide(g){const b=$('tutBar');b.hidden=false;b.classList.add('guide');
- b.innerHTML='<b>Step '+g.step+' of '+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">Reward: '+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">Show what to tap</button><button id="tutSkip" class="sk">Skip guide</button></span>';
- $('tutGo').onclick=()=>guideShow(g);$('tutSkip').onclick=()=>{if(confirm('Skip the rest of the Field Guide? You can still learn everything by playing.'))NET.conn.invoke('SkipGuide').then(r=>{if(r.ok){applyMe(r.player);$('tutBar').hidden=true;toast('Field Guide skipped');}});};}
+ b.innerHTML='<b>'+esc(g.chapter)+' · '+g.step+'/'+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">Reward: '+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">'+esc(g.cta||'Show me')+'</button>'+(g.optional?'<button id="tutLater" class="sk">Do this later</button>':'')+'<button id="tutSkip" class="sk">End guide</button></span>';
+ $('tutGo').onclick=()=>guideShow(g);if($('tutLater'))$('tutLater').onclick=()=>NET.conn.invoke('SkipGuideStep').then(r=>{if(r.ok){applyMe(r.player);toast('Optional objective skipped; the system stays available');}else toast(r.error);});$('tutSkip').onclick=()=>{if(confirm('End the guided path? Every system will stay available, but the step-by-step prompts will stop.'))NET.conn.invoke('SkipGuide').then(r=>{if(r.ok){applyMe(r.player);$('tutBar').hidden=true;toast('Guided path ended');}});};}
 function guideShow(g){card.hidden=true;beginGuideAction(g);const seen=w=>NET.conn.invoke('GuideSeen',w).then(r=>{if(r.ok){applyMe(r.player);toast('Field Guide: chapter complete');}}).catch(()=>{});
  switch(g.show){
-  case 'sector':openSectorMap(NET.me.homeSector);setTimeout(()=>toast(g.do==='claim'?'Tap an empty parcel next to your base, then Claim':'Tap a parcel you own (gold border), then Build'),1200);break;
+  case 'sector':openSectorMap(NET.me.homeSector);setTimeout(()=>toast(g.do==='claim'?'Tap any empty parcel, then tap Claim':'Tap a parcel you own (gold border), then Build'),1200);break;
   case 'hq':sectorToHome();setTimeout(()=>{if(typeof hqCard==='function')hqCard();},1100);break;
   case 'research':if(NET.me.research&&NET.me.research.labs){openTech();}else{sectorToHome();setTimeout(()=>toast('Build a Research lab in your base first'),1100);}break;
-  case 'market':$('bMarket').click();setTimeout(()=>toast('Pick a resource, then place a buy or sell order'),600);break;
+  case 'market':$('bMarket').click();setTimeout(()=>{const grain=$('mkTabs').querySelector('button[data-r="grain"]');if(grain)grain.click();toast('Start with grain, then place one buy or sell order');},600);break;
   case 'contracts':$('bContracts').click();setTimeout(()=>toast('Pick a contract you have the goods for, then ship it'),600);break;
   case 'operation':OPS.start(g.do);break;
   case 'battle':NET.conn.invoke('OpenCamp').catch(()=>30).then(n=>{if(!n){toast('Every militia camp has just been cleared. They return soon, or raid a bot base in a sector instead');return;}guideBattleCoach=1;enterVisit(n);setTimeout(()=>openGuideCamp(0,n),900);});break;
@@ -3493,7 +3497,7 @@ function renderPlaceBar(){const p=HB.placing,b=$('placeBar');if(!p){b.hidden=tru
  $('plL').onclick=()=>nudgeScreen(-1,0);$('plR').onclick=()=>nudgeScreen(1,0);$('plU').onclick=()=>nudgeScreen(0,1);$('plD').onclick=()=>nudgeScreen(0,-1);
  $('plYes').onclick=()=>{if(!placeValid()){toast(homeKindOf(p.type).field?'That spot is blocked, in the fog, or across the wall':'That spot is blocked, or outside your walls (only fields, pumps and panels go outside)');return;}const call=p.moveId?NET.conn.invoke('MoveHome',p.moveId,p.x,p.y,p.rot):NET.conn.invoke('PlaceHome',p.type,p.x,p.y,p.rot);
    call.then(r=>{if(!r.ok){toast(r.error);return;}const tutBefore=NET.me.home.tutorial;cancelPlacing();applyMe(r.player);toast(p.moveId?k.name+' moved':k.name+' built'+(k.perHour?': +'+k.perHour+' '+k.res+'/h':''));
-    const ta=r.player.home.tutorial;if(tutBefore&&(!ta||ta.step>tutBefore.step))setTimeout(()=>toast('Step complete! Reward received: '+tutorialRewardText(tutBefore)),1600);}).catch(er=>toast(er.message));};}
+    const ta=r.player.home.tutorial;if(tutBefore&&(!ta||ta.step>tutBefore.step))setTimeout(()=>toast('Objective complete · '+tutorialRewardText(tutBefore)+(ta?' · Next: '+ta.title:'')),1600);}).catch(er=>toast(er.message));};}
 function cancelPlacing(){HB.placing=null;clearGuideTarget();if(HB.ghost){HB.group.remove(HB.ghost);HB.ghost=null;}$('placeBar').hidden=true;hint.hidden=false;}
 function homePointer(ray){const h=NET.me.home;
  if(HB.placing){const hit=ray.intersectObject(HB.ground,false)[0];if(!hit)return;const k=homeKindOf(HB.placing.type),[w,d]=homeFootprint(k,HB.placing.rot);HB.placing.x=Math.round(hit.point.x+h.grid/2-w/2);HB.placing.y=Math.round(hit.point.z+h.grid/2-d/2);updateGhost();return;}

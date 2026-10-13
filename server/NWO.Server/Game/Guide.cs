@@ -9,24 +9,25 @@ namespace NWO.Server.Game;
 /// </summary>
 public static class Guide
 {
-    public record Step(string Do, string Title, string Text, string Show, double Cash = 0, double Fuel = 0, double Gold = 0);
+    public record Step(string Do, string Title, string Text, string Show, string Chapter, string Cta, bool Optional = false, double Cash = 0, double Fuel = 0, double Gold = 0);
 
     public static readonly Step[] Steps =
     [
-        new("laststand", "Hold the line", "Your Barracks supplies the defenders. Survive a short attack on your new headquarters and destroy at least 12 raiders. Tap enemies to focus your turret.", "operation", Cash: 600, Fuel: 80),
-        new("claim", "Claim one plot", "A parcel is one buildable square. Your sector is the local map containing those parcels. Claim any empty square: one near your base is easy to watch over. Its resource tells you what it produces best.", "sector", Cash: 1500),
-        new("build", "Build on that plot", "Open a parcel with a gold border; that means it belongs to you. Choose Build, then pick a building. Matching the building to the parcel's resource gives better output.", "sector", Cash: 1000),
-        new("extraction", "Recover lost supplies", "Test your new territory under pressure. Move through the hazard zone, collect at least three supply crates, then reach the green extraction point before time runs out.", "operation", Cash: 400, Fuel: 120),
-        new("hq", "Upgrade your headquarters", "HQ means headquarters: the main building inside your base. Its level controls how many buildings you can run and which upgrades you can unlock.", "hq", Cash: 1000),
-        new("research", "Choose one upgrade", "Research unlocks permanent bonuses. Pick one affordable upgrade now; you can inspect the other branches later.", "research", Cash: 800),
-        new("order", "Make one market trade", "A buy order offers to purchase goods. A sell order offers goods you already own. Choose one resource and place either kind of order.", "market", Cash: 500),
-        new("ship", "Send one delivery", "A contract is a request for specific goods. Choose one you can afford. The legal road costs tax but is safer; smuggling avoids tax but can lose the cargo.", "contracts", Cash: 800),
-        new("battle", "Fight your first battle", "Command points are battle energy and refill during the fight. Pick a unit, then tap a lane to deploy it. The guide will open a militia camp and mark exactly what to press.", "battle", Fuel: 150),
-        new("leviathan", "Challenge the Leviathan", "The Leviathan is a recurring world boss. Move to dodge its attacks while your weapons fire automatically. Survive the assault and deal at least 450 damage; stronger headquarters unlock harder threat levels.", "operation", Cash: 800, Gold: 10),
-        new("alliance", "Join an alliance", "An alliance is a player team: members share a private chat and bank, can speed up each other's research, and cannot take each other's land. Join a team marked Space available, or create one with a 3–24 character name and a separate 2–5 letter/number tag.", "alliance", Cash: 800),
-        new("vote", "Cast one vote", "Players govern your nation. Elections choose the President; law votes set rules such as taxes and fines. Cast either kind of vote.", "politics", Cash: 500),
-        new("record", "Open your Caretaker record", "The Caretaker is the AI authority. Your record is its opinion of you. Helpful actions improve it; smuggling and attacks lower it and cause tougher inspections.", "record", Cash: 300),
-        new("sentinel", "Learn about the Sentinel", "The Sentinel is a shared boss battle for the whole server. Defeating it unlocks the Ashlands, a later region where nations can capture land.", "sentinel", Gold: 25),
+        // Kept for players who were already between the old home tutorial and Field Guide when this changed.
+        new("laststand", "Hold the line", "Your Barracks supplies the defenders. Survive the short attack and destroy at least 12 raiders.", "operation", "Survival", "Start Last Stand", Cash: 600, Fuel: 80),
+        new("claim", "Claim one plot", "A parcel is one buildable square. Claim any empty square; one near your base is easiest to watch. Its resource tells you what it produces best.", "sector", "Expansion", "Show an empty parcel", Cash: 1500),
+        new("build", "Use what the land offers", "Open your gold-bordered parcel and build the structure that matches its resource. Matching land and building produces more.", "sector", "Expansion", "Show my parcel", Cash: 1000),
+        new("extraction", "Recover lost supplies", "Move through the hazard zone, collect three supply crates, then reach the green extraction point.", "operation", "Expansion", "Start Extraction Run", Cash: 400, Fuel: 120),
+        new("hq", "Upgrade your headquarters", "Your HQ controls how many buildings the base can run. Upgrade it once to open the next stage of growth.", "hq", "Growth", "Show my HQ", Cash: 1000),
+        new("research", "Choose one upgrade", "Research gives a permanent bonus. Build a Research lab if needed, then choose one affordable technology.", "research", "Growth", "Choose research", Cash: 800),
+        new("order", "Make one grain trade", "The market lets players buy what they lack and sell surplus. Start with grain and place one buy or sell order.", "market", "Trade", "Open the grain market", Cash: 500),
+        new("ship", "Answer a sector need", "Contracts request specific goods. Choose one you can supply and use the safe main road for this first delivery.", "contracts", "Trade", "Show delivery contracts", Cash: 800),
+        new("battle", "Fight your first battle", "Command points refill during battle. Select the highlighted Gunner, then tap a lane to deploy it.", "battle", "Defence", "Find a militia camp", Fuel: 150),
+        new("leviathan", "Challenge the Leviathan", "Move to dodge one attack pattern at a time while your weapons fire automatically. Survive and deal at least 450 damage.", "operation", "World threats", "Start Leviathan Assault", Cash: 800, Gold: 10),
+        new("alliance", "Meet an alliance", "Alliances share chat, research help and defence. Join an open team, create one, or leave this optional objective for later.", "alliance", "Community", "Browse alliances", Optional: true, Cash: 800),
+        new("vote", "See how government works", "Elections choose the President and law votes set taxes and fines. Cast a vote now, or return when other players are active.", "politics", "Leadership", "Open Politics", Optional: true, Cash: 500),
+        new("record", "Read the Caretaker's record", "The Caretaker remembers what you do. Helpful actions improve your standing; smuggling and attacks make inspections tougher.", "record", "The Caretaker", "Open my record", Cash: 300),
+        new("sentinel", "See the shared objective", "The Sentinel is a server-wide boss. Defeating it together unlocks the Ashlands, where nations can capture land.", "sentinel", "The wider world", "Show the Sentinel", Gold: 25),
     ];
 
     /// <summary>The guide starts once the home base tutorial is done.</summary>
@@ -45,11 +46,18 @@ public static class Guide
         if (p.GuideStep >= Steps.Length) Caretaker.Remember(db, p, 2, "order", "Finished the Field Guide");
     }
 
+    public static bool SkipOptional(Player p)
+    {
+        if (!Active(p) || !Steps[p.GuideStep].Optional) return false;
+        p.GuideStep++;
+        return true;
+    }
+
     public static object? View(Player p)
     {
         if (!Active(p)) return null;
         var s = Steps[p.GuideStep];
         var reward = string.Join(", ", new[] { s.Cash > 0 ? $"+{s.Cash:N0} cash" : null, s.Fuel > 0 ? $"+{s.Fuel:N0} fuel" : null, s.Gold > 0 ? $"+{s.Gold:N0} gold" : null }.Where(x => x is not null));
-        return new { step = p.GuideStep + 1, of = Steps.Length, s.Do, s.Title, s.Text, s.Show, reward, titles = Steps.Select(x => x.Title) };
+        return new { step = p.GuideStep + 1, of = Steps.Length, s.Do, s.Title, s.Text, s.Show, s.Chapter, s.Cta, s.Optional, reward, titles = Steps.Select(x => x.Title) };
     }
 }
