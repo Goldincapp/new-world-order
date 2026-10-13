@@ -180,7 +180,15 @@ public static class HomeBase
             tiles = tiles.Select(t => new { t.Id, t.Type, t.X, t.Y, rotated = t.Rotated }),
             kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field }),
             expand = next < 0 ? null : new { size = Sizes[next], cash = ExpandCash[next], power = ExpandPower[next], needHq = next + 1 },
-            tutorial = p.TutorialStep < Tutorial.Length ? new { step = p.TutorialStep + 1, of = Tutorial.Length, Tutorial[p.TutorialStep].Do, Tutorial[p.TutorialStep].Text, reward = Tutorial[p.TutorialStep].Cash } : null,
+            tutorial = p.TutorialStep < Tutorial.Length ? new
+            {
+                step = p.TutorialStep + 1,
+                of = Tutorial.Length,
+                Tutorial[p.TutorialStep].Do,
+                Tutorial[p.TutorialStep].Text,
+                reward = Tutorial[p.TutorialStep].Cash,
+                rewardPower = Tutorial[p.TutorialStep].Power
+            } : null,
         };
     }
 
