@@ -76,9 +76,10 @@ if (Directory.Exists(clientDir))
         ServeUnknownFileTypes = true,
         OnPrepareResponse = context =>
         {
-            // Local phone playtests change frequently. Do not let Safari or an installed PWA
-            // keep an older tutorial/game script after the source files have changed.
-            if (!app.Environment.IsDevelopment()) return;
+            // Playtest code changes frequently. Do not let Safari or an installed PWA keep
+            // older HTML/scripts/styles; large images and 3D assets may still be cached.
+            var extension = Path.GetExtension(context.File.Name);
+            if (extension is not (".html" or ".js" or ".css")) return;
             context.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
             context.Context.Response.Headers.Pragma = "no-cache";
             context.Context.Response.Headers.Expires = "0";
