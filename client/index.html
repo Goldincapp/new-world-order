@@ -3239,11 +3239,11 @@ const MODEL_FILES={hq:'commercial/building-n',barracks:'industrial/building-t',w
  pine:'nature/tree_pineDefaultA',pine2:'nature/tree_pineRoundC',tree:'nature/tree_default',oak:'nature/tree_oak',rock:'nature/rock_largeA',rock2:'nature/rock_smallC',bush:'nature/plant_bushLarge',wheat:'nature/crops_wheatStageB',corn:'nature/crops_cornStageD',
  truckBox:'car/delivery',truckFlat:'car/truck-flat',tankL:'industrial/detail-tank-large',windmill:'industrial/windmill',wallN:'castle/wall-narrow',uTank:'units/tank',uTech:'units/technical',uHeli:'units/heli',uSoldier:'units/soldier',wallGate:'castle/wall-narrow-gate',towerBase:'castle/tower-square-base',towerTop:'castle/tower-square-top',towerMid:'castle/tower-square-mid-windows',pennant:'castle/flag-pennant',
  cityA:'commercial/building-a',cityC:'commercial/building-c',cityE:'commercial/building-e',cityH:'commercial/building-h',cityJ:'commercial/building-j',tower:'commercial/building-skyscraper-a'};
-if(WASTE)Object.assign(MODEL_FILES,{wRuinC:'waste/ruin-concrete',wRuinB:'waste/ruin-brick',wRubble:'waste/rubble',wCar:'waste/car-burnt',wTurret:'waste/turret'});
+if(WASTE)Object.assign(MODEL_FILES,{hq:'waste/base-hq',barracks:'waste/base-barracks',bWall:'waste/base-wall',bGate:'waste/base-gate',bTower:'waste/base-tower',pCrates:'waste/prop-crates',pBarrels:'waste/prop-barrels',pTyres:'waste/prop-tyres',pJunk:'waste/prop-junk',wRuinC:'waste/ruin-concrete',wRuinB:'waste/ruin-brick',wRubble:'waste/rubble',wCar:'waste/car-burnt',wTurret:'waste/turret'});
 const MODELS={};
 (async()=>{const L=new GLTFLoader();await Promise.all(Object.entries(MODEL_FILES).map(async([k,p])=>{try{const g=await L.loadAsync('models/'+p+'.glb');g.scene.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;}});g.scene.updateMatrixWorld(true);MODELS[k]=g.scene;}catch(e){console.warn('model failed',k,e);}}));
  window.__modelsReady=true;
- if(WASTE){['wRuinC','wRuinB','wRubble','wCar','wTurret'].forEach(k=>MODELS[k]&&MODELS[k].traverse(o=>{if(o.isMesh&&o.material&&o.material.map)o.material.color.setScalar(1.3);}));NAT.boards.forEach(B=>{B.lod=0;});}
+ if(WASTE){/* the wear and metal are baked into their colour; real metalness would need reflections the scene doesn't have, and goes near-black */Object.keys(MODEL_FILES).forEach(k=>{if(!String(MODEL_FILES[k]).startsWith('waste/')||!MODELS[k])return;MODELS[k].traverse(o=>{if(o.isMesh&&o.material&&o.material.map){o.material.metalness=0;o.material.color.setScalar(1.3);}});});NAT.boards.forEach(B=>{B.lod=0;});}
  if(NEWGFX){swapMapDecor();TRUCKS.forEach(modelTruck);const pt=window.__pterr;if(pt){const mp=DT.grass.clone();mp.wrapS=mp.wrapT=THREE.RepeatWrapping;mp.repeat.set(24,12);mp.needsUpdate=true;pt.material.map=mp;pt.material.color.setScalar(1.12);pt.material.needsUpdate=true;}}
  // Rebuild whatever is on screen so it picks the models up
  if(window.NET&&NET.me&&NET.me.home&&HB.built){HB.key=null;buildHomeBase();}
@@ -3291,6 +3291,17 @@ function homeModel2(type,w,h){const kd=homeKindOf(type),mk=HOME_MODEL[type];
  P=P0;return g;}
 /** Castle-kit walls: narrow wall segments along every side, an arched gate in the south wall, square towers on the corners. */
 function castlePiece(k,sx,sy,sz){const src=MODELS[k];const g=src.clone(true);const box=new THREE.Box3().setFromObject(g),cn=box.getCenter(new THREE.Vector3());g.position.set(-cn.x,-box.min.y,-cn.z);const w=new THREE.Group();w.add(g);w.scale.set(sx,sy,sz);return w;}
+/** Wasteland walls: concrete barrier segments with scrap tops and wire, a hazard gate, scaffold watchtowers; junk piled about. */
+function wasteWalls(lo,hi,c,Y){const G=HB.group;
+ const seg=(x,z,alongX,gate)=>{const p=model(gate&&MODELS.bGate?'bGate':'bWall',0.45,1.0);if(!p)return;if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
+ for(let k=lo;k<hi;k++){seg(k+0.5,lo-0.15,true);seg(lo-0.15,k+0.5,false);seg(hi+0.15,k+0.5,false);seg(k+0.5,hi+0.15,true,Math.abs(k+0.5-c)<1);}
+ [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z],i)=>{const t=model('bTower',0.95,0.95);if(!t)return;t.position.set(x,0.02,z);t.rotation.y=i*Math.PI/2;G.add(t);});
+ const props=['pCrates','pBarrels','pTyres','pJunk'].filter(k=>MODELS[k]);if(!props.length)return;
+ const drop=(x,z,k,s)=>{const p=model(k,s,s);if(!p)return;p.position.set(x,0.02,z);p.rotation.y=hash(x*3.1,z*1.7)*6.28;G.add(p);};
+ // a little clutter tucked into the inside corners, where nothing gets built
+ [[lo+0.55,lo+0.55],[hi-0.55,lo+0.55],[lo+0.55,hi-0.55],[hi-0.55,hi-0.55]].forEach(([x,z],i)=>drop(x,z,props[i%props.length],0.55));
+ // and junk scattered round the outside of the yard
+ const R=(hi-lo)/2+(Y||0)+1.1;for(let i=0;i<22;i++){const a=i/22*Math.PI*2+hash(i,5)*0.2,r=R+hash(i,9)*1.4;drop(c+Math.cos(a)*r,c+Math.sin(a)*r,props[Math.floor(hash(i,i*3)*props.length)],0.5+hash(i,2)*0.35);}}
 function castleWalls(lo,hi,c){const G=HB.group,WH=0.55,T=0.6;
  const seg=(x,z,alongX,gate)=>{const p=castlePiece(gate&&MODELS.wallGate?'wallGate':'wallN',T,WH,1);if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
  for(let k=lo;k<hi;k++){seg(k+0.5,lo-0.15,true);seg(lo-0.15,k+0.5,false);seg(hi+0.15,k+0.5,false);
@@ -3312,12 +3323,13 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  HB.group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(ypts),new THREE.LineBasicMaterial({color:0xe8e0cc,transparent:true,opacity:0.06})));
  [[ylo,ylo],[yhi,ylo],[ylo,yhi],[yhi,yhi]].forEach(([x,z])=>add(new THREE.CylinderGeometry(0.05,0.05,0.5,6),0x8a7a5a,x,0.25,z));
  const inner=add(new THREE.BoxGeometry(hi-lo,0.04,hi-lo),NEWGFX?(WASTE?0x8e8a80:0x7cbf45):0x4a6832,(lo+hi)/2,0.02,(lo+hi)/2,null,null,true);inner.receiveShadow=true;
+ if(WASTE){const t=DT.sand.clone();t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set((hi-lo)/4,(hi-lo)/4);t.needsUpdate=true;inner.material=new THREE.MeshLambertMaterial({color:0xb8b4a9,map:t});}
  const pts=[];for(let k=lo;k<=hi;k++){pts.push(V3(k,0.05,lo),V3(k,0.05,hi),V3(lo,0.05,k),V3(hi,0.05,k));}
  HB.group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xe8e0cc,transparent:true,opacity:0.12})));
  // walls with corner towers and a south gate
  const W=(x,z,w,d)=>add(new RoundedBoxGeometry(1,1,1,1,0.05),0x6f6a62,x,0.32,z).scale.set(w,0.6,d);
  const L=hi-lo,c=(lo+hi)/2;
- if(NEWGFX&&MODELS.wallN&&MODELS.towerBase){castleWalls(lo,hi,c);}else{
+ if(WASTE&&MODELS.bWall&&MODELS.bTower){wasteWalls(lo,hi,c,Y);}else if(NEWGFX&&MODELS.wallN&&MODELS.towerBase){castleWalls(lo,hi,c);}else{
  W(c,lo-0.15,L+0.3,0.3);W(lo-0.15,c,0.3,L+0.3);W(hi+0.15,c,0.3,L+0.3);W(lo+(L/2-1)/2-0.15,hi+0.15,L/2-1+0.3,0.3);W(hi-(L/2-1)/2+0.15,hi+0.15,L/2-1+0.3,0.3);
  [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z])=>{add(new THREE.CylinderGeometry(0.4,0.45,1.2,12),0x5f5a53,x,0.6,z);add(new THREE.ConeGeometry(0.5,0.5,12),0x7a2a22,x,1.45,z);const fl=add(new THREE.SphereGeometry(0.08,8,6),0xffa040,x,1.0,z,null,{emissive:0xff7a1a,emissiveIntensity:2},true);});}
  // fog over everything beyond the walls
