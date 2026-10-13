@@ -4,7 +4,9 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const modelPaths = {
   rover: 'models/car/truck-flat.glb',
   patrol: 'models/units/technical.glb',
-  fighter: 'models/units/heli.glb'
+  fighter: 'models/units/strike-skimmer.glb',
+  bike: 'models/units/raider-bike.glb',
+  boss: 'models/units/leviathan.glb'
 };
 
 function material(color, emissive = 0) {
@@ -85,7 +87,7 @@ function create(canvas) {
   const raid = raidEnvironment(); raid.visible = false; scene.add(raid); const raidFog = new THREE.FogExp2(0x030711, .052);
   const actors = new Map(), sources = { bike: bikeModel(), hq: bunkerModel(), boss: bossModel(), bolt: energyModel('bolt'), orb: energyModel('orb'), shard: energyModel('shard'), missile: energyModel('missile') }; let ready = false, width = 0, height = 0, mode = '';
   Object.values(sources).forEach(g => g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }));
-  Promise.all(Object.entries(modelPaths).map(async ([key, path]) => { try { const loaded = await new GLTFLoader().loadAsync(path); loaded.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); sources[key] = normalise(loaded.scene, 1); } catch (e) { console.warn('Operation 3D model failed', key, e); } })).then(() => { ready = true; });
+  Promise.all(Object.entries(modelPaths).map(async ([key, path]) => { try { const loaded = await new GLTFLoader().loadAsync(path); loaded.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const materials = Array.isArray(o.material) ? o.material : [o.material]; if (key === 'boss' || key === 'fighter') materials.forEach(m => { if (m && m.color && m.emissive) { m.emissive.copy(m.color).multiplyScalar(key === 'boss' ? .34 : .18); m.emissiveIntensity = key === 'boss' ? 1.7 : 1.15; } }); } }); sources[key] = normalise(loaded.scene, 1); } catch (e) { console.warn('Operation 3D model failed', key, e); } })).then(() => { ready = true; });
 
   function resize(w, h) { if (w === width && h === height) return; width = w; height = h; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); }
   function screenFloor(x, y) { const n = new THREE.Vector3(x * 2 - 1, 1 - y * 2, .25).unproject(camera), ray = n.sub(camera.position).normalize(), distance = -camera.position.y / ray.y; return camera.position.clone().add(ray.multiplyScalar(distance)); }
@@ -94,6 +96,8 @@ function create(canvas) {
     if (entry) { scene.remove(entry.group); actors.delete(a.id); }
     const src = sources[a.type]; if (!src) return null; const energy = ['bolt', 'orb', 'shard', 'missile'].includes(a.type), group = normalise(src, a.type === 'boss' ? 2.5 : a.type === 'hq' ? 1.35 : energy ? .42 : 1), wheels = [], rotors = [];
     group.traverse(o => { const name = (o.name || '').toLowerCase(); if (/wheel|tire|tyre/.test(name)) wheels.push(o); if (/rotor|propeller|blade/.test(name)) rotors.push(o); });
+    if (a.type === 'boss') { const fill = new THREE.PointLight(0xff9b78, 18, 7); fill.position.set(0, 2.2, 2.4); group.add(fill); }
+    if (a.type === 'fighter') { const fill = new THREE.PointLight(0x57cfff, 7, 3.5); fill.position.set(0, 1.1, 1); group.add(fill); }
     scene.add(group); entry = { group, type: a.type, target: new THREE.Vector3(), wheels, rotors }; actors.set(a.id, entry); return entry;
   }
   function update(nextMode, list, w, h, time) {
