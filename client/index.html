@@ -2477,7 +2477,7 @@ SHIPS.forEach(sh=>{if(!sh.mine&&sh.contraband&&Math.random()<0.6)sh.env=[300,600
 
 /* ---------- Online: account, saved progress, live chat ---------- */
 const API_BASE=(window.NWO_API||'').replace(/\/$/,'');
-const NET={token:null,me:null,conn:null,online:0,offline:false};
+const NET={token:null,me:null,conn:null,online:0,offline:false,replayingOnboarding:false};
 window.NET=NET;
 const OPS=window.NWOOperations({connection:()=>NET.conn,player:()=>NET.me||{},applyPlayer:p=>applyMe(p),toast:t=>toast(t),refreshGuide:()=>renderTutorial()});
 $('bOps').onclick=()=>OPS.menu();
@@ -2526,7 +2526,8 @@ async function recoverSignIn(){const code=$('suCode').value;$('suErr').textConte
 $('suRecGo').onclick=recoverSignIn;$('suCode').addEventListener('keydown',e=>{if(e.key==='Enter')recoverSignIn();});
 $('brSave').onclick=()=>{api('/me/recovery',{}).then(r=>{closeBrief();current=null;showCard('Your recovery code',NET.me.name+' · write it down or screenshot it',[['Code',r.code],['Use it','On a new phone or browser, tap "I already have a commander" and enter this code'],['Keep it secret','Anyone with this code can play as you'],['New code','Getting a new code makes this one stop working']],['Close']);}).catch(er=>toast(er.message));};$('suName').addEventListener('keydown',e=>{if(e.key==='Enter')signup();});
 $('suOffline').onclick=()=>{NET.offline=true;$('signup').hidden=true;openBrief();};
-function afterIntro(){if(NET.me||NET.offline||location.search.includes('shot'))openBrief();else openSignup();}
+function returnToFirstTutorialStep(){NET.replayingOnboarding=false;card.hidden=true;briefEl.hidden=true;hint.hidden=false;setMode('hq');const hm=home();flyTo(hm[0],hm[1]);setTimeout(()=>{renderTutorial();const t=NET.me&&NET.me.home&&NET.me.home.tutorial;if(t)toast('Tutorial restarted · Step 1: '+t.title);},350);}
+function afterIntro(){if(NET.replayingOnboarding&&NET.me){returnToFirstTutorialStep();return;}if(NET.me||NET.offline||location.search.includes('shot'))openBrief();else openSignup();}
 
 
 /* ---------- The live sector: owners and buildings from the server ---------- */
@@ -3644,8 +3645,8 @@ function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}
  if(a==='Practice solo'){practiceSiege(0);return true;}if(a==='Practice with 11 bots'){practiceSiege(11);return true;}
  if(a==='Not now'&&!SG.on){card.hidden=true;SG.dismissed=true;$('siegeBar').hidden=true;toast('Hidden until the next siege');return true;}if(a==='Stop practice'){card.hidden=true;NET.conn.invoke('StopPracticeSiege').then(e=>{if(e)toast(e);}).catch(er=>toast(er.message));return true;}if(a==='Join the siege'){card.hidden=true;joinSiege();return true;}
  if(!(mode==='hq'&&HB.built))return false;
- if(a==='Start over'){showCard('Start over?','Your home base, land and money go back to day one',[['You keep','Your name, nation and Caretaker record'],['You lose','Every building, every claimed parcel, all resources and open market orders'],['You get',fmt(NET.me.startCash||6000)+' cash: enough for every tutorial building']],['Yes, start over','Cancel']);return true;}
- if(a==='Yes, start over'){api('/me/restart',{}).then(r=>{card.hidden=true;applyMe(r.player);toast('A fresh start. Place your Barracks');const hm=home();flyTo(hm[0],hm[1]);}).catch(er=>toast(er.message));return true;}
+ if(a==='Start over'){showCard('Restart onboarding?','Reset your progress and play the guided opening again',[['Tutorial','Restarts at step 1 with every guide prompt available again'],['You keep','Your name, nation and Caretaker record'],['You lose','Every building, every claimed parcel, all resources and open market orders'],['You get',fmt(NET.me.startCash||6000)+' cash: enough for every tutorial building']],['Restart tutorial','Restart + replay story','Cancel']);return true;}
+ if(a==='Restart tutorial'||a==='Restart + replay story'){const replayStory=a==='Restart + replay story';api('/me/restart',{}).then(r=>{guideActing=null;clearGuideTarget();clearTutorialHqMark();HB.dragTip=0;applyMe(r.player);if(replayStory){card.hidden=true;NET.replayingOnboarding=true;openIntro();}else returnToFirstTutorialStep();}).catch(er=>toast(er.message));return true;}
  if(a==='Build'){homeBuildMenu();return true;}
  if(a.startsWith('Place ')){const k=NET.me.home.kinds.find(x=>a==='Place '+x.name);if(k){startPlacing(k.type);return true;}}
  if(a==='Move'&&HB.cardTile){startPlacing(HB.cardTile.type,HB.cardTile.id);return true;}
