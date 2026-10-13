@@ -3686,6 +3686,7 @@ if(h0==='build'){const c=cells['10,2'];current=c;sel.position.set(c.x,c.top+0.02
 if(h0==='resources'){resLayer.visible=true;const c=cells['7,4'];current=c;sel.position.set(c.x,c.top+0.02,c.z);sel.visible=true;parcelInfo(c);}if(h0==='chat')$('bAlliance').click();}}
 const clock=new THREE.Clock(),tmp=new THREE.Vector3();
 renderer.setAnimationLoop(()=>{const dt=Math.min(clock.getDelta(),0.05),t=clock.elapsedTime;
+ if(window.__operationsActive)return;
  screen.style.background=mode==='world'?'#0e1a2b':((mode!=='world')?'radial-gradient(ellipse at 50% 35%,#232a33 0%,#0c0f14 75%)':'#bfe6f5');shadowCatch.visible=mode!=='world';
  const dNow=camera.position.distanceTo(controls.target);
  if(mode==='county'){aimSpot(t);const seam=SEAM()&&NAT.root&&NAT.root.visible;if(seam)try{ctTick(t,dt);mapShips();}catch(e){if(!ctTick.warned){ctTick.warned=1;console.warn('drones',e);}}
