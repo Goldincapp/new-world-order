@@ -70,7 +70,20 @@ if (Directory.Exists(clientDir))
 {
     var files = new PhysicalFileProvider(clientDir);
     app.UseDefaultFiles(new DefaultFilesOptions { FileProvider = files });
-    app.UseStaticFiles(new StaticFileOptions { FileProvider = files, ServeUnknownFileTypes = true });
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = files,
+        ServeUnknownFileTypes = true,
+        OnPrepareResponse = context =>
+        {
+            // Local phone playtests change frequently. Do not let Safari or an installed PWA
+            // keep an older tutorial/game script after the source files have changed.
+            if (!app.Environment.IsDevelopment()) return;
+            context.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+            context.Context.Response.Headers.Pragma = "no-cache";
+            context.Context.Response.Headers.Expires = "0";
+        }
+    });
 }
 
 app.MapHub<GameHub>("/hub");
