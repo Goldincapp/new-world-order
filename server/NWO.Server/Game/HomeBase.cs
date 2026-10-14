@@ -45,7 +45,7 @@ public static class HomeBase
         new("laststand", "Defend your new base", "Raiders are attacking. In Last Stand, tap an enemy to aim your turret. Stop at least 12 raiders to win.", Cash: 600, Fuel: 80),
         new("crops", "Grow food", "A Crop plot makes grain. Grain is food for your settlers. Build one so your people have something to eat.", Cash: 250),
         new("solar", "Make power", "A Solar panel makes power. Your buildings and growing population need it. Build one now.", Cash: 250, Power: 20),
-        new("collect", "Collect your resources", "Buildings make resources over time. Tap Collect all to move what is ready into the resource numbers at the top of the screen.", Cash: 300),
+        new("collect", "Collect your resources", "Buildings make resources over time. Use the yellow collection button to move what is ready into the resource numbers at the top of the screen.", Cash: 300),
     ];
 
     public static (int lo, int hi) Bounds(Player p)
