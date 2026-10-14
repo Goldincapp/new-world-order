@@ -254,6 +254,7 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        await Task.Yield();
         while (!stop.IsCancellationRequested)
         {
             try { await Tick(); await caretaker.SendMemories(); await politics.Tick(); }

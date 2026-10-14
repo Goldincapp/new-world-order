@@ -170,6 +170,9 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        // Let Kestrel begin listening before any simulation work runs. Some database-backed
+        // services can otherwise make a grown local world look offline during startup.
+        await Task.Yield();
         var frame = 0;
         while (!stop.IsCancellationRequested)
         {
