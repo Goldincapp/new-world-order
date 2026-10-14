@@ -7,7 +7,7 @@ This is the intended teaching order for a new player. The design rule is one imm
 1. **Headquarters and Cash** — The HQ is the centre of the base, controls building capacity, and opens the build menu. Cash is the everyday construction currency.
 2. **Barracks** — Build inside the walls. It unlocks training and defence.
 3. **Defenders** — Train five gunners and explain that trained losses must be replaced.
-4. **Last Stand and Fuel** — Respond to a story-driven perimeter alarm. Teach focus targeting and introduce Fuel as the military-action resource.
+4. **Last Stand and Fuel** — Respond to a story-driven perimeter alarm. Teach focus targeting and introduce Fuel as the military-action resource. Explicitly label this first mission as a safe NPC training event: it costs no Fuel, cannot take land, and cannot permanently kill the new squad.
 5. **Population** — Explain jobs, tax income, housing capacity, hourly food use, and hourly power use.
 6. **Grain** — Build a Crop plot because settlers consume Grain every hour.
 7. **Power** — Build a Solar panel because population, HQ upgrades, and expansion require Power.
@@ -18,7 +18,7 @@ Only the resource counters needed in the current lesson are prominent during thi
 ## 2. Expansion: local Sector
 
 1. **Home versus Sector** — Home is the private base; Sector is the surrounding parcel map.
-2. **Claiming land** — Automatically open a nearby unclaimed parcel. Explain ownership borders, claim cost, and the parcel's natural resource.
+2. **Claiming land** — Highlight Sector and require the player to navigate there. Then open a nearby unclaimed parcel and explain ownership borders, claim cost, and the parcel's natural resource.
 3. **Parcel buildings** — Explain the nine-slot limit and land suitability:
    - Housing: population capacity and tax income.
    - Farm: Grain; strongest on fertile land.
@@ -44,9 +44,10 @@ Only the resource counters needed in the current lesson are prominent during thi
 
 ## 5. Defence and repeatable action
 
-1. **Battle economy** — Fuel starts actions; Command Points refill inside the battle.
-2. **Unit roles** — Gunners counter air, Launchers break armour/walls, Tanks push ground forces, Helicopters move quickly, and Strikes are limited support.
-3. **Leviathan** — Introduce repeatable world-threat competition and Gold as a scarce late-game currency.
+1. **Player raids** — Distinguish them from the safe Last Stand. A player spends Fuel to attack; the server runs the defender's towers, doctrine, free garrison, and trained defenders even if that player is offline. A successful attacker can steal Cash, Oil, and Grain. A three-star result may capture one non-home parcel, but never the Headquarters or home parcel. Trained losses are persistent. Newcomer and post-defeat shields provide recovery time.
+2. **Battle economy** — Fuel starts actions; Command Points refill inside the battle.
+3. **Unit roles** — Gunners counter air, Launchers break armour/walls, Tanks push ground forces, Helicopters move quickly, and Strikes are limited support.
+4. **Leviathan** — Introduce repeatable world-threat competition and Gold as a scarce late-game currency.
 
 ## 6. Community and government
 
