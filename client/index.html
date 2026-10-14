@@ -76,6 +76,9 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .card{position:absolute;left:5cqw;top:calc(19.5*var(--u));width:min(40cqw,300px);background:#fbf7ee;color:#2a2a2a;border-radius:calc(3*var(--u));padding:calc(2.6*var(--u)) calc(3*var(--u));box-shadow:0 calc(1.4*var(--u)) 0 rgba(0,0,0,.18);font-family:'IBM Plex Sans',system-ui,sans-serif;font-weight:400;font-size:clamp(7px,calc(3.1*var(--u)),13px);line-height:1.45}
 .card.build-menu{top:calc(9*var(--u));bottom:calc(13*var(--u));max-height:none;overflow-y:auto;overscroll-behavior:contain}
 .card.build-menu .acts button{flex:1 1 42%}
+.card.parcel-menu{top:calc(9*var(--u));bottom:calc(13*var(--u));max-height:none;overflow-y:auto;overscroll-behavior:contain}
+.card.parcel-menu .acts{position:sticky;bottom:0;z-index:2;background:#fbf7ee;padding:.7em 0 .2em}
+.card.parcel-menu .acts button{flex:1 1 42%}
 .card h3{font:800 1.35em/1.05 'Baloo 2','Trebuchet MS',sans-serif;margin:0;color:#1d1d1d}
 .card .sub{color:#6b665c;margin:.2em 0 .8em}
 .card .row{display:flex;justify-content:space-between;gap:1em;border-top:1px dashed #d9d1bf;padding:.35em 0}
@@ -130,6 +133,7 @@ html.app .screen{border-radius:0}
  html.app .hint{left:3cqw;max-width:70cqw;bottom:calc(25*var(--u) + env(safe-area-inset-bottom))}
  html.app .card{left:3cqw;right:3cqw;width:auto;top:auto;bottom:calc(17*var(--u) + env(safe-area-inset-bottom));max-height:64%;overflow-y:auto;font-size:clamp(11px,3.4cqw,14px)}
  html.app .card.build-menu{top:calc(25*var(--u) + env(safe-area-inset-top));bottom:calc(14*var(--u) + env(safe-area-inset-bottom));max-height:none;overscroll-behavior:contain}
+ html.app .card.parcel-menu{top:calc(25*var(--u) + env(safe-area-inset-top));bottom:calc(14*var(--u) + env(safe-area-inset-bottom));max-height:none;overscroll-behavior:contain}
  html.app .chat{left:3cqw;right:3cqw;width:auto;top:calc(31*var(--u));bottom:calc(17*var(--u));font-size:clamp(11px,3.3cqw,14px)}
  html.app .sheet{inset:calc(10*var(--u)) 2.5cqw calc(4*var(--u)) 2.5cqw!important;grid-template-columns:1fr!important;overflow-y:auto;font-size:clamp(11px,3.4cqw,14px);padding:calc(5*var(--u)) calc(4.5*var(--u))}
  html.app .sheet.signup{inset:auto 3cqw 30% 3cqw!important}
@@ -377,6 +381,7 @@ html.waste .card,html.waste .sheet,html.waste .techEl{
  color:var(--w-ink);border:1px solid var(--w-line);border-top:6px solid transparent;border-image:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 calc(1.2*var(--u)) 0 rgba(0,0,0,.4);border-radius:calc(1.2*var(--u))}
 html.waste .card h3,html.waste .sheet h2,html.waste .sheet h3,html.waste .techEl h2,html.waste .techEl h3,html.waste .sblock h4,html.waste .sheet h4,html.waste .techEl h4{font-family:'Saira Stencil One','Impact',sans-serif;font-weight:400;color:var(--w-haz);letter-spacing:.03em}
 html.waste .card .sub,html.waste .card small,html.waste .sheet small,html.waste .note,html.waste .formHelp,html.waste .m{color:var(--w-mute)}
+html.waste .card.parcel-menu .acts{background:var(--w-plate2)}
 html.waste :is(.brow,.law .t,.tile .v,.trend,.ptab td,.bitem,.goal,.pol2 .law2 .t,.sblock h4){color:var(--w-ink)}
 html.waste :is(.card button,.sheet button,.allyEl button){background:var(--w-well);color:var(--w-ink);border:1px solid var(--w-line)}
 html.waste :is(.card button,.sheet button):hover{background:#3f3c33}
@@ -1299,7 +1304,7 @@ depot:['Fuel depot','Level 5',[['Fuel reserve','6,200'],['Feeds','Armies and equ
 motor:['Motor pool','Level 4',[['Tanker trucks','2 (1 on route)'],['Shipment slots','3'],['Road bonus','+10% speed']],['Dispatch']],
 empty:['Empty lot','Build slot',[['Options','Factory, hospital, embassy'],['','Bank or power plant'],['More lots','at HQ level 13']],['Build']]};
 function showCard(title,sub,rows,btns,slotsUsed){
- card.classList.remove('build-menu');
+ card.classList.remove('build-menu','parcel-menu');
  let h='<button class="x" aria-label="Close"><span class="ms">close</span></button><h3>'+title+'</h3><p class="sub">'+sub+'</p>';
  if(slotsUsed!==undefined){h+='<div class="slots" aria-label="Building slots">'+Array.from({length:9},(_,i)=>'<b class="'+(i<slotsUsed?'on':'')+'"></b>').join('')+'</div>';}
  h+=rows.map(r=>'<div class="row"><span>'+r[0]+'</span><span>'+r[1]+'</span></div>').join('');
@@ -1307,13 +1312,14 @@ function showCard(title,sub,rows,btns,slotsUsed){
  card.innerHTML=h;card.hidden=false;hint.hidden=true;
  card.querySelector('.x').onclick=back;
  card.querySelectorAll('[data-a]').forEach(b=>b.onclick=e=>act(b.dataset.a,e));}
+function showParcelCard(title,sub,rows,btns,slotsUsed){showCard(title,sub,rows,btns,slotsUsed);card.classList.add('parcel-menu');}
 let current=null;
 function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
  if(a==='All terms'){glossaryCard();return;}
  if(a==='Back to this screen'){guideCard(mode);return;}
  if(window.NET&&!NET.me&&(a==='Try again'||a==='Play offline')){card.hidden=true;if(a==='Try again')comeBack();else{NET.offline=true;openBrief();}return;}if(window.NET&&NET.me&&homeAct(a))return;
  if(mode==='visit'&&visitAct(a))return;
- if(a==='Collect'&&window.NET&&NET.me){api('/collect',{}).then(r=>{applyMe(r.player);const c2=r.collected;floatText('+'+fmtN(c2.oil)+' oil',x-10,y-30);toast('Collected '+fmtN(c2.cash)+' cash, '+fmtN(c2.oil)+' oil, '+fmtN(c2.grain)+' grain');}).catch(er=>toast(er.message));return;}
+ if((a==='Collect'||a==='Collect all production')&&window.NET&&NET.me){api('/collect',{}).then(r=>{applyMe(r.player);const c2=r.collected,got=['cash','oil','grain','fuel','power'].filter(k=>Math.round(c2[k]||0)>0).map(k=>fmtN(c2[k])+' '+k);floatText(got.length?'+'+got[0]:'Production banked',x-10,y-30);toast(got.length?'Collected '+got.join(', '):'Nothing ready yet — production grows over time');}).catch(er=>toast(er.message));return;}
  if(a==='Collect'){const c=current;let k='oil',n=24;if(c&&c.feat==='refinery'){k='fuel';n=10;}else if(c&&c.feat!=='pump'){n=6;}
   res[k]+=n;renderRes([k]);floatText('+'+n+' '+k,x-10,y-30);toast('Collected '+n+' '+k);return;}
  if(a==='Open market'){openMarket();return;}
@@ -1355,6 +1361,8 @@ function act(a,e){const r=screen.getBoundingClientRect(),x=e.clientX-r.left,y=e.
  toast(a+' is not in this demo yet');}
 const claimed=new Set(),surveyed=new Set();
 const RESNAME={oil:'Oil',grain:'Grain',timber:'Timber',ore:'Iron ore',stone:'Stone',housing:'Housing and tax',salvage:'Salvage',none:'Nothing yet (barren)'};
+const PARCEL_YIELD={oil:{unit:'oil',rate:24,color:0xff9a55},grain:{unit:'grain',rate:18,color:0xf2cd4b},timber:{unit:'cash',rate:30,color:0x7fe08a},ore:{unit:'cash',rate:45,color:0xbfc8d6},stone:{unit:'cash',rate:35,color:0xd9dde3},housing:{unit:'cash',rate:40,color:0x8fc9ff},salvage:{unit:'cash',rate:35,color:0xc69cff},none:{unit:'cash',rate:10,color:0xd6c8a4}};
+function parcelYield(resource){return PARCEL_YIELD[resource]||PARCEL_YIELD.none;}
 function resOf(c){const sp=window.NET&&NET.sector&&NET.sector[c.i+','+c.j];let t={sand:'Oil',field:'Grain',high:c.lvl===3?'Stone':'Iron ore',grass:hash(c.i*1.7,c.j*0.9)<0.5?'Timber':'Grain',town:'Housing and tax',path:'None (road)'}[c.type]||'None';if(sp)t=RESNAME[sp.res]||t;else if(c.res)t=RESNAME[c.res]||t;
  const rich=1+Math.floor(hash(c.i*1.3,c.j*2.1)*5),seam=['Oil','Grain','Timber','Stone','Iron ore'].includes(t)&&hash(c.j*3.3,c.i*0.7)>0.9;
  const unit={Oil:'oil',Grain:'grain',Timber:'timber',Stone:'stone','Iron ore':'ore','Housing and tax':'cash'}[t]||'';
@@ -1372,24 +1380,27 @@ function parcelInfo(c){const id='#'+(48000+c.i*14+c.j);
   if(sp0&&sp0.home){if(sp0.owner===NET.me.name){showCard('Your home base','Parcel '+id+' · Sector '+NET.big.sector,[['HQ','Level '+NET.me.home.hqLevel],['Buildings',NET.me.home.tiles.length+' of '+NET.me.home.maxBuildings],['Base size',(NET.me.home.hi-NET.me.home.lo)+'x'+(NET.me.home.hi-NET.me.home.lo)]],['Enter home base']);return;}
    const neighbour=!sp0.bot&&NET.me.homeSector===NET.big.sector,canHit=sp0.bot||neighbour;NET.raidTarget=canHit?sp0.owner:null;
    showCard(sp0.owner+'\'s base','Parcel '+id+' · home base',[['Owner',sp0.owner+(sp0.bot?' · AI settler':' · settler')]].concat(sp0.bot?[['Nature',{ally:'Ally: joins your sieges on the Caretaker outpost and will accept an alliance invite',raider:'Raider: attacks the bases of settlers in this sector. Keep defenders trained',trader:'Trader: keeps to itself and grows. Might accept an alliance invite'}[sp0.style]||'Settler']]:[]).concat([['Land here',RESNAME[sp0.res]||sp0.res]]).concat(canHit?[['Attack it','Beat their defences to take up to 20% of their cash, oil and grain. With 3 stars you also conquer one of their parcels in this sector. Costs 40 fuel'+(neighbour?' and some standing':'')]]:[['Attack it','Only settlers who live in Sector '+NET.big.sector+' can attack bases here']]),canHit?['Attack · 40 fuel','Close']:['Close']);return;}
-  if(sp0&&sp0.owner&&sp0.owner!==NET.me.name){const r2=NET.big.region===2;showCard(sp0.owner+'\'s land','Parcel '+id+' · Sector '+NET.big.sector,[['Owner',sp0.owner],['Land here',RESNAME[sp0.res]||sp0.res],['Built',sp0.b&&sp0.b.length?sp0.b.join(', '):'Nothing yet']].concat(r2?[['Seize it','Beat their garrison and it is yours. Costs 80 fuel. Half the buildings are wrecked in the fighting']]:[['Take it',NET.me.homeSector===NET.big.sector?'Beat '+sp0.owner+'\'s home base with 3 stars to conquer a parcel of theirs':'Only their neighbours in this sector can fight them for it']]),r2?['Seize · 80 fuel','Close']:['Close']);return;}}
+  if(sp0&&sp0.owner&&sp0.owner!==NET.me.name){const r2=NET.big.region===2;showParcelCard(sp0.owner+'\'s land','Parcel '+id+' · Sector '+NET.big.sector,[['Owner',sp0.owner],['Land here',RESNAME[sp0.res]||sp0.res],['Built',sp0.b&&sp0.b.length?sp0.b.join(', '):'Nothing yet']].concat(r2?[['Seize it','Beat their garrison and it is yours. Costs 80 fuel. Half the buildings are wrecked in the fighting']]:[['Take it',NET.me.homeSector===NET.big.sector?'Beat '+sp0.owner+'\'s home base with 3 stars to conquer a parcel of theirs':'Only their neighbours in this sector can fight them for it']]),r2?['Seize · 80 fuel','Close']:['Close']);return;}}
  if(!(window.NET&&NET.big)&&c.i===6&&c.j===12){slots.forEach(s=>s.material=slotUsed);showCard('Your HQ parcel','Parcel '+id+' · home base',[['Owner','You'],['Headquarters','Level 12'],['Walls','Level 6'],['Garrison','40 troops']],['Enter home base','Upgrade'],9);return;}
  const k=c.i+','+c.j,owner=ownerOf(c),R=resOf(c),sv=surveyed.has(k)||owner==='You';
  const canBase=window.NET&&NET.big&&NET.big.region!==2&&!OPEN_CLOSED.has(NET.big.sector)&&!c.outside&&!/^(wa|pa|ha|xx|xs)$/.test(c.code||'');
- let btns;if(owner==='You')btns=['Collect','Build'].concat(canBase?['Move my base here']:[]);else if(owner==='Not claimable')btns=['Close'];else if(owner==='Blue Party (rival)')btns=['Scout','Attack'];else if(owner==='For sale')btns=sv?['Buy · 1,250 gold']:['Buy · 1,250 gold','Survey · 50 cash'];else if(owner==='Crown land')btns=sv?['Petition to buy']:['Petition to buy','Survey · 50 cash'];else{const cl='Claim · '+fmt(window.NET&&NET.big&&NET.big.claimCost||2500)+' cash';btns=(sv?[cl]:[cl,'Survey · 50 cash']).concat(canBase?['Move my base here']:[]);}
+ let btns;if(owner==='You')btns=[window.NET&&NET.me?'Collect all production':'Collect','Build'].concat(canBase?['Move my base here']:[]);else if(owner==='Not claimable')btns=['Close'];else if(owner==='Blue Party (rival)')btns=['Scout','Attack'];else if(owner==='For sale')btns=sv?['Buy · 1,250 gold']:['Buy · 1,250 gold','Survey · 50 cash'];else if(owner==='Crown land')btns=sv?['Petition to buy']:['Petition to buy','Survey · 50 cash'];else{const cl='Claim · '+fmt(window.NET&&NET.big&&NET.big.claimCost||2500)+' cash';btns=(sv?[cl]:[cl,'Survey · 50 cash']).concat(canBase?['Move my base here']:[]);}
  const fmap={pump:['Pumpjack Lv 4',2],tanks:['Oil tanks Lv 3',4],tank:['Oil tank Lv 2',2],refinery:['Refinery Lv 5',6],house:['Housing Lv 2',2],capitol:['Capitol Lv 10',6],windmill:['Windmill Lv 2',2],tree:['Forest',0],pine:['Forest',0],rock:['Rock outcrop',0]};
  let f=fmap[c.feat]||['Nothing built',0];if(c.type==='field')f=['Wheat field Lv 3',4];if(c.type==='path')f=['Road Lv 1',1];
- const bl=built[k]||[],used=f[1]+bl.reduce((a,t)=>a+BLD[t].slots,0);if(bl.length)f=[[f[0]==='Nothing built'?'':f[0],...bl.map(t=>BLD[t].name)].filter(Boolean).join(', '),used];
+ const bl=built[k]||[];let used=f[1]+bl.reduce((a,t)=>a+BLD[t].slots,0);if(bl.length)f=[[f[0]==='Nothing built'?'':f[0],...bl.map(t=>BLD[t].name)].filter(Boolean).join(', '),used];
+ const liveParcel=window.NET&&NET.big&&NET.sector[k];if(liveParcel&&liveParcel.owner===NET.me.name){const catalog=Object.fromEntries((NET.me.buildings||[]).map(b=>[b.type,b])),types=Array.from(liveParcel.b||[]);used=types.reduce((n,t)=>n+(catalog[t]&&catalog[t].slots||0),0);f=[types.length?types.map(t=>catalog[t]&&catalog[t].name||t).join(', '):'Nothing built',used];}
  slots.forEach((s,n)=>s.material=n<used?slotUsed:slotMat);
  const sub=c.code?({ba:'Barren wasteland',sc:'Scrubland',gr:'Grassland',fe:'Fertile farmland',ro:'Rocky ground',oi:'Oil sands',ru:'Old ruins'}[c.code]||'Land'):c.type==='sand'?'Desert · oil field':c.type==='high'?'Highland':c.type==='field'?'Farmland':c.type==='town'?'Town':'Grassland';
  const est=Math.max(1,Math.min(5,R.rich+(hash(c.i,c.j)>0.5?1:-1)));
- const rows=[['Owner',owner],['Resource',R.t],['Richness',sv?stars(R.rich):'About '+stars(est)],['Output',R.unit?(sv?'':'~')+R.out+' '+R.unit+' / hour':'None'],['Deposit',R.unit==='cash'?'Renews with population':(R.unit?(sv?'About '+R.days+' days of mining':'Unknown until surveyed'):'None')]];
- if(sv&&R.seam)rows.push(['Bonus','Gold seam: +50% output']);
- rows.push(['Built',f[0]+' · '+used+'/9 slots']);
- showCard('Parcel '+id,sub,rows,btns,used);}
+ const liveMine=window.NET&&NET.big&&owner==='You',land=liveMine&&NET.sector[k],y=land&&parcelYield(land.res);
+ const rows=liveMine?[['Owner','You'],['Land resource',RESNAME[land.res]||land.res],['Automatic output','+'+y.rate+' '+y.unit+' per hour before bonuses and Caretaker tithe'],['How collection works','All your land saves into one production balance. Collect it here or from the resource bar'],['Built',f[0]+' · '+used+'/9 slots']]:[['Owner',owner],['Resource',R.t],['Richness',sv?stars(R.rich):'About '+stars(est)],['Output',R.unit?(sv?'':'~')+R.out+' '+R.unit+' / hour':'None'],['Deposit',R.unit==='cash'?'Renews with population':(R.unit?(sv?'About '+R.days+' days of mining':'Unknown until surveyed'):'None')]];
+ if(!liveMine&&sv&&R.seam)rows.push(['Bonus','Gold seam: +50% output']);
+ if(!liveMine)rows.push(['Built',f[0]+' · '+used+'/9 slots']);
+ showParcelCard('Parcel '+id,sub,rows,btns,used);}
 function markOwned(c){const g=new THREE.Group();g.position.set(c.x,c.top,c.z);county.add(g);
  [[0,-0.48,0.98,0.06],[0,0.48,0.98,0.06],[-0.48,0,0.06,0.98],[0.48,0,0.06,0.98]].forEach(q=>{const m=new THREE.Mesh(boxG,gold);m.position.set(q[0],0.03,q[1]);m.scale.set(q[2],0.05,q[3]);g.add(m);});
- add(new THREE.CylinderGeometry(0.015,0.015,0.5,6),0x333333,0.35,0.25,-0.35,g);flags.push(add(new THREE.BoxGeometry(0.2,0.12,0.01),0xffc933,0.45,0.43,-0.35,g,{emissive:0xffc933,emissiveIntensity:0.3}));}
+ add(new THREE.CylinderGeometry(0.015,0.015,0.5,6),0x333333,0.35,0.25,-0.35,g);flags.push(add(new THREE.BoxGeometry(0.2,0.12,0.01),0xffc933,0.45,0.43,-0.35,g,{emissive:0xffc933,emissiveIntensity:0.3}));
+ const sp=window.NET&&NET.sector&&NET.sector[c.i+','+c.j];if(sp&&NET.me&&sp.owner===NET.me.name&&!sp.home){const y=parcelYield(sp.res),hex='#'+y.color.toString(16).padStart(6,'0');add(new THREE.OctahedronGeometry(.11,0),y.color,0,.76,0,g,{emissive:y.color,emissiveIntensity:.9},true);label('+'+y.rate+' '+y.unit+'/h',hex,0,1.01,0,.48,g,true);}}
 /** Move the home base to this parcel: anywhere open in Aurelia, once a day. The buildings come along. */
 function moveBaseHere(c){const own=ownerOf(c)==='You',cost=5000+(own?0:(NET.big.claimCost||2500));
  if(!confirm('Move your home base to Sector '+NET.big.sector+'?\n\nCosts '+fmt(cost)+' cash'+(own?'':' (including claiming this parcel)')+' and 50 fuel. Your buildings come with you; your old home parcel stays yours as land. You can move once a day.'))return;
@@ -1410,7 +1421,7 @@ const BLD={housing:{name:'Housing',cost:800,slots:2,jobs:0,eff:'+150 homes, more
  sawmill:{name:'Sawmill',cost:700,slots:2,jobs:35,eff:'Timber, +35 jobs',need:'Timber'},mine:{name:'Mine',cost:900,slots:2,jobs:45,eff:'Ore and stone, +45 jobs',need:['Iron ore','Stone']},warehouse:{name:'Warehouse',cost:1000,slots:3,jobs:20,eff:'+5,000 storage, +20 jobs'},
  solar:{name:'Solar farm',cost:900,slots:2,jobs:5,eff:'Power'},wind:{name:'Wind turbine',cost:1400,slots:2,jobs:5,eff:'Power'}};
 let buildTarget=null;
-function freeSlots(c){const k=c.i+','+c.j,fm={pump:2,tanks:4,tank:2,refinery:6,house:2,capitol:6,windmill:2};let u=(c.type==='field'?4:(fm[c.feat]||0));(built[k]||[]).forEach(t=>u+=BLD[t].slots);return 9-u;}
+function freeSlots(c){const k=c.i+','+c.j;if(window.NET&&NET.big&&NET.sector[k]&&NET.me&&NET.me.buildings){const catalog=Object.fromEntries(NET.me.buildings.map(b=>[b.type,b])),u=Array.from(NET.sector[k].b||[]).reduce((n,t)=>n+(catalog[t]&&catalog[t].slots||0),0);return 9-u;}const fm={pump:2,tanks:4,tank:2,refinery:6,house:2,capitol:6,windmill:2};let u=(c.type==='field'?4:(fm[c.feat]||0));(built[k]||[]).forEach(t=>u+=BLD[t].slots);return 9-u;}
 function openBuild(c){if(!c)return;buildTarget=c;const R=resOf(c),free=freeSlots(c);
  if(window.NET&&NET.me&&NET.me.buildings&&c.code){const WORD={cash:'cash',oil:'oil',grain:'grain',fuel:'fuel'},suit=(t)=>((NET.me.suitability[t]||{})[c.code]??1);
   const WORD2=Object.assign({power:'power'},WORD);
