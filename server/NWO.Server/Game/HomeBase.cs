@@ -41,11 +41,11 @@ public static class HomeBase
     public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
     public static readonly Step[] Tutorial =
     [
-        new("barracks", "Give survivors shelter", "Build one Barracks. It houses defenders and unlocks your first field operation.", Cash: 300),
-        new("laststand", "Hold the line", "Raiders found the settlement. Survive the short attack and destroy at least 12 of them; tap a target to focus your turret.", Cash: 600, Fuel: 80),
-        new("crops", "Feed your settlers", "Build one Crop plot. Grain is food: when it runs out, people leave.", Cash: 250),
-        new("solar", "Keep the lights on", "Build one Solar panel. Power runs the settlement and lets its population grow.", Cash: 250, Power: 20),
-        new("collect", "Bank your production", "Your base is now producing. Collect everything it has made and see the resource counters increase.", Cash: 300),
+        new("barracks", "Build your first building", "A Barracks is where defenders train. Build one now. It also unlocks your first action mission.", Cash: 300),
+        new("laststand", "Defend your new base", "Raiders are attacking. In Last Stand, tap an enemy to aim your turret. Stop at least 12 raiders to win.", Cash: 600, Fuel: 80),
+        new("crops", "Grow food", "A Crop plot makes grain. Grain is food for your settlers. Build one so your people have something to eat.", Cash: 250),
+        new("solar", "Make power", "A Solar panel makes power. Your buildings and growing population need it. Build one now.", Cash: 250, Power: 20),
+        new("collect", "Collect your resources", "Buildings make resources over time. Tap Collect all to move what is ready into the resource numbers at the top of the screen.", Cash: 300),
     ];
 
     public static (int lo, int hi) Bounds(Player p)

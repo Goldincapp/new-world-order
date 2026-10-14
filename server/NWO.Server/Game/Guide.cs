@@ -14,20 +14,20 @@ public static class Guide
     public static readonly Step[] Steps =
     [
         // Kept for players who were already between the old home tutorial and Field Guide when this changed.
-        new("laststand", "Hold the line", "Your Barracks supplies the defenders. Survive the short attack and destroy at least 12 raiders.", "operation", "Survival", "Start Last Stand", Cash: 600, Fuel: 80),
-        new("claim", "Claim one plot", "A parcel is one buildable square. Claim any empty square; one near your base is easiest to watch. Its resource tells you what it produces best.", "sector", "Expansion", "Show an empty parcel", Cash: 1500),
-        new("build", "Use what the land offers", "Open your gold-bordered parcel and build the structure that matches its resource. Matching land and building produces more.", "sector", "Expansion", "Show my parcel", Cash: 1000),
-        new("extraction", "Recover lost supplies", "Move through the hazard zone, collect three supply crates, then reach the green extraction point.", "operation", "Expansion", "Start Extraction Run", Cash: 400, Fuel: 120),
-        new("hq", "Upgrade your headquarters", "Your HQ controls how many buildings the base can run. Upgrade it once to open the next stage of growth.", "hq", "Growth", "Show my HQ", Cash: 1000),
-        new("research", "Choose one upgrade", "Research gives a permanent bonus. Build a Research lab if needed, then choose one affordable technology.", "research", "Growth", "Choose research", Cash: 800),
-        new("order", "Make one grain trade", "The market lets players buy what they lack and sell surplus. Start with grain and place one buy or sell order.", "market", "Trade", "Open the grain market", Cash: 500),
-        new("ship", "Answer a sector need", "Contracts request specific goods. Choose one you can supply and use the safe main road for this first delivery.", "contracts", "Trade", "Show delivery contracts", Cash: 800),
-        new("battle", "Fight your first battle", "Command points refill during battle. Select the highlighted Gunner, then tap a lane to deploy it.", "battle", "Defence", "Find a militia camp", Fuel: 150),
-        new("leviathan", "Challenge the Leviathan", "Move to dodge one attack pattern at a time while your weapons fire automatically. Survive and deal at least 450 damage.", "operation", "World threats", "Start Leviathan Assault", Cash: 800, Gold: 10),
-        new("alliance", "Meet an alliance", "Alliances share chat, research help and defence. Join an open team, create one, or leave this optional objective for later.", "alliance", "Community", "Browse alliances", Optional: true, Cash: 800),
-        new("vote", "See how government works", "Elections choose the President and law votes set taxes and fines. Cast a vote now, or return when other players are active.", "politics", "Leadership", "Open Politics", Optional: true, Cash: 500),
-        new("record", "Read the Caretaker's record", "The Caretaker remembers what you do. Helpful actions improve your standing; smuggling and attacks make inspections tougher.", "record", "The Caretaker", "Open my record", Cash: 300),
-        new("sentinel", "See the shared objective", "The Sentinel is a server-wide boss. Defeating it together unlocks the Ashlands, where nations can capture land.", "sentinel", "The wider world", "Show the Sentinel", Gold: 25),
+        new("laststand", "Defend your new base", "Last Stand is a short action mission. Tap enemies to aim your turret, and stop at least 12 raiders.", "operation", "Survival", "Start Last Stand", Cash: 600, Fuel: 80),
+        new("claim", "Claim one parcel", "A parcel is one square of land. Tap any empty parcel near your base, then tap Claim. The resource icon shows what that land makes best.", "sector", "Expansion", "Show an empty parcel", Cash: 1500),
+        new("build", "Build on your land", "A gold border marks a parcel you own. Tap one, then build the structure that matches its resource. A good match makes more resources.", "sector", "Expansion", "Show my parcel", Cash: 1000),
+        new("extraction", "Recover three supply crates", "Use the movement controls to dodge hazards. Drive over three crates, then reach the green exit to finish.", "operation", "Expansion", "Start Extraction Run", Cash: 400, Fuel: 120),
+        new("hq", "Upgrade your Headquarters", "Headquarters, or HQ, controls how many buildings your base can use. Open it and tap Upgrade HQ once.", "hq", "Growth", "Show my HQ", Cash: 1000),
+        new("research", "Choose one permanent upgrade", "Research gives your settlement a permanent bonus. Build a Research lab if you need one, then choose any upgrade you can afford.", "research", "Growth", "Choose research", Cash: 800),
+        new("order", "Try the player market", "The market lets players trade resources. A buy order offers to buy; a sell order offers to sell. Open grain and place either kind.", "market", "Trade", "Open the grain market", Cash: 500),
+        new("ship", "Complete one delivery job", "Contracts are jobs that ask for resources and pay a reward. Pick one you can fill, then use the safer main road for your first delivery.", "contracts", "Trade", "Show delivery contracts", Cash: 800),
+        new("battle", "Deploy your first unit", "Command points are the energy used to deploy units, and they refill during battle. Tap the highlighted Gunner, then tap a lane.", "battle", "Defence", "Find a militia camp", Fuel: 150),
+        new("leviathan", "Survive the Leviathan", "Your weapons fire by themselves. Move to dodge each attack, stay alive, and deal at least 450 damage.", "operation", "World threats", "Start Leviathan Assault", Cash: 800, Gold: 10),
+        new("alliance", "Meet an alliance", "An alliance is a team of players who share chat, research help, and defence. Join one, create one, or skip this optional step for now.", "alliance", "Community", "Browse alliances", Optional: true, Cash: 800),
+        new("vote", "Cast one vote", "Players elect a President and vote on rules such as taxes and fines. Cast any available vote, or skip this optional step when nobody else is online.", "politics", "Leadership", "Open Politics", Optional: true, Cash: 500),
+        new("record", "Check your Caretaker standing", "Standing is how much the Caretaker trusts you. Helpful actions raise it. Smuggling and attacking neighbours lower it. Open your record now.", "record", "The Caretaker", "Open my record", Cash: 300),
+        new("sentinel", "See the shared boss", "The Sentinel is a boss the whole server fights together. Defeating it opens the Ashlands, a dangerous region with valuable land.", "sentinel", "The wider world", "Show the Sentinel", Gold: 25),
     ];
 
     /// <summary>The guide starts once the home base tutorial is done.</summary>
