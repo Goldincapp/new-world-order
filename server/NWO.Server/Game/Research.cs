@@ -53,6 +53,23 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
 
     static int Labs(Player p) => p.HomeTiles.Count(t => t.Type == "research");
 
+    /// <summary>
+    /// The guided opening promises a real choice, so it must never strand a new player behind
+    /// specialization pricing. Pick the first unowned technology whose tree prerequisites are met
+    /// and make that one explicit starter recommendation free for this chapter only.
+    /// </summary>
+    static Tech? GuidedChoice(Player p)
+    {
+        if (!Guide.Active(p) || Guide.Steps[p.GuideStep].Do != "research") return null;
+        var owned = Owned(p);
+        return Techs.FirstOrDefault(t =>
+        {
+            if (owned.Contains(t.Id) || p.HqLevel < t.Tier) return false;
+            var prev = Techs.FirstOrDefault(x => x.Branch == t.Branch && x.Tier == t.Tier - 1);
+            return prev is null || owned.Contains(prev.Id);
+        });
+    }
+
     /// <summary>What this tech costs this player: dearer for every tech they own outside its branch.</summary>
     public static (double cash, double gold, TimeSpan time) Cost(Player p, Tech t)
     {
@@ -61,6 +78,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         var mult = 1 + OffPathCost * offPath;
         var labs = Math.Max(1, Labs(p));
         var minutes = t.Minutes / (1 + 0.25 * (labs - 1)) / Speed;
+        if (GuidedChoice(p)?.Id == t.Id) return (0, 0, TimeSpan.FromMinutes(minutes));
         return (Math.Round(t.Cash * mult / 10) * 10, Math.Round(t.Gold * mult), TimeSpan.FromMinutes(minutes));
     }
 
@@ -83,10 +101,12 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
     public static object View(Player p)
     {
         var owned = Owned(p);
+        var recommended = GuidedChoice(p);
         return new
         {
             labs = Labs(p),
             current = p.ResearchId is null ? null : new { id = p.ResearchId, name = Find(p.ResearchId)?.Name, endsAt = p.ResearchEndsAt },
+            recommended = recommended is null ? null : new { recommended.Id, recommended.Name, recommended.Effect },
             branches = Branches.Select(b => new
             {
                 b.id, b.name, b.blurb, owned = Techs.Count(t => t.Branch == b.id && owned.Contains(t.Id)),
@@ -97,7 +117,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
                     return new
                     {
                         t.Id, t.Tier, t.Name, t.Effect, cash, gold, minutes = Math.Round(time.TotalMinutes, 1),
-                        done = owned.Contains(t.Id), researching = p.ResearchId == t.Id, can = blocked is null, blocked,
+                        done = owned.Contains(t.Id), researching = p.ResearchId == t.Id, recommended = recommended?.Id == t.Id, can = blocked is null, blocked,
                     };
                 }),
             }),
