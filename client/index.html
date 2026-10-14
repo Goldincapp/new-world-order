@@ -108,6 +108,11 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .sheet .acts{display:flex;gap:.6em;margin-top:.6em}
 .sheet .x{position:absolute;right:calc(2*var(--u));top:calc(1.6*var(--u));background:transparent}
 .sheet .note{color:#6b665c;font-size:.92em;margin:.4em 0 0}
+.market-guide{position:relative;z-index:50;margin:0 0 .8em;padding:.85em 1em;border:2px solid #d4a72c;border-radius:1.2em;background:#fff8dd;box-shadow:0 .5em 1.4em rgba(70,50,10,.16)}
+.market-guide strong{display:block;font:800 1.08em/1.15 'Baloo 2','Trebuchet MS',sans-serif;color:#4b3910}
+.market-guide p{margin:.35em 0;color:#4d4739;line-height:1.35}
+.market-guide ul{margin:.45em 0 .7em;padding-left:1.2em;color:#4d4739;line-height:1.35}
+.market-guide button{width:100%;background:var(--gold)!important;color:var(--gold-ink)!important}
 
 .toast{position:absolute;left:50%;top:calc(1.4*var(--u));z-index:5;transform:translate(-50%,-6px);background:#121a22;border:1px solid var(--hud-line);color:#fff;font:700 clamp(7px,calc(3.4*var(--u)),14px)/1 'Baloo 2','Trebuchet MS',sans-serif;padding:calc(1.4*var(--u)) calc(2.6*var(--u)) calc(1.1*var(--u));border-radius:99px;opacity:0;transition:opacity .2s,transform .2s;pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -498,6 +503,13 @@ html.waste .ucard{background:#24231e;border-color:var(--w-line)}
             <p class="note">Sell 100 and watch the price drop. Other players trade too, so it keeps moving.</p><div class="recent" id="recent"></div>
           </div>
           <div>
+            <div class="market-guide" id="mkGuide" hidden>
+              <strong>How the grain market works</strong>
+              <p>Players set the prices here. The large number is the most recent price for one unit of grain.</p>
+              <ul><li><b>Sell orders</b> are grain offered for sale. The lowest price is the best deal for a buyer.</li><li><b>Buy orders</b> are offers to purchase grain. The highest price is the best deal for a seller.</li></ul>
+              <p><b>Buy</b> spends cash and adds grain. <b>Sell</b> trades grain you own for cash. Grain feeds your settlement as it grows.</p>
+              <button id="mkGuideNext" type="button">Got it — show me how to trade</button>
+            </div>
             <div class="book">
               <span class="h">Sell orders</span><span class="h">Buy orders</span>
               <span class="sell" id="s1">42.40 · 800</span><span class="buy" id="b1">41.90 · 1,200</span>
@@ -1564,8 +1576,8 @@ function drawMarket(){const lo=Math.min(...hist)-0.3,hi=Math.max(...hist)+0.3;
  $('s1').textContent=(price+0.3).toFixed(2)+' · 800';$('s2').textContent=(price+0.65).toFixed(2)+' · 350';$('s3').textContent=(price+0.9).toFixed(2)+' · 2,000';
  $('b1').textContent=(price-0.2).toFixed(2)+' · 1,200';$('b2').textContent=(price-0.6).toFixed(2)+' · 600';$('b3').textContent=(price-0.9).toFixed(2)+' · 900';}
 function openMarket(){card.hidden=true;hint.hidden=true;chatEl.hidden=true;polEl.hidden=true;sheet.hidden=false;$('tMarket').setAttribute('aria-pressed','true');if(window.NET&&NET.conn&&NET.mk&&NET.mk.books.oil){refreshMine(NET.mk.res);renderMk();}else drawMarket();}
-function closeMarket(silent){sheet.hidden=true;$('tMarket').setAttribute('aria-pressed','false');if(!silent)hint.hidden=false;}
-$('bMarket').onclick=openMarket;$('tMarket').onclick=()=>{if(sheet.hidden)openMarket();else closeMarket();};$('sx').onclick=()=>closeMarket();
+function closeMarket(silent){sheet.hidden=true;$('tMarket').setAttribute('aria-pressed','false');if(!silent)hint.hidden=false;if(!silent&&marketGuideActive()){guideActing=null;$('mkGuide').hidden=true;clearGuideTarget();renderTutorial();}}
+$('bMarket').onclick=()=>{openMarket();if(marketGuideActive())setTimeout(promptMarketGrain,120);};$('tMarket').onclick=()=>{if(sheet.hidden)openMarket();else closeMarket();};$('sx').onclick=()=>closeMarket();
 $('mSell').onclick=e=>{if(NET.conn&&NET.mk.books.oil){mkOrder('sell',false);return;}if(res.oil<100){toast('Not enough oil. Collect from your wells first');return;}
  const gross=price*100,tax=gross*0.02;res.oil-=100;res.cash+=gross-tax;price=Math.max(30,price-0.35);hist.push(price);hist.shift();renderRes(['oil','cash']);drawMarket();
  const r=screen.getBoundingClientRect();floatText('+'+fmt(gross-tax),e.clientX-r.left-20,e.clientY-r.top-34);toast('Sold 100 oil · '+fmt(tax)+' tax to the treasury');};
@@ -2621,7 +2633,7 @@ function renderMk(){const b=NET.mk.books[NET.mk.res];if(!b)return;const R=NET.mk
  $('mkMine').querySelectorAll('[data-cancel]').forEach(x=>x.onclick=()=>mkDo(NET.conn.invoke('CancelOrder',+x.dataset.cancel)));}
 function mkDo(p){return p.then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast(r.summary);refreshMine(NET.mk.res);}).catch(er=>toast(er.message));}
 function mkOrder(side,priced){const q=Math.floor(+$('mkQty').value||100),px=priced?+$('mkPx').value:null;if(priced&&!(px>0)){toast('Enter a price');return;}mkDo(NET.conn.invoke('PlaceOrder',NET.mk.res,side,priced?q:100,px));}
-$('mkTabs').querySelectorAll('button').forEach(x=>x.onclick=()=>{NET.mk.res=x.dataset.r;$('mkPx').value='';refreshMine(x.dataset.r);});
+$('mkTabs').querySelectorAll('button').forEach(x=>x.onclick=()=>{NET.mk.res=x.dataset.r;$('mkPx').value='';refreshMine(x.dataset.r);if(x.dataset.r==='grain'&&marketGuideActive())setTimeout(showMarketGuide,120);});
 $('mkPostSell').onclick=()=>mkOrder('sell',true);$('mkPostBuy').onclick=()=>mkOrder('buy',true);
 
 
@@ -3484,6 +3496,10 @@ function pointGuideAt(el,label,dim=true){clearGuideTarget();if(!el)return;guideT
 function pointGuideButton(root,text,label){const b=[...root.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(text));pointGuideAt(b,label);return b;}
 window.addEventListener('resize',()=>requestAnimationFrame(positionGuideSpotlight));card.addEventListener('scroll',()=>requestAnimationFrame(positionGuideSpotlight),{passive:true});
 function beginGuideAction(g){guideActing=g.do;$('tutBar').hidden=true;clearGuideTarget();}
+function marketGuideActive(){return guideActing==='order'&&NET.me&&NET.me.guide&&NET.me.guide.do==='order';}
+function promptMarketGrain(tries=0){if(!marketGuideActive()||sheet.hidden)return;const grain=$('mkTabs').querySelector('button[data-r="grain"]');if(grain&&!$('mkTabs').hidden){pointGuideAt(grain,'2. Tap Grain');toast('Step 2: choose Grain to see its price and player orders.');return;}if(tries<12)setTimeout(()=>promptMarketGrain(tries+1),180);}
+function showMarketGuide(){if(!marketGuideActive())return;clearGuideTarget();const coach=$('mkGuide');coach.hidden=false;coach.scrollIntoView({block:'center',inline:'nearest'});pointGuideAt(coach,null,false);toast('This screen shows what players will pay and what sellers are asking.');}
+$('mkGuideNext').onclick=()=>{if(!marketGuideActive())return;$('mkGuide').hidden=true;pointGuideAt($('mBuy'),'3. Buy 100 grain');toast('Step 3: Buy spends cash and immediately adds 100 grain. Tap the highlighted button.');};
 function openGuideCamp(tries=0,n){const camp=vPicks.find(x=>x.userData&&x.userData.vk&&x.userData.vk.kind==='camp'&&!x.userData.vk.done);if(camp){vCard(camp.userData.vk,camp);setTimeout(()=>{pointGuideButton(card,'Attack camp','1. Tap Attack camp');toast('Step 1: tap the highlighted Attack camp button');},100);return;}if(tries<10)setTimeout(()=>openGuideCamp(tries+1,n),350);else toast('Look for the red Caretaker militia camp in Sector '+(n||30)+' and tap it');}
 function battleCoachStart(){if(!guideBattleCoach)return;guideBattleCoach=1;$('btip').textContent='Step 2: Command points are energy. Tap the highlighted Gunner (costs 2).';battleCoachRender();}
 function battleCoachRender(){if(!guideBattleCoach||mode!=='battle')return;if(guideBattleCoach===1){const gunner=$('ucards').querySelector('button[data-t="gunner"]');pointGuideAt(gunner,'2. Tap Gunner');}else if(guideBattleCoach===2)pointGuideAt(renderer.domElement);}
@@ -3498,7 +3514,7 @@ function battleCoachDeployed(){if(!guideBattleCoach)return;guideBattleCoach=0;cl
  function promptResearchHq(){clearGuideTarget();clearTutorialHqMark();if(mode!=='hq'||!researchGuideActive())return;setTimeout(()=>{if(mode!=='hq'||!researchGuideActive())return;if(HB.guideRing)HB.guideRing.visible=true;toast('1 of 5: tap the Headquarters inside the glowing gold ring');},100);}
 $('tutHq').onclick=()=>hqCard();
  function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');
- const g=NET.me&&NET.me.guide,activeDo=t?t.do:g&&g.do;if(guideActing&&activeDo!==guideActing){guideActing=null;clearGuideTarget();}
+ const g=NET.me&&NET.me.guide,activeDo=t?t.do:g&&g.do;if(guideActing&&activeDo!==guideActing){guideActing=null;$('mkGuide').hidden=true;clearGuideTarget();}
  if(!t&&g&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){if(guideActing===g.do){b.hidden=true;return;}renderGuide(g);return;}
  if(t&&guideActing===t.do){b.hidden=true;return;}
  if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){if(guideTargetEl===b)clearGuideTarget();b.hidden=true;return;}
@@ -3513,7 +3529,7 @@ function guideShow(g){card.hidden=true;beginGuideAction(g);const seen=w=>NET.con
   case 'sector':openSectorMap(NET.me.homeSector);setTimeout(()=>toast(g.do==='claim'?'Tap any empty parcel, then tap Claim':'Tap a parcel you own (gold border), then Build'),1200);break;
   case 'hq':sectorToHome();setTimeout(()=>{if(typeof hqCard==='function')hqCard();},1100);break;
   case 'research':if(NET.me.research&&NET.me.research.labs){openTech();}else if(mode==='hq'){promptResearchHq();}else{sectorToHome();setTimeout(promptResearchHq,1100);}break;
-  case 'market':$('bMarket').click();setTimeout(()=>{const grain=$('mkTabs').querySelector('button[data-r="grain"]');if(grain)grain.click();toast('Start with grain, then place one buy or sell order');},600);break;
+  case 'market':closeMarket(true);$('mkGuide').hidden=true;pointGuideAt($('bMarket'),'1. Tap Market');toast('Step 1: tap the highlighted Market button.');break;
   case 'contracts':$('bContracts').click();setTimeout(()=>toast('Pick a contract you have the goods for, then ship it'),600);break;
   case 'operation':OPS.start(g.do);break;
   case 'battle':NET.conn.invoke('OpenCamp').catch(()=>30).then(n=>{if(!n){toast('Every militia camp has just been cleared. They return soon, or raid a bot base in a sector instead');return;}guideBattleCoach=1;enterVisit(n);setTimeout(()=>openGuideCamp(0,n),900);});break;
