@@ -74,6 +74,8 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .hint:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
 .card{position:absolute;left:5cqw;top:calc(19.5*var(--u));width:min(40cqw,300px);background:#fbf7ee;color:#2a2a2a;border-radius:calc(3*var(--u));padding:calc(2.6*var(--u)) calc(3*var(--u));box-shadow:0 calc(1.4*var(--u)) 0 rgba(0,0,0,.18);font-family:'IBM Plex Sans',system-ui,sans-serif;font-weight:400;font-size:clamp(7px,calc(3.1*var(--u)),13px);line-height:1.45}
+.card.build-menu{top:calc(9*var(--u));bottom:calc(13*var(--u));max-height:none;overflow-y:auto;overscroll-behavior:contain}
+.card.build-menu .acts button{flex:1 1 42%}
 .card h3{font:800 1.35em/1.05 'Baloo 2','Trebuchet MS',sans-serif;margin:0;color:#1d1d1d}
 .card .sub{color:#6b665c;margin:.2em 0 .8em}
 .card .row{display:flex;justify-content:space-between;gap:1em;border-top:1px dashed #d9d1bf;padding:.35em 0}
@@ -126,7 +128,8 @@ html.app .screen{border-radius:0}
  html.app .nav{left:2cqw;right:2cqw;transform:none;justify-content:space-between;bottom:calc(2*var(--u) + env(safe-area-inset-bottom))}
  html.app .nav button{flex:1;padding-left:0;padding-right:0}
  html.app .hint{left:3cqw;max-width:70cqw;bottom:calc(25*var(--u) + env(safe-area-inset-bottom))}
- html.app .card{left:3cqw;right:3cqw;width:auto;top:auto;bottom:calc(17*var(--u) + env(safe-area-inset-bottom));max-height:58%;overflow-y:auto;font-size:clamp(11px,3.4cqw,14px)}
+ html.app .card{left:3cqw;right:3cqw;width:auto;top:auto;bottom:calc(17*var(--u) + env(safe-area-inset-bottom));max-height:64%;overflow-y:auto;font-size:clamp(11px,3.4cqw,14px)}
+ html.app .card.build-menu{top:calc(25*var(--u) + env(safe-area-inset-top));bottom:calc(14*var(--u) + env(safe-area-inset-bottom));max-height:none;overscroll-behavior:contain}
  html.app .chat{left:3cqw;right:3cqw;width:auto;top:calc(31*var(--u));bottom:calc(17*var(--u));font-size:clamp(11px,3.3cqw,14px)}
  html.app .sheet{inset:calc(10*var(--u)) 2.5cqw calc(4*var(--u)) 2.5cqw!important;grid-template-columns:1fr!important;overflow-y:auto;font-size:clamp(11px,3.4cqw,14px);padding:calc(5*var(--u)) calc(4.5*var(--u))}
  html.app .sheet.signup{inset:auto 3cqw 30% 3cqw!important}
@@ -330,8 +333,9 @@ html.app .screen{border-radius:0}
 .onboarding-focus:not(.show-fuel) #pFuel,.onboarding-focus:not(.show-grain) #pGrain,.onboarding-focus:not(.show-power) #pPower{display:none!important}
 .onboarding-focus .side>.hbtn:not(#bOps):not(#bFeedback){display:none!important}
 .onboarding-focus .nav button:not(#nHome){display:none!important}
-.guide-target{outline:calc(.45*var(--u)) solid #ffd34d!important;outline-offset:calc(.35*var(--u));box-shadow:0 0 calc(4*var(--u)) rgba(255,211,77,.9)!important;animation:guidePulse 1s ease-in-out infinite}
-button.guide-target{position:relative;z-index:50!important}
+.guide-shield{position:absolute;z-index:45;background:rgba(2,5,9,.84);pointer-events:none;transition:left .16s ease,top .16s ease,width .16s ease,height .16s ease}
+.guide-target{z-index:50!important;outline:calc(.45*var(--u)) solid #ffd34d!important;outline-offset:calc(.35*var(--u));box-shadow:0 0 calc(4*var(--u)) rgba(255,211,77,.9)!important;animation:guidePulse 1s ease-in-out infinite}
+button.guide-target{position:relative}
 button.guide-target::after{content:attr(data-guide-label);position:absolute;left:50%;bottom:calc(100% + 1.1em);transform:translateX(-50%);background:#ffd34d;color:#17120a;border-radius:99px;padding:.45em .8em;font:800 .8rem/1 system-ui,sans-serif;white-space:nowrap;pointer-events:none;box-shadow:0 .25em 1em rgba(0,0,0,.45)}
 @keyframes guidePulse{50%{outline-color:#fff2a8;box-shadow:0 0 calc(7*var(--u)) rgba(255,211,77,1)}}
 #placeBar .nud{display:inline-flex;gap:.2em}#placeBar .nud button{min-width:2.4em}
@@ -1284,6 +1288,7 @@ depot:['Fuel depot','Level 5',[['Fuel reserve','6,200'],['Feeds','Armies and equ
 motor:['Motor pool','Level 4',[['Tanker trucks','2 (1 on route)'],['Shipment slots','3'],['Road bonus','+10% speed']],['Dispatch']],
 empty:['Empty lot','Build slot',[['Options','Factory, hospital, embassy'],['','Bank or power plant'],['More lots','at HQ level 13']],['Build']]};
 function showCard(title,sub,rows,btns,slotsUsed){
+ card.classList.remove('build-menu');
  let h='<button class="x" aria-label="Close"><span class="ms">close</span></button><h3>'+title+'</h3><p class="sub">'+sub+'</p>';
  if(slotsUsed!==undefined){h+='<div class="slots" aria-label="Building slots">'+Array.from({length:9},(_,i)=>'<b class="'+(i<slotsUsed?'on':'')+'"></b>').join('')+'</div>';}
  h+=rows.map(r=>'<div class="row"><span>'+r[0]+'</span><span>'+r[1]+'</span></div>').join('');
@@ -3428,10 +3433,13 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  P=P0;renderTutorial();}
 /* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
 setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden&&$('allyEl').hidden)?'':'hidden';},400);
- let guideActing=null,guideTargetEl=null,guideBattleCoach=0;
-function clearGuideTarget(){if(guideTargetEl){guideTargetEl.classList.remove('guide-target');guideTargetEl.removeAttribute('data-guide-label');guideTargetEl=null;}}
-function pointGuideAt(el,label){clearGuideTarget();if(!el)return;guideTargetEl=el;el.classList.add('guide-target');if(el.tagName==='BUTTON')el.dataset.guideLabel=label||'Tap this';}
+ let guideActing=null,guideTargetEl=null,guideBattleCoach=0,guideShields=[];
+function ensureGuideShields(){if(guideShields.length)return;for(let i=0;i<4;i++){const d=document.createElement('div');d.className='guide-shield';d.hidden=true;screen.appendChild(d);guideShields.push(d);}}
+function positionGuideSpotlight(){if(!guideTargetEl||guideTargetEl.hidden||!guideTargetEl.isConnected)return;ensureGuideShields();const sr=screen.getBoundingClientRect(),r=guideTargetEl.getBoundingClientRect(),pad=Math.max(5,sr.width*.008),x=Math.max(0,r.left-sr.left-pad),y=Math.max(0,r.top-sr.top-pad),right=Math.min(sr.width,r.right-sr.left+pad),bottom=Math.min(sr.height,r.bottom-sr.top+pad),w=Math.max(0,right-x),h=Math.max(0,bottom-y),set=(d,l,t,ww,hh)=>{d.hidden=false;d.style.left=l+'px';d.style.top=t+'px';d.style.width=Math.max(0,ww)+'px';d.style.height=Math.max(0,hh)+'px';};set(guideShields[0],0,0,sr.width,y);set(guideShields[1],0,y,x,h);set(guideShields[2],right,y,sr.width-right,h);set(guideShields[3],0,bottom,sr.width,sr.height-bottom);}
+function clearGuideTarget(){if(guideTargetEl){guideTargetEl.classList.remove('guide-target');guideTargetEl.removeAttribute('data-guide-label');guideTargetEl.removeAttribute('aria-current');guideTargetEl=null;}guideShields.forEach(d=>d.hidden=true);}
+function pointGuideAt(el,label){clearGuideTarget();if(!el)return;guideTargetEl=el;if(card.contains(el))el.scrollIntoView({block:'center',inline:'nearest'});el.classList.add('guide-target');el.setAttribute('aria-current','step');if(el.tagName==='BUTTON'&&label)el.dataset.guideLabel=label;requestAnimationFrame(positionGuideSpotlight);}
 function pointGuideButton(root,text,label){const b=[...root.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(text));pointGuideAt(b,label);return b;}
+window.addEventListener('resize',()=>requestAnimationFrame(positionGuideSpotlight));card.addEventListener('scroll',()=>requestAnimationFrame(positionGuideSpotlight),{passive:true});
 function beginGuideAction(g){guideActing=g.do;$('tutBar').hidden=true;clearGuideTarget();}
 function openGuideCamp(tries=0,n){const camp=vPicks.find(x=>x.userData&&x.userData.vk&&x.userData.vk.kind==='camp'&&!x.userData.vk.done);if(camp){vCard(camp.userData.vk,camp);setTimeout(()=>{pointGuideButton(card,'Attack camp','1. Tap Attack camp');toast('Step 1: tap the highlighted Attack camp button');},100);return;}if(tries<10)setTimeout(()=>openGuideCamp(tries+1,n),350);else toast('Look for the red Caretaker militia camp in Sector '+(n||30)+' and tap it');}
 function battleCoachStart(){if(!guideBattleCoach)return;guideBattleCoach=1;$('btip').textContent='Step 2: Command points are energy. Tap the highlighted Gunner (costs 2).';battleCoachRender();}
@@ -3439,15 +3447,15 @@ function battleCoachRender(){if(!guideBattleCoach||mode!=='battle')return;if(gui
 function battleCoachUnitSelected(){if(!guideBattleCoach||guideBattleCoach>2)return;guideBattleCoach=2;$('btip').textContent='Step 3: tap one of the three tan lanes to deploy your unit.';pointGuideAt(renderer.domElement);}
 function battleCoachDeployed(){if(!guideBattleCoach)return;guideBattleCoach=0;clearGuideTarget();$('btip').textContent='Good. Command points refill over time. Deploy more units and defeat the red force.';toast('Unit deployed. Keep spending command points as they refill.');}
  function tutorialRewardText(t){const rewards=[];if(t&&t.reward)rewards.push('+'+fmt(t.reward)+' cash');if(t&&t.rewardFuel)rewards.push('+'+fmt(t.rewardFuel)+' fuel');if(t&&t.rewardPower)rewards.push('+'+fmt(t.rewardPower)+' power');return rewards.join(' and ')||'No reward';}
- function clearTutorialHqMark(){$('tutHq').hidden=true;}
- function promptTutorialHq(t){clearGuideTarget();clearTutorialHqMark();if(mode!=='hq')return;setTimeout(()=>{if(mode!=='hq'||!NET.me.home.tutorial||NET.me.home.tutorial.do!==t.do)return;$('tutHq').hidden=false;toast('1 of 5: tap the highlighted Headquarters in the center of your base');},100);}
+ function clearTutorialHqMark(){const p=$('tutHq');p.hidden=true;if(guideTargetEl===p)clearGuideTarget();}
+ function promptTutorialHq(t){clearGuideTarget();clearTutorialHqMark();if(mode!=='hq')return;setTimeout(()=>{if(mode!=='hq'||!NET.me.home.tutorial||NET.me.home.tutorial.do!==t.do)return;const p=$('tutHq');p.hidden=false;pointGuideAt(p);toast('1 of 5: tap the highlighted Headquarters in the center of your base');},100);}
 $('tutHq').onclick=()=>hqCard();
  function renderTutorial(){const t=NET.me&&NET.me.home&&NET.me.home.tutorial,b=$('tutBar');
  const g=NET.me&&NET.me.guide,activeDo=t?t.do:g&&g.do;if(guideActing&&activeDo!==guideActing){guideActing=null;clearGuideTarget();}
  if(!t&&g&&briefEl.hidden&&mode!=='battle'&&mode!=='siege'){if(guideActing===g.do){b.hidden=true;return;}renderGuide(g);return;}
- if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){b.hidden=true;return;}
+ if(!t||!briefEl.hidden||(mode!=='hq'&&t.do!=='expand'&&mode!=='county')){if(guideTargetEl===b)clearGuideTarget();b.hidden=true;return;}
   b.hidden=false;b.classList.remove('guide');const k=homeKindOf(t.do),op=t.do==='laststand';b.innerHTML='<b>'+esc(t.chapter)+' · '+t.step+'/'+t.of+'</b><span><strong>'+esc(t.title)+'.</strong> '+esc(t.text)+' <span class="reward">Reward: '+esc(tutorialRewardText(t))+'</span></span>'+(k?'<button id="tutGo">Build '+esc(k.name)+'</button>':op?'<button id="tutGo">Start Last Stand</button>':t.do==='collect'?'<button id="tutGo">Show Collect all</button>':'');
-  if($('tutGo'))$('tutGo').onclick=()=>{b.hidden=true;if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>promptTutorialHq(t),950);}else promptTutorialHq(t);}else if(op){guideActing=t.do;OPS.start(t.do);}else{openBrief();setTimeout(()=>{pointGuideAt($('brCollectBtn'),'Tap Collect all');toast('Tap the highlighted Collect all button to finish the Survival chapter');},100);}};}
+  if($('tutGo'))$('tutGo').onclick=()=>{b.hidden=true;if(k){if(mode!=='hq'){go('hq',V3(0,0,0),home0('hq'),null);setTimeout(()=>promptTutorialHq(t),950);}else promptTutorialHq(t);}else if(op){guideActing=t.do;OPS.start(t.do);}else{openBrief();setTimeout(()=>{pointGuideAt($('brCollectBtn'),'Tap Collect all');toast('Tap the highlighted Collect all button to finish the Survival chapter');},100);}};pointGuideAt(b);}
 /* ---------- The Field Guide: one short chapter per system, done by doing it ---------- */
 function renderGuide(g){const b=$('tutBar');b.hidden=false;b.classList.add('guide');
  b.innerHTML='<b>'+esc(g.chapter)+' · '+g.step+'/'+g.of+'</b><span><strong>'+esc(g.title)+'.</strong> '+esc(g.text)+(g.reward?' <span style="color:#c9a24a">Reward: '+esc(g.reward)+'</span>':'')+'</span><span class="gbtns"><button id="tutGo">'+esc(g.cta||'Show me')+'</button>'+(g.optional?'<button id="tutLater" class="sk">Do this later</button>':'')+'<button id="tutSkip" class="sk">End guide</button></span>';
@@ -3600,8 +3608,8 @@ function renderTech(){const rs=NET.me.research,el=$('techEl');if(el.hidden)retur
  el.innerHTML=H;$('techX').onclick=()=>{el.hidden=true;hint.hidden=false;};
  el.querySelectorAll('[data-tech]').forEach(b=>b.onclick=()=>NET.conn.invoke('StartResearch',b.dataset.tech).then(r=>{if(!r.ok){toast(r.error);return;}applyMe(r.player);toast('Research started');renderTech();}).catch(er=>toast(er.message)));}
 setInterval(()=>{const el=$('techEl');if(el&&!el.hidden&&NET.me&&NET.me.research&&NET.me.research.current)renderTech();},30000);
-function hqCard(){clearTutorialHqMark();current=null;const h=NET.me.home;showCard('Headquarters','Level '+h.hqLevel+' · '+NET.me.name+'\'s home base',[['Buildings',h.tiles.length+' of '+h.maxBuildings],['Base size',(h.hi-h.lo)+'x'+(h.hi-h.lo)],['Upgrade','Level '+(h.hqLevel+1)+' · '+fmt(h.upgradeCost)+' cash'+(h.hqLevel>=2?' · '+h.hqLevel*15+' power':'')],['Expansion',h.expand?h.expand.size+'x'+h.expand.size+' · '+fmt(h.expand.cash)+' cash, '+h.expand.power+' power · HQ Lv '+h.expand.needHq:'Fully expanded']],['Build','Upgrade HQ','Expand base','The Sentinel','The Ashlands','Start over']);const t=h.tutorial;if(t&&homeKindOf(t.do))setTimeout(()=>{pointGuideButton(card,'Build','2. Tap Build');toast('2 of 5: tap the highlighted Build button');},80);}
-function homeBuildMenu(yard){const h=NET.me.home,ks=yard?h.kinds.filter(k=>k.field):h.kinds;showCard(yard?'Build in the yard':'Build at home',(h.maxBuildings-h.tiles.length)+' building slots left · '+(yard?'fields, pumps and panels can go outside the walls':'pick, then move it to a green spot'),ks.map(k=>[k.name+' ('+k.w+'x'+k.h+')',(k.perHour?'+'+k.perHour+' '+k.res+'/h':k.blurb)+' · '+fmt(k.cost)+(k.field&&!yard?' · inside or outside':'')]),ks.map(k=>'Place '+k.name).concat(['Close']));const t=h.tutorial,k=t&&homeKindOf(t.do);if(k)setTimeout(()=>{pointGuideButton(card,'Place '+k.name,'3. Tap '+k.name);toast('3 of 5: tap the highlighted '+k.name);},80);}
+function hqCard(){clearTutorialHqMark();current=null;const h=NET.me.home,t=h.tutorial,tutorialBuild=t&&homeKindOf(t.do),buttons=tutorialBuild?['Build']:['Build','Upgrade HQ','Expand base','The Sentinel','The Ashlands','Start over'];showCard('Headquarters','Level '+h.hqLevel+' · '+NET.me.name+'\'s home base',[['Buildings',h.tiles.length+' of '+h.maxBuildings],['Base size',(h.hi-h.lo)+'x'+(h.hi-h.lo)],['Upgrade','Level '+(h.hqLevel+1)+' · '+fmt(h.upgradeCost)+' cash'+(h.hqLevel>=2?' · '+h.hqLevel*15+' power':'')],['Expansion',h.expand?h.expand.size+'x'+h.expand.size+' · '+fmt(h.expand.cash)+' cash, '+h.expand.power+' power · HQ Lv '+h.expand.needHq:'Fully expanded']],buttons);if(tutorialBuild)setTimeout(()=>{pointGuideButton(card,'Build','2. Tap Build');toast('2 of 5: tap the highlighted Build button');},80);}
+function homeBuildMenu(yard){const h=NET.me.home,t=h.tutorial,tutorialKind=t&&homeKindOf(t.do),available=yard?h.kinds.filter(k=>k.field):h.kinds,ks=tutorialKind?available.filter(k=>k.type===t.do):available;showCard(yard?'Build in the yard':'Build at home',(h.maxBuildings-h.tiles.length)+' building slots left · '+(tutorialKind?'Only the building needed for this step is shown':yard?'fields, pumps and panels can go outside the walls':'pick, then move it to a green spot'),ks.map(k=>[k.name+' ('+k.w+'x'+k.h+')',(k.perHour?'+'+k.perHour+' '+k.res+'/h':k.blurb)+' · '+fmt(k.cost)+(k.field&&!yard?' · inside or outside':'')]),ks.map(k=>'Place '+k.name).concat(['Close']));card.classList.add('build-menu');if(tutorialKind)setTimeout(()=>{pointGuideButton(card,'Place '+tutorialKind.name,'3. Tap '+tutorialKind.name);toast('3 of 5: tap the highlighted '+tutorialKind.name);},80);}
 function expandCard(){const h=NET.me.home,e=h.expand;if(!e){toast('Your base already reaches as far as it can this season');return;}
  showCard('Beyond the walls','The fog hides the land around your base',[['Expand to',e.size+'x'+e.size],['Cost',fmt(e.cash)+' cash, '+e.power+' power'],['Needs','HQ level '+e.needHq],['You get','More room to build, pushed-out walls']],['Expand base','Close']);}
 function sentinelCard(){api('/sentinel').then(st=>{current=null;if(st.region2Open){showCard('The Sentinel','Defeated',[['Fallen to',(st.gatebreakers||'humanity')],['Region 2','The Ashlands are open']],['The Ashlands','Close']);return;}
