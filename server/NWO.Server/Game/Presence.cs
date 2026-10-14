@@ -171,6 +171,7 @@ public class Presence(World world, IHubContext<GameHub> hub) : BackgroundService
     /// <summary>Every minute: measure each sector's development and move the Caretaker's presence towards it.</summary>
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        await Task.Yield();
         var last = DateTime.UtcNow;
         while (!stop.IsCancellationRequested)
         {

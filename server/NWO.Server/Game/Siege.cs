@@ -116,6 +116,7 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stop)
     {
+        await Task.Yield();
         var frame = 0;
         while (!stop.IsCancellationRequested)
         {

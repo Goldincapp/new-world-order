@@ -84,6 +84,7 @@ public static class Defense
         Ledger.Add(db, p, "cash", -total, $"Trained {count} defenders ({type})");
         trained[type] = trained.GetValueOrDefault(type) + count;
         SetTrained(p, trained);
+        HomeBase.Advance(db, p, "train");
         return null;
     }
 }
