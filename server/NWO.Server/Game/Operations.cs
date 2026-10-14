@@ -16,7 +16,7 @@ public static class Operations
     {
         ["laststand"] = ("Last Stand", 40, 12),
         ["extraction"] = ("Extraction Run", 50, 3),
-        ["leviathan"] = ("Leviathan Assault", 45, 450),
+        ["leviathan"] = ("Leviathan Assault", 90, 1800),
     };
 
     public static object View(Player p) => new
@@ -45,7 +45,7 @@ public static class Operations
         {
             "laststand" => rule.Target + (difficulty - 1) * 4,
             "extraction" => rule.Target + (difficulty - 1),
-            _ => rule.Target + (difficulty - 1) * 180,
+            _ => rule.Target + (difficulty - 1) * 200,
         };
         Running[(playerId, operation)] = new(DateTime.UtcNow, rule.Duration, target);
         return new(true, Name: rule.Name, Duration: rule.Duration, Difficulty: difficulty, Target: target);

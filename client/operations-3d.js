@@ -4,9 +4,10 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 const modelPaths = {
   rover: 'models/car/truck-flat.glb',
   patrol: 'models/units/technical.glb',
-  fighter: 'models/units/strike-skimmer.glb',
   bike: 'models/units/raider-bike.glb',
-  boss: 'models/units/leviathan.glb'
+  boss: 'models/units/caretaker-mech.glb',
+  leader: 'models/units/strike-leader.glb',
+  partner: 'models/units/partner-drone.glb'
 };
 const lowPower = matchMedia('(pointer:coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
 
@@ -51,24 +52,14 @@ function bossModel() {
 }
 
 function energyModel(kind) {
-  const g = new THREE.Group(), colors = { bolt: 0xffe66d, orb: 0xff382e, shard: 0xb65cff, missile: 0xff8a35 }, color = colors[kind];
+  const g = new THREE.Group(), colors = { bolt: 0xffe66d, orb: 0xff3dbb, shard: 0xc04dff, missile: 0xff8a35, disc: 0xff2a40 }, color = colors[kind];
   const glow = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .95, blending: THREE.AdditiveBlending });
   if (kind === 'orb') g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(.18, 2), glow));
+  else if (kind === 'disc') { const blade = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, .04, 16), new THREE.MeshStandardMaterial({ color: 0x1b2126, emissive: 0xff2a40, emissiveIntensity: .6, metalness: .8, roughness: .3 })); blade.name = 'blade'; g.add(blade); }
   else if (kind === 'shard') { const core = new THREE.Mesh(new THREE.OctahedronGeometry(.2, 0), glow); core.rotation.z = Math.PI / 4; g.add(core); }
   else { const body = new THREE.Mesh(kind === 'missile' ? new THREE.ConeGeometry(.1, .42, 10) : new THREE.CapsuleGeometry(.045, .34, 3, 8), glow); body.rotation.x = Math.PI / 2; g.add(body); }
   const halo = new THREE.Mesh(new THREE.SphereGeometry(kind === 'orb' ? .28 : .14, 10, 8), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .2, blending: THREE.AdditiveBlending, depthWrite: false })); g.add(halo);
   const trail = new THREE.Mesh(new THREE.ConeGeometry(kind === 'orb' ? .1 : .065, kind === 'orb' ? .55 : .8, 8), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .28, blending: THREE.AdditiveBlending, depthWrite: false })); trail.rotation.x = -Math.PI / 2; trail.position.z = .38; g.add(trail);
-  return g;
-}
-
-function raidEnvironment() {
-  const g = new THREE.Group(), floorMat = new THREE.MeshStandardMaterial({ color: 0x102333, roughness: .78, metalness: .3 }), towerMat = new THREE.MeshStandardMaterial({ color: 0x243443, roughness: .62, metalness: .55 }), edgeMat = new THREE.MeshBasicMaterial({ color: 0x4ba2c2, transparent: true, opacity: .5 });
-  const deck = new THREE.Mesh(new THREE.PlaneGeometry(6.2, 22), floorMat); deck.rotation.x = -Math.PI / 2; deck.position.z = -1.8; deck.receiveShadow = true; g.add(deck);
-  const grid = new THREE.GridHelper(22, 30, 0x276079, 0x163447); grid.position.y = .015; grid.position.z = -2; grid.material.transparent = true; grid.material.opacity = .18; g.add(grid);
-  for (let side of [-1, 1]) for (let i = 0; i < 11; i++) { const h = 1.1 + ((i * 7) % 9) * .28, tower = new THREE.Mesh(new THREE.BoxGeometry(.75 + (i % 3) * .22, h, 1.05 + (i % 2) * .45), towerMat); tower.position.set(side * (3.55 + (i % 2) * .45), h / 2 - .05, -8 + i * 1.55); tower.rotation.y = side * (.08 + (i % 3) * .025); tower.castShadow = !lowPower; tower.receiveShadow = !lowPower; g.add(tower); const edge = new THREE.Mesh(new THREE.BoxGeometry(.04, h * .72, .05), edgeMat); edge.position.set(tower.position.x - side * .39, h * .52, tower.position.z + .52); g.add(edge); }
-  const ashGeo = new THREE.BufferGeometry(), points = new Float32Array(540); for (let i = 0; i < points.length; i += 3) { points[i] = (Math.random() - .5) * 10; points[i + 1] = Math.random() * 6; points[i + 2] = -10 + Math.random() * 20; } ashGeo.setAttribute('position', new THREE.BufferAttribute(points, 3));
-  const ash = new THREE.Points(ashGeo, new THREE.PointsMaterial({ color: 0x8ec9d6, size: .028, transparent: true, opacity: .48, depthWrite: false })); ash.name = 'raid-ash'; g.add(ash);
-  const red = new THREE.PointLight(0xff321f, 28, 10); red.position.set(0, 2.6, -4.5); g.add(red); const blue = new THREE.PointLight(0x38aaff, 20, 9); blue.position.set(0, 1.5, 4); g.add(blue); const key = new THREE.SpotLight(0xffddbd, 42, 24, .62, .55, 1.2); key.position.set(-3.5, 8, 7); key.target.position.set(0, .7, -3); g.add(key, key.target); const rim = new THREE.PointLight(0x43bfff, 22, 14); rim.position.set(3.4, 4, -1); g.add(rim);
   return g;
 }
 
@@ -85,30 +76,30 @@ function create(canvas) {
   scene.add(new THREE.HemisphereLight(0xb9dfff, 0x332417, 1.45));
   const sun = new THREE.DirectionalLight(0xffe5bd, 3.2); sun.position.set(-4, 10, 5); sun.castShadow = !lowPower; sun.shadow.mapSize.set(lowPower ? 256 : 512, lowPower ? 256 : 512); scene.add(sun);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 24), new THREE.ShadowMaterial({ opacity: .38 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -.03; floor.receiveShadow = true; scene.add(floor);
-  const raid = raidEnvironment(); raid.visible = false; scene.add(raid); const raidFog = new THREE.FogExp2(0x030711, .052);
-  const actors = new Map(), templates = new Map(), sources = { bike: bikeModel(), hq: bunkerModel(), boss: bossModel(), bolt: energyModel('bolt'), orb: energyModel('orb'), shard: energyModel('shard'), missile: energyModel('missile') }; let ready = false, width = 0, height = 0, mode = '';
+  const actors = new Map(), templates = new Map(), sources = { bike: bikeModel(), hq: bunkerModel(), boss: bossModel(), bolt: energyModel('bolt'), orb: energyModel('orb'), shard: energyModel('shard'), missile: energyModel('missile'), disc: energyModel('disc') }; let ready = false, width = 0, height = 0, mode = '';
   Object.values(sources).forEach(g => g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }));
-  Promise.all(Object.entries(modelPaths).map(async ([key, path]) => { try { const loaded = await new GLTFLoader().loadAsync(path); loaded.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; const materials = Array.isArray(o.material) ? o.material : [o.material]; if (key === 'boss' || key === 'fighter') materials.forEach(m => { if (m && m.color && m.emissive) { m.emissive.copy(m.color).multiplyScalar(key === 'boss' ? .34 : .18); m.emissiveIntensity = key === 'boss' ? 1.7 : 1.15; } }); } }); sources[key] = normalise(loaded.scene, 1); } catch (e) { console.warn('Operation 3D model failed', key, e); } })).then(() => { ready = true; });
+  Promise.all(Object.entries(modelPaths).map(async ([key, path]) => { try { const loaded = await new GLTFLoader().loadAsync(path); loaded.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); sources[key] = normalise(loaded.scene, 1); } catch (e) { console.warn('Operation 3D model failed', key, e); } })).then(() => { ready = true; });
 
   function resize(w, h) { if (w === width && h === height) return; width = w; height = h; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); }
   const screenPoint = new THREE.Vector3(), screenRay = new THREE.Vector3(), floorPoint = new THREE.Vector3();
   function screenFloor(x, y) { screenPoint.set(x * 2 - 1, 1 - y * 2, .25).unproject(camera); screenRay.copy(screenPoint).sub(camera.position).normalize(); return floorPoint.copy(camera.position).addScaledVector(screenRay, -camera.position.y / screenRay.y); }
-  function actorTemplate(type) { const source = sources[type], cached = templates.get(type); if (cached && cached.source === source) return cached.group; const energy = ['bolt', 'orb', 'shard', 'missile'].includes(type), group = normalise(source, type === 'boss' ? 2.5 : type === 'hq' ? 1.35 : energy ? .42 : 1); templates.set(type, { source, group }); return group; }
+  function actorTemplate(type) { const source = sources[type], cached = templates.get(type); if (cached && cached.source === source) return cached.group; const energy = ['bolt', 'orb', 'shard', 'missile', 'disc'].includes(type), group = normalise(source, type === 'boss' ? 2.5 : type === 'hq' ? 1.35 : energy ? .42 : 1); templates.set(type, { source, group }); return group; }
   function getActor(a) {
     let entry = actors.get(a.id); if (entry && entry.type === a.type) return entry;
     if (entry) { scene.remove(entry.group); actors.delete(a.id); }
-    const src = sources[a.type]; if (!src) return null; const energy = ['bolt', 'orb', 'shard', 'missile'].includes(a.type), group = actorTemplate(a.type).clone(true), wheels = [], rotors = [];
-    group.traverse(o => { const name = (o.name || '').toLowerCase(); if (/wheel|tire|tyre/.test(name)) wheels.push(o); if (/rotor|propeller|blade/.test(name)) rotors.push(o); });
+    const src = sources[a.type]; if (!src) return null; const energy = ['bolt', 'orb', 'shard', 'missile', 'disc'].includes(a.type), group = actorTemplate(a.type).clone(true), wheels = [], rotors = [];
+    group.traverse(o => { const name = (o.name || '').toLowerCase(); if (/wheel|tire|tyre/.test(name)) wheels.push(o); if (/rotor|propeller|blade/.test(name)) rotors.push(o); if (o.isMesh && a.type === 'boss') o.material = o.material.clone(); });
     if (a.type === 'boss') { const fill = new THREE.PointLight(0xff9b78, 18, 7); fill.position.set(0, 2.2, 2.4); group.add(fill); }
-    if (a.type === 'fighter') { const fill = new THREE.PointLight(0x57cfff, 7, 3.5); fill.position.set(0, 1.1, 1); group.add(fill); }
+    if (a.type === 'leader') { const fill = new THREE.PointLight(0x57cfff, 7, 3.5); fill.position.set(0, 1.1, 1); group.add(fill); }
+    if (a.type === 'partner') { const glow = new THREE.PointLight(0xffd27a, 5, 2.5); group.add(glow); }
     if (energy || lowPower) group.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } }); scene.add(group); entry = { group, type: a.type, target: new THREE.Vector3(), wheels, rotors }; actors.set(a.id, entry); return entry;
   }
   function update(nextMode, list, w, h, time) {
-    resize(w, h); mode = nextMode; canvas.hidden = !ready; if (!ready) return false; const isRaid = nextMode === 'leviathan'; raid.visible = isRaid; floor.visible = !isRaid; scene.fog = isRaid ? raidFog : null; renderer.setClearColor(isRaid ? 0x050b14 : 0x000000, isRaid ? 1 : 0); renderer.toneMappingExposure += ((isRaid ? 1.48 : 1.15) - renderer.toneMappingExposure) * .15; const nextFov = camera.fov + ((isRaid ? 39 : 34) - camera.fov) * .12; if (Math.abs(nextFov - camera.fov) > .001) { camera.fov = nextFov; camera.updateProjectionMatrix(); } camera.position.y += ((isRaid ? 7.3 : 9.5) - camera.position.y) * .12; camera.position.z += ((isRaid ? 9.8 : 8.5) - camera.position.z) * .12;
-    const live = new Set(); list.forEach(a => { const e = getActor(a); if (!e) return; live.add(a.id); const p = screenFloor(a.x, a.y); e.target.set(p.x, a.lift || 0, p.z); e.group.position.lerp(e.target, .34); e.group.rotation.y = -(a.angle || 0); e.group.rotation.z += ((a.bank || 0) - e.group.rotation.z) * .25; const bounce = Math.sin(time * (a.speed || 8) + (a.phase || 0)) * (a.bob || .018); e.group.position.y += bounce; const scale = (a.scale || 1) * (.82 + a.y * .34); e.group.scale.setScalar(scale); e.wheels.forEach(wheel => { wheel.rotation.x -= .24 * (a.speed || 8); }); e.rotors.forEach(rotor => { rotor.rotation.y += .42 * (a.speed || 8); }); if (a.type === 'fighter') e.group.rotation.x = Math.sin(time * 3.2) * .025; if (a.type === 'boss') { e.group.rotation.y = Math.sin(time * .7) * .12; e.group.position.y = .55 + Math.sin(time * 1.7) * .06; } });
+    resize(w, h); mode = nextMode; canvas.hidden = !ready; if (!ready) return false; const isRaid = nextMode === 'leviathan'; renderer.setClearColor(0x000000, 0); renderer.toneMappingExposure += (1.15 - renderer.toneMappingExposure) * .15; const nextFov = camera.fov + ((isRaid ? 39 : 34) - camera.fov) * .12; if (Math.abs(nextFov - camera.fov) > .001) { camera.fov = nextFov; camera.updateProjectionMatrix(); } camera.position.y += ((isRaid ? 7.3 : 9.5) - camera.position.y) * .12; camera.position.z += ((isRaid ? 9.8 : 8.5) - camera.position.z) * .12;
+    const live = new Set(); list.forEach(a => { const e = getActor(a); if (!e) return; live.add(a.id); const p = screenFloor(a.x, a.y); e.target.set(p.x, a.lift || 0, p.z); e.group.position.lerp(e.target, .34); e.group.rotation.y = -(a.angle || 0); e.group.rotation.z += ((a.bank || 0) - e.group.rotation.z) * .25; const bounce = Math.sin(time * (a.speed || 8) + (a.phase || 0)) * (a.bob || .018); e.group.position.y += bounce; const scale = (a.scale || 1) * (.82 + a.y * .34); e.group.scale.setScalar(scale); e.wheels.forEach(wheel => { wheel.rotation.x -= .24 * (a.speed || 8); }); e.rotors.forEach(rotor => { rotor.rotation.y += .42 * (a.speed || 8); }); if (a.type === 'boss') { e.group.rotation.y = Math.sin(time * .7) * .08; e.group.position.y = Math.sin(time * 1.7) * .04; const rage = a.rage ? 1 : 0; e.group.traverse(o => { if (o.isMesh && o.material.color && !o.material.emissiveMap) { o.userData.base = o.userData.base || o.material.color.clone(); o.material.color.copy(o.userData.base).lerp(new THREE.Color(0x8a0a08), rage * .75); } }); } if (a.type === 'disc') e.group.rotation.y = a.angle || 0; });
     actors.forEach((e, id) => { if (!live.has(id)) { scene.remove(e.group); actors.delete(id); } });
     const bossData = list.find(a => a.type === 'boss'), bossEntry = bossData && actors.get(bossData.id); if (bossEntry && bossData.flash > 0) bossEntry.group.scale.multiplyScalar(1.035);
-    const playerData = list.find(a => a.player) || {}, playerX = playerData.x || .5, impact = isRaid ? (playerData.shake || 0) * .0022 : 0; camera.position.x += ((playerX - .5) * (isRaid ? .8 : 1.4) - camera.position.x) * .035; if (isRaid) { const ash = raid.getObjectByName('raid-ash'); if (ash) { ash.rotation.y = Math.sin(time * .08) * .08; ash.position.z = (time * .25) % 1.55; } } camera.lookAt(camera.position.x * .18 + (Math.random()-.5)*impact, (isRaid ? .45 : 0) + (Math.random()-.5)*impact, isRaid ? -1.6 : 0); renderer.render(scene, camera); return true;
+    const playerData = list.find(a => a.player) || {}, playerX = playerData.x || .5, impact = isRaid ? (playerData.shake || 0) * .0022 : 0; camera.position.x += ((playerX - .5) * (isRaid ? 0 : 1.4) - camera.position.x) * .035; camera.lookAt(camera.position.x * .18 + (Math.random()-.5)*impact, (isRaid ? .45 : 0) + (Math.random()-.5)*impact, isRaid ? -1.6 : 0); renderer.render(scene, camera); return true;
   }
   function hide() { canvas.hidden = true; actors.forEach(e => scene.remove(e.group)); actors.clear(); }
   return { update, hide, get ready() { return ready; }, get mode() { return mode; } };

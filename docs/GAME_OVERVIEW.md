@@ -400,6 +400,27 @@ Hold 10% of a sector's claimable land (about 98 parcels) to name it. Anyone who 
   - `POST /api/admin/feedback/{id}?status=seen|done|wontdo&note=` marks progress.
 - **GitHub issues.** If `NWO_GITHUB_TOKEN` and `NWO_GITHUB_REPO` (`owner/repo`) are set, each piece of feedback also opens a GitHub issue labelled `feedback` and its kind. The player sees the issue link.
 
+### 5.18 Leviathan Assault (`Operations.cs`, `client/operations.js`)
+
+A 90-second boss fight against a Caretaker war-mech, unlocked by the Field Guide's World threats chapter (reward 800 cash and 10 gold, once).
+
+- **The team.** The player is a strike leader on foot, fighting with **Lumen**, a friendly AI drone that circles them. The leader's rifle fires a fan of rounds by itself (3 rounds, widening to 5 in phase 2), and Lumen fires its own bolts at the mech's core. Hits on the glass dome are critical (double damage).
+- **Abilities.** Missile Salvo (6 s cooldown, two homing missiles) and Lumen's Overwatch (12 s: a 2.6 s shield that also scrambles every enemy shot on screen).
+- **Phases** (30 s each): Hunt, Crossfire, then Overheat, when the mech turns crimson and fires extra aimed shots between attacks.
+- **Attacks**, one at a time with a named warning:
+
+  | Attack | From | What it does | Hit |
+  |---|---|---|---|
+  | Targeting Burst | phase 1 | Aimed shots from the arm cannons | 9 to 11 |
+  | Tithe Spiral | phase 1 | Orbs spiral out of the core | 9 to 11 |
+  | Quarantine Grid | phase 1 | 4 to 6 of 12 floor tiles light up, then burn (your tile is always one) | 15 |
+  | Compliance Scan | phase 1 | A beam sweeps the half of the floor you're on (both halves in turn in phase 3) | 16 |
+  | Enforcer Discs | phase 2 | Spinning blades that bounce off the walls three times | 14 |
+  | Breach Wall | phase 2 | A falling wall with one safe lane | 12 |
+
+- **Winning.** Deal at least 1,800 damage (+200 per difficulty level, which is the HQ level up to 5) and survive. Your damage doesn't grow with the HQ; the mech's attacks get faster instead. Armour starts at 100; at 0 the run ends.
+- **Art.** `tools/blender/leviathan_assault.py` builds the mech, leader, Lumen and the arena (sprites for the 2D view, GLBs for the optional 3D view); `tools/blender/leviathan_post.py` adds the glow. The arena backdrop is drawn to the screen's height, so the floor keeps its shape on any screen.
+
 ---
 
 ## 6. Client (`client/index.html`)

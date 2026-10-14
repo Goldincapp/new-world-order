@@ -10,3 +10,4 @@ prototype/shots/
 server/*.log
 client/_login.html
 server/.admin-key
+__pycache__/
