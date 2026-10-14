@@ -41,9 +41,11 @@ public static class HomeBase
     public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
     public static readonly Step[] Tutorial =
     [
-        new("barracks", "Build your first building", "A Barracks is where defenders train. Build one now. It also unlocks your first action mission.", Cash: 300),
-        new("laststand", "Defend your new base", "Raiders are attacking. In Last Stand, tap an enemy to aim your turret. Stop at least 12 raiders to win.", Cash: 600, Fuel: 80),
-        new("crops", "Grow food", "A Crop plot makes grain. Grain is food for your settlers. Build one so your people have something to eat.", Cash: 250),
+        new("barracks", "Build your first building", "Your Headquarters cannot defend the settlement alone. Build a Barracks so you can train defenders and respond to attacks.", Cash: 300),
+        new("train", "Train your first defenders", "A Barracks provides a basic garrison, but trained units make your defence stronger and replace troops lost in future raids. Train five gunners now.", Cash: 200),
+        new("laststand", "Raiders at the perimeter", "Alarm: raider bikes are racing toward your unfinished base. Hold them off before they reach the Headquarters. Press an enemy to focus the turret and stop at least 12 raiders.", Cash: 600, Fuel: 80),
+        new("people", "Meet your settlers", "People make the settlement work. They fill jobs, produce resources and pay taxes—but every person also needs housing, grain and power.", Cash: 150),
+        new("crops", "Feed your settlers", "Your population consumes grain every hour. Build a Crop plot now so the settlement can keep growing instead of losing people.", Cash: 250),
         new("solar", "Make power", "A Solar panel makes power. Your buildings and growing population need it. Build one now.", Cash: 250, Power: 20),
         new("collect", "Collect your resources", "Buildings make resources over time. Use the yellow collection button to move what is ready into the resource numbers at the top of the screen.", Cash: 300),
     ];
@@ -211,11 +213,13 @@ public static class HomeBase
         db.HomeTiles.RemoveRange(p.HomeTiles);
         p.HomeTiles.Clear();
         foreach (var o in await db.Orders.Where(o => o.PlayerId == p.Id && o.Remaining > 0).ToListAsync()) db.Orders.Remove(o);
-        foreach (var x in p.Parcels.ToList())
-        {
-            x.Buildings = "";
-            if (!x.IsHome) { p.Parcels.Remove(x); db.Parcels.Remove(x); }
-        }
+        // Query the database directly instead of relying only on the currently loaded navigation
+        // collection. That guarantees parcels claimed in other sessions are reset too.
+        var parcels = await db.Parcels.Where(x => x.OwnerId == p.Id).ToListAsync();
+        var home = parcels.FirstOrDefault(x => x.IsHome);
+        foreach (var x in parcels.Where(x => !x.IsHome)) db.Parcels.Remove(x);
+        p.Parcels.RemoveAll(x => !x.IsHome);
+        if (home is not null) home.Buildings = "";
         var start = new Player();
         foreach (var r in Ledger.Resources)
             Ledger.Add(db, p, r, Ledger.Get(start, r) - Ledger.Get(p, r), "Started over");

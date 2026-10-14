@@ -150,7 +150,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
     }
 
     public string? Deploy(Guid playerId, string type, int lane) =>
-        Active.TryGetValue(playerId, out var b) ? (type == "strike" ? "Tap the field to aim a strike." : b.Sim is BattleSim bs ? Lock(b, () => bs.Deploy(type, lane)) : "Tap where to deploy.") : "You're not in a battle.";
+        Active.TryGetValue(playerId, out var b) ? (type == "strike" ? "Press the field to aim a strike." : b.Sim is BattleSim bs ? Lock(b, () => bs.Deploy(type, lane)) : "Press where to deploy.") : "You're not in a battle.";
 
     /// <summary>Base assault: deploy at a point in your half of the arena.</summary>
     public string? DeployAt(Guid playerId, string type, double x, double z) =>

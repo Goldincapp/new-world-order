@@ -38,9 +38,14 @@
     function drawStage(mode, actors, w, h) { const view = getStage(); return !!(view && view.ready && view.update(mode, typeof actors === 'function' ? actors() : actors, w, h, performance.now() / 1000)); }
     function stageReady() { const view = getStage(); return !!(view && view.ready); }
     const info = {
-      laststand: ['hq', 'Last Stand', 'Defend your headquarters', 'Tap raiders to focus the turret'],
+      laststand: ['hq', 'Last Stand', 'Defend your headquarters', 'Press raiders to focus the turret'],
       extraction: ['rover', 'Extraction Run', 'Recover supplies and escape', 'Collect 3 cargo. Extract unlocks in the final 12 seconds.'],
       leviathan: ['leviathan', 'Leviathan Assault', 'Survive the world boss', 'Drag to dodge each telegraphed attack - weapons fire automatically']
+    };
+    const briefings = {
+      laststand: { alert:'PERIMETER ALERT', title:'Raiders are coming for the Headquarters', story:'Your construction signal drew a raider pack out of the wastes. The walls are unfinished and your new gunners cannot cover every approach yet. Take control of the HQ turret and keep the bikes away from the gate.', goal:'Press a raider to focus fire. Stop at least 12 before they overrun the base.', action:'Defend the base' },
+      extraction: { alert:'RECOVERY WINDOW', title:'The new parcel needs supplies', story:'Expanding your settlement exposed an abandoned Caretaker supply yard. Patrols are already closing in. Those crates can stock your new land, but anything left behind will be reclaimed.', goal:'Drive over at least 3 crates. When the beacon opens in the final 12 seconds, press Extract to escape with the cargo.', action:'Start recovery run' },
+      leviathan: { alert:'REGIONAL THREAT', title:'The Leviathan has entered Aurelia', story:'The machine is disrupting trade routes across the region. Every commander who damages it weakens the threat and improves the server-wide reward.', goal:'Read each warning, dodge the attack pattern and keep your weapons on target.', action:'Join the assault' }
     };
     function records() { try { const saved=JSON.parse(localStorage.getItem('nwoOperationRecords') || '{}');Object.keys(saved).forEach(k=>{if(!saved[k]||saved[k].score<=0)delete saved[k];});return saved; } catch { return {}; } }
     function grade(score, target) { const r = score / Math.max(1, target); return r >= 2 ? 'S' : r >= 1.5 ? 'A' : r >= 1.15 ? 'B' : r >= 1 ? 'C' : 'D'; }
@@ -61,7 +66,13 @@
       $('opsBack').onclick = close;
       if ($('opsQuality')) $('opsQuality').onclick = () => { enhanced3d = !enhanced3d; try { localStorage.setItem('nwoOperation3D', enhanced3d ? '1' : '0'); } catch {} if (!enhanced3d && stage) { stage.hide(); stage = null; } stageUnavailable = false; $('opsQuality').textContent = 'Experimental 3D: ' + (enhanced3d ? 'On' : 'Off (recommended)'); toast(enhanced3d ? 'Experimental 3D enabled' : 'Performance renderer enabled'); };
     }
-    async function start(id) {
+    function briefing(id) {
+      const b=briefings[id];if(!b)return start(id,true);cancelAnimationFrame(raf);current=null;if(stage)stage.hide();window.__operationsActive=true;root.hidden=false;root.classList.remove('has-controls','running');root.style.backgroundImage='';$('opsControls').hidden=true;$('opsResult').hidden=true;$('opsCanvas').hidden=true;$('opsTip').hidden=true;$('opsMenu').hidden=false;$('opsName').textContent=b.alert;$('opsObjective').textContent=b.title;$('opsScore').textContent='-';$('opsTime').textContent='-';
+      $('opsMenu').innerHTML='<div><div class="ops-new">'+b.alert+'</div><h2>'+b.title+'</h2><p>'+b.story+'</p><div class="ops-card" style="grid-template-columns:3.5em 1fr"><span class="ops-icon"><img src="'+assetPath+assetFiles[info[id][0]]+'" alt=""></span><span><b>Your objective</b><small>'+b.goal+'</small></span></div><div class="ops-menu-actions"><button id="opsBriefBack">← Back to game</button><button class="primary" id="opsLaunch">'+b.action+'</button></div></div>';
+      $('opsBriefBack').onclick=close;$('opsLaunch').onclick=()=>start(id,true);
+    }
+    async function start(id,briefed=false) {
+      if(!briefed){briefing(id);return;}
       if (!connection()) { toast('Reconnect to start an operation'); return; }
       try {
         const s = await connection().invoke('StartOperation', id);
