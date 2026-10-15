@@ -437,7 +437,7 @@ A tower defence with a hands-on turret. Raiders follow a winding road to the bas
 
 #### Extraction Run
 
-Drive the rover over crates in a Caretaker supply yard; the beacon opens in the final 12 seconds: reach the pad or press Extract. Running out of time without extracting scores 0.
+Drive the rover over crates in a Caretaker supply yard; the beacon opens in the final 12 seconds: reach the pad or press Extract. Running out of time without extracting scores 0. The distinctive black cache is worth 3 cargo at first and gains value after Threat 20, when the arena has reached its safe crate-density limit. This keeps every server target achievable without filling the yard with overlapping pickups.
 
 - **Getting hit** drops the last crate: it's flung clear and the Caretaker reclaims it after 2.5 s unless you grab it back. Rams knock the rover clear and stall it briefly.
 - **Abilities.** Nitro (6 s: faster and can't be hit for 1.6 s) and Lumen: Scramble (12 s: blinds patrols, sentries and drones for 3.5 s and clears their shots).

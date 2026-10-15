@@ -316,7 +316,10 @@
       let stall = 0, px = START.x, py = START.y, heading = 0, speed = 0, boost = 0, boostCd = 0, scramble = 0, scrambleCd = 6, hurt = 0, timeLeft = s.duration, elapsed = 0, chain = 0, chainTimer = 0, orbit = 0, line = null, beaconSaid = false, spottedSaid = 0, dust = 0, shake = 0;
       const kinds = [{ name: 'FUEL CACHE', art: 'exCrateFuel', color: '#67d8ff' }, { name: 'TRADE GOODS', art: 'exCrateTrade', color: '#ffd45f' }, { name: 'TECH PARTS', art: 'exCrateTech', color: '#c08cff' }];
       const crateCount = 8 + Math.min(36, Math.round(L * 1.5));
-      for (let i = 0, tries = 0; i < crateCount && tries < 500; tries++) { const x = .08 + Math.random() * .84, y = .22 + Math.random() * .54; if (crates.some(c => Math.hypot(c.x - x, (c.y - y) * 1.6) < .12)) continue; const black = i === 0; crates.push({ x, y, got: false, kind: black ? { name: 'BLACK CACHE', art: 'exCrateBlack', color: '#ff65df' } : kinds[i % 3], value: black ? 3 : i % 4 === 1 ? 2 : 1 }); i++; }
+      // Past Threat 20 the ordinary crate count reaches its arena limit. The one conspicuous black cache
+      // carries the remaining progression value so every server target stays achievable without crowding the yard.
+      const blackCacheValue = 3 + Math.max(0, Math.ceil((L - 20) * 2));
+      for (let i = 0, tries = 0; i < crateCount && tries < 500; tries++) { const x = .08 + Math.random() * .84, y = .22 + Math.random() * .54; if (crates.some(c => Math.hypot(c.x - x, (c.y - y) * 1.6) < .12)) continue; const black = i === 0; crates.push({ x, y, got: false, kind: black ? { name: 'BLACK CACHE', art: 'exCrateBlack', color: '#ff65df' } : kinds[i % 3], value: black ? blackCacheValue : i % 4 === 1 ? 2 : 1 }); i++; }
       const patrolCount = Math.min(6, 2 + Math.floor((L - 1) / 2));
       for (let i = 0; i < patrolCount; i++) patrols.push({ x: (i + 1) / (patrolCount + 1), y: .25 + Math.random() * .4, a: Math.random() * 6.28, turn: (Math.random() - .5) * 1.5, alert: 0, fireCd: 1 + Math.random() });
       if (L >= 2) [[.12, .4], [.88, .6], [.12, .7]].slice(0, Math.min(3, 1 + Math.floor((L - 2) / 3))).forEach(([x, y]) => sentries.push({ x, y, cd: 1.5 + Math.random(), charge: 0 }));

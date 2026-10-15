@@ -188,8 +188,9 @@ const rewardAt = (rule, level) => {
 };
 const extractionCapacity = level => {
   const count = 8 + Math.min(36, Math.round(level * 1.5));
+  const blackCacheValue = 3 + Math.max(0, Math.ceil((level - 20) * 2));
   let value = 0;
-  for (let i = 0; i < count; i++) value += i === 0 ? 3 : i % 4 === 1 ? 2 : 1;
+  for (let i = 0; i < count; i++) value += i === 0 ? blackCacheValue : i % 4 === 1 ? 2 : 1;
   return { count, value };
 };
 const pressureAt = (id, level, target, baseTarget) => {
