@@ -43,7 +43,7 @@ public static class HomeBase
     [
         new("barracks", "Build your first building", "Your Headquarters cannot defend the settlement alone. Build a Barracks so you can train defenders and respond to attacks.", Cash: 300),
         new("train", "Train your first defenders", "A Barracks provides a basic garrison, but trained units make your defence stronger and replace troops lost in future raids. Train five gunners now.", Cash: 200),
-        new("laststand", "Raiders at the perimeter", "Alarm: raider bikes are racing toward your unfinished base. Hold them off before they reach the Headquarters. Press an enemy to focus the turret and stop at least 12 raiders.", Cash: 600, Fuel: 80),
+        new("laststand", "Raiders at the perimeter", "Alarm: raider bikes are racing toward your unfinished base. Hold them off before they reach the Headquarters. Build towers on the pads with scrap from kills, press an enemy to focus the turret, and stop at least 12 raiders. Your new gunners hold the line at the gate.", Cash: 600, Fuel: 80),
         new("people", "Meet your settlers", "People make the settlement work. They fill jobs, produce resources and pay taxes—but every person also needs housing, grain and power.", Cash: 150),
         new("crops", "Feed your settlers", "Your population consumes grain every hour. Build a Crop plot now so the settlement can keep growing instead of losing people.", Cash: 250),
         new("solar", "Make power", "A Solar panel makes power. Your buildings and growing population need it. Build one now.", Cash: 250, Power: 20),

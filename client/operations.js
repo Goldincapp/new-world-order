@@ -9,7 +9,7 @@
     .ops canvas#opsCanvas{position:relative;z-index:2;display:block;flex:1;width:100%;min-height:0;background:transparent}.ops-3d{position:absolute;z-index:1;left:0;right:0;top:4.2em;width:100%;height:calc(100% - 4.2em);pointer-events:none;background:transparent}.ops-tip{position:absolute;z-index:3;left:50%;bottom:1em;transform:translateX(-50%);max-width:82%;padding:.5em .9em;border-radius:1em;background:#07131ed6;border:1px solid #7ac9e74a;color:#eaf8ff;text-align:center;font-weight:700;pointer-events:none;transition:bottom .2s;box-shadow:0 .5em 1.8em #0008;backdrop-filter:blur(10px)}
     .ops.has-controls .ops-tip{bottom:5.8em}.ops-controls{position:absolute;z-index:3;left:50%;bottom:.7em;transform:translateX(-50%);display:flex;gap:.55em;width:min(32em,94%);justify-content:center}.ops-ability{position:relative!important;overflow:hidden;min-width:8.6em;padding:.68em .8em!important;background:linear-gradient(145deg,#17334bdd,#091925ee)!important;border-color:#61b7d666!important;box-shadow:inset 0 1px #fff1,0 .55em 1.4em #000a!important}.ops-ability.ready{border-color:#76ddff!important;box-shadow:inset 0 1px #fff2,0 0 1.1em #39bfea44!important}.ops-ability:disabled{opacity:.64}.ops-ability span{display:block;font-size:.7em;color:#9fb9c9;margin-top:.22em}.ops-ability i{position:absolute;left:0;right:0;bottom:0;height:var(--cool,0%);background:#02070bbd;pointer-events:none}.ops-ability b,.ops-ability span{position:relative;z-index:1}
     .ops-menu{position:absolute;inset:0;display:grid;place-items:center;padding:1em;background:radial-gradient(circle at 50% 30%,#26384a,#070d13 70%)}.ops-menu>div{width:min(35em,94%)}.ops-menu h2{color:#ffd36a;margin:.2em 0}.ops-menu p{color:#c5d0d6;line-height:1.35}.ops-menu-actions{display:flex;justify-content:flex-start;margin-top:.9em}.ops-list{display:grid;gap:.65em}.ops-card{display:grid;grid-template-columns:3.5em 1fr auto;align-items:center;gap:.7em;padding:.75em;background:linear-gradient(115deg,#152837,#0d1822);border:1px solid #536678;border-radius:.8em;box-shadow:inset 0 1px #ffffff0c,0 .45em 1em #0004}.ops-icon{width:3.5em;height:3.5em;display:grid;place-items:center;overflow:hidden}.ops-icon img{display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 .25em .2em #0009)}.ops-card b,.ops-card small{display:block}.ops-card small{color:#aebbc4;margin-top:.2em}.ops-best{color:#ffd36a!important;font-size:.68em;text-transform:uppercase;letter-spacing:.06em}.ops-result{position:absolute;inset:0;display:grid;place-items:center;padding:1em;background:radial-gradient(circle at 50% 45%,#172c3bea,#02070bf2)}.ops-result>div{width:min(28em,92%);padding:1.2em;border:1px solid #d4a83f;border-radius:1em;background:linear-gradient(145deg,#172938,#0d171f);text-align:center;box-shadow:0 1.2em 4em #000c,inset 0 1px #fff2}.ops-result h2{color:#ffd36a;margin:.1em}.ops-grade{width:2em;height:2em;margin:.15em auto .1em;border:3px solid #ffd36a;border-radius:50%;display:grid;place-items:center;color:#fff;font:900 2.3em/1 system-ui;box-shadow:0 0 1em #d8a73e88}.ops-new{color:#7ee8ff;font-weight:900;font-size:.8em;letter-spacing:.08em}.ops-result .reward{margin:.8em 0;padding:.7em;border-radius:.6em;background:#273a27;color:#bdf2a9;font-weight:800}.ops-result .acts{display:flex;justify-content:center;gap:.6em}
-    .ops-menu,.ops-result{z-index:5}.ops.running .ops-top,.ops.running .ops-tip{backdrop-filter:none}.ops.running::after{content:"";position:absolute;z-index:2;inset:4.2em 0 0;pointer-events:none;background:radial-gradient(ellipse at center,#0000 35%,#02070bb8 100%)}
+    .ops-menu,.ops-result{z-index:5}.ops-build{position:absolute;z-index:6;width:188px;padding:.55em;border-radius:.8em;background:#0a1520f2;border:1px solid #ffd27a88;box-shadow:0 .6em 2em #000c;display:grid;gap:.35em}.ops-build b{color:#ffd27a;font-size:.85em}.ops-build button{display:block;text-align:left;padding:.45em .6em!important;font-size:.8em!important}.ops-build button i{float:right;font-style:normal;color:#ffd27a}.ops-build button small{display:block;color:#9fb3c2;font-size:.85em;margin-top:.1em}.ops-build button:disabled{opacity:.45}.ops-build .ops-build-x{text-align:center;opacity:.8}.ops-build small{color:#9fb3c2}.ops.running .ops-top,.ops.running .ops-tip{backdrop-filter:none}.ops.running::after{content:"";position:absolute;z-index:2;inset:4.2em 0 0;pointer-events:none;background:radial-gradient(ellipse at center,#0000 35%,#02070bb8 100%)}
   `;
   document.head.appendChild(style);
 
@@ -28,19 +28,19 @@
     let stage = createStage();
     const assetPath = 'assets/operations/';
     const assetFiles = {
-      lsBike: 'ls-bike.png', lsTechnical: 'ls-technical.png', lsTruck: 'ls-truck.png', lsMortar: 'ls-mortar.png', lsTurret: 'ls-turret.png', exRover: 'ex-rover.png', exPatrol: 'ex-patrol.png', exSentry: 'ex-sentry.png', exDrone: 'ex-drone.png', exCrateFuel: 'ex-crate-fuel.png', exCrateTrade: 'ex-crate-trade.png', exCrateTech: 'ex-crate-tech.png', exCrateBlack: 'ex-crate-black.png',
+      lsBike: 'ls-bike.png', lsTechnical: 'ls-technical.png', lsTruck: 'ls-truck.png', lsMortar: 'ls-mortar.png', lsTurret: 'ls-turret.png', lsTowerGun: 'ls-tower-gun.png', lsTowerBurner: 'ls-tower-burner.png', lsTowerRail: 'ls-tower-rail.png', lsTowerBeacon: 'ls-tower-beacon.png', lsWarrig: 'ls-warrig.png', exRover: 'ex-rover.png', exPatrol: 'ex-patrol.png', exSentry: 'ex-sentry.png', exDrone: 'ex-drone.png', exCrateFuel: 'ex-crate-fuel.png', exCrateTrade: 'ex-crate-trade.png', exCrateTech: 'ex-crate-tech.png', exCrateBlack: 'ex-crate-black.png',
       mech: 'caretaker-mech.png', mechRage: 'caretaker-mech-rage.png', leader: 'strike-leader.png', partner: 'partner-drone.png', lastBg: 'laststand-arena.jpg', extractionBg: 'extraction-arena.jpg', leviathanBg: 'leviathan-arena.jpg'
     };
     const art = {}; Object.entries(assetFiles).forEach(([k, file]) => { const im = new Image(); im.decoding = 'async'; im.src = assetPath + file; art[k] = im; });
     function getStage() { if (!stage) stage = createStage(); return stage; }
     function drawStage(mode, actors, w, h) { const view = getStage(); return !!(view && view.ready && view.update(mode, typeof actors === 'function' ? actors() : actors, w, h, performance.now() / 1000)); }
     const info = {
-      laststand: ['lsTurret', 'Last Stand', 'Defend your headquarters', 'The turret fires by itself - press a raider to focus it'],
+      laststand: ['lsTurret', 'Last Stand', 'Defend your headquarters', 'Tap a pad to build towers with scrap - press a raider to focus the turret'],
       extraction: ['exRover', 'Extraction Run', 'Recover supplies and escape', 'Collect 3 cargo. Extract unlocks in the final 12 seconds.'],
       leviathan: ['mech', 'Leviathan Assault', 'Stop a Caretaker war-mech with your AI partner', 'Drag to dodge - you and your partner fire automatically']
     };
     const briefings = {
-      laststand: { alert:'PERIMETER ALERT', title:'Raiders are coming for the Headquarters', story:'Your construction signal drew a raider pack out of the wastes. The walls are unfinished, so the HQ turret is all that stands between them and the gate. Lumen, a free AI that has been listening to the Caretaker, has offered to help: it calls targets and can fly an airstrike when you ask.', goal:'The turret fires by itself. Press a raider to focus it. Stop at least the target number before the gate falls.', action:'Defend the base' },
+      laststand: { alert:'PERIMETER ALERT', title:'Raiders are coming for the Headquarters', story:'Your construction signal drew a raider pack out of the wastes. Your new gunners are digging in at the gate, and there are build pads along the road. Lumen, a free AI that has been listening to the Caretaker, has offered to help: it calls targets and can fly an airstrike when you ask.', goal:'Every raider stopped earns scrap: spend it on towers. Press a raider to focus the HQ turret. Stop at least the target number before the gate falls.', action:'Defend the base' },
       extraction: { alert:'RECOVERY WINDOW', title:'The new parcel needs supplies', story:'Expanding your settlement exposed a Caretaker supply yard. Its patrols are already closing in. Those crates can stock your new land, but anything left behind will be reclaimed. Lumen will ride along and can scramble the yard sensors for a few seconds.', goal:'Drive over crates to collect them; every hit drops one. When the beacon opens in the final 12 seconds, reach the pad or press Extract.', action:'Start recovery run' },
       leviathan: { alert:'REGIONAL THREAT', title:'The Leviathan has entered Aurelia', story:'The Caretaker has sent a war-mech, the Leviathan, to bring the region back into line. Lumen, an AI that chose to stand with settlers, will fly at your side: it fires on the core of the mech and can shield you when the fire gets heavy.', goal:'Read each warning and dodge the attack. Survive 90 seconds and deal enough damage to drive the mech back.', action:'Join the assault' }
     };
@@ -50,13 +50,13 @@
     // main source of operation lag, especially on high-DPI phones.
     function fit() { const r = canvas.getBoundingClientRect(), w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height)), d = Math.min(devicePixelRatio || 1, lowPower ? 1 : 1.5), bw = Math.round(w * d), bh = Math.round(h * d); if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; ctx.setTransform(d, 0, 0, d, 0, 0); ctx.imageSmoothingQuality = lowPower ? 'low' : 'medium'; } return { w, h }; }
     function pos(e) { const r = canvas.getBoundingClientRect(); pointer.x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); pointer.y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)); }
-    canvas.addEventListener('pointerdown', e => { pointer.down = true; pos(e); canvas.setPointerCapture(e.pointerId); if (current && current.tap) current.tap(pointer.x, pointer.y); });
+    canvas.addEventListener('pointerdown', e => { pointer.down = true; pos(e); try { canvas.setPointerCapture(e.pointerId); } catch {} if (current && current.tap) current.tap(pointer.x, pointer.y); });
     canvas.addEventListener('pointermove', e => { if (pointer.down) pos(e); });
     canvas.addEventListener('pointerup', e => { pointer.down = false; pos(e); });
-    function close() { cancelAnimationFrame(raf); current = null; if (stage) stage.hide(); root.hidden = true; root.style.backgroundImage = ''; root.style.backgroundSize = ''; root.classList.remove('has-controls', 'running'); window.__operationsActive = false; $('opsControls').hidden = true; $('opsResult').hidden = true; refreshGuide(); }
+    function close() { cancelAnimationFrame(raf); current = null; hideBuild(); if (stage) stage.hide(); root.hidden = true; root.style.backgroundImage = ''; root.style.backgroundSize = ''; root.classList.remove('has-controls', 'running'); window.__operationsActive = false; $('opsControls').hidden = true; $('opsResult').hidden = true; refreshGuide(); }
     $('opsExit').onclick = close;
     function menu() {
-      cancelAnimationFrame(raf); current = null; if (stage) stage.hide(); window.__operationsActive = true; root.hidden = false; root.style.backgroundImage = ''; root.style.backgroundSize = ''; root.classList.remove('has-controls', 'running'); $('opsControls').hidden = true; $('opsResult').hidden = true; $('opsCanvas').hidden = true; $('opsTip').hidden = true; $('opsMenu').hidden = false; $('opsName').textContent = 'Field Operations'; $('opsObjective').textContent = 'Short missions. Lasting consequences.'; $('opsScore').textContent = '-'; $('opsScoreLabel').textContent = 'score'; $('opsTime').textContent = '-';
+      cancelAnimationFrame(raf); current = null; hideBuild(); if (stage) stage.hide(); window.__operationsActive = true; root.hidden = false; root.style.backgroundImage = ''; root.style.backgroundSize = ''; root.classList.remove('has-controls', 'running'); $('opsControls').hidden = true; $('opsResult').hidden = true; $('opsCanvas').hidden = true; $('opsTip').hidden = true; $('opsMenu').hidden = false; $('opsName').textContent = 'Field Operations'; $('opsObjective').textContent = 'Short missions. Lasting consequences.'; $('opsScore').textContent = '-'; $('opsScoreLabel').textContent = 'score'; $('opsTime').textContent = '-';
       const unlocked = (player().operations && player().operations.unlocked) || [], guided = (player().home && player().home.tutorial && player().home.tutorial.do) || (player().guide && player().guide.do);
       const ops = player().operations || {}, levels = ops.levels || {}, paidLeft = ops.paidLeft != null ? ops.paidLeft : 0;
       const best = records(); $('opsMenu').innerHTML = '<div><h2>Choose an operation</h2><p>' + (guided && info[guided] ? 'The highlighted operation continues your current mission. Press Play when you are ready.' : 'Every win raises that operation\'s threat level: harder enemies, bigger rewards. ' + (paidLeft > 0 ? 'Paid wins left today: ' + paidLeft + ' of ' + (ops.paidPerDay || 5) + '.' : 'You have had today\'s paid wins; threat levels still rise.')) + '</p><div class="ops-list">' + Object.entries(info).map(([id, x]) => '<div class="ops-card"><span class="ops-icon"><img src="' + assetPath + assetFiles[x[0]] + '" alt=""></span><span><b>' + x[1] + '</b><small>' + (unlocked.includes(id) ? x[2] : 'Locked - continue the Field Guide') + '</small>' + (unlocked.includes(id) ? '<small class="ops-best">Threat ' + (levels[id] || 1) + '</small>' : '') + (best[id] ? '<small class="ops-best">Best ' + best[id].score + ' / Grade ' + best[id].grade + '</small>' : '') + '</span><button data-op="' + id + '" ' + (id === guided ? 'class="primary guide-target" data-guide-label="Press Play" ' : '') + (unlocked.includes(id) ? '' : 'disabled') + '>Play</button></div>').join('') + '</div>' + (lowPower ? '<p><small>Performance mode is active for this device.</small></p>' : '<p><button id="opsQuality">Experimental 3D: ' + (enhanced3d ? 'On' : 'Off (recommended)') + '</button></p>') + '<div class="ops-menu-actions"><button id="opsBack">← Back to game</button></div></div>';
@@ -90,7 +90,7 @@
       if (left <= 0 || current.completeNow) finish(); else raf = requestAnimationFrame(tick);
     }
     async function finish() {
-      cancelAnimationFrame(raf); const g = current; current = null; const finalScore = Math.floor(g.score), runGrade = grade(finalScore, g.target), old = records();
+      cancelAnimationFrame(raf); hideBuild(); const g = current; current = null; const finalScore = Math.floor(g.score), runGrade = grade(finalScore, g.target), old = records();
       try {
         const r = await connection().invoke('CompleteOperation', g.id, Math.floor(g.score));
         if (r.player) applyPlayer(r.player);
@@ -138,80 +138,161 @@
     function drawBanner(geo, text, color) { ctx.fillStyle = '#090c11c9'; ctx.fillRect(geo.w / 2 - 130, 34, 260, 20); ctx.fillStyle = color || '#ffd36a'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText(text, geo.w / 2, 48); ctx.textAlign = 'left'; }
     function stepToward(o, tx, ty, pxPerSec, geo, dt) { const dx = (tx - o.x) * geo.fw, dy = (ty - o.y) * geo.h, d = Math.hypot(dx, dy) || 1, step = Math.min(d, pxPerSec * geo.h * dt); o.vx = dx / d * pxPerSec * geo.h / geo.fw; o.vy = dy / d * pxPerSec; o.x += dx / d * step / geo.fw; o.y += dy / d * step / geo.h; return d - step; }
 
-    // Last Stand: hold the gate against raider waves. The turret fires by itself; pressing a raider focuses it.
-    // Each threat level brings faster, tougher raiders: technicals that shoot (2+), armoured trucks (3+), mortar teams (4+).
+    // Last Stand: raiders follow a winding road to the gate. Kills earn scrap; spend it on towers on the build pads.
+    // The squad you trained holds a sandbag line just before the gate, the HQ turret covers the lower road (press a
+    // raider to focus it), and Lumen can fly an airstrike. Three waves, then a War Rig. The road and pads match the
+    // backdrop (tools/blender/operations_art.py uses the same numbers).
+    const LS_PATH = [[.5, -.06], [.5, .06], [.22, .16], [.24, .27], [.74, .36], [.76, .45], [.5, .53], [.5, .69]];
+    const LS_PADS = [[.40, .21], [.10, .27], [.56, .235], [.90, .40], [.50, .43], [.25, .48]];
+    const FWH = .48; // field width per canvas height: every arena is drawn to the screen's height, so this never changes
+    const LS_TOWERS = {
+      gun: { name: 'GUN NEST', hint: 'Fast, one target', cost: [20, 25, 35], range: [.2, .22, .24], rate: [.5, .38, .3], dmg: [1, 1, 2], art: 'lsTowerGun' },
+      burner: { name: 'BURNER', hint: 'Burns everything close', cost: [25, 30, 40], range: [.11, .12, .13], rate: [.35, .28, .24], dmg: [1, 1.5, 2], art: 'lsTowerBurner' },
+      rail: { name: 'RAIL GUN', hint: 'Long range, heavy hit', cost: [35, 35, 45], range: [.34, .38, .42], rate: [1.8, 1.5, 1.2], dmg: [6, 9, 13], art: 'lsTowerRail' },
+      beacon: { name: 'LUMEN BEACON', hint: 'Slows and marks raiders', cost: [25, 25, 30], range: [.15, .17, .19], slow: [.35, .45, .55], mark: [.25, .35, .5], art: 'lsTowerBeacon' },
+    };
+    function hideBuild() { const m = root.querySelector('#opsBuild'); if (m) m.hidden = true; }
     function lastStand(s) {
       if (stage) stage.hide();
-      const L = s.difficulty, GATE = .69, TURRET = { x: .5, y: .815 }, RANGE = .44, raiders = [], rounds = [], shells = [], fx = [], popups = [], geo = arenaField(1, 1);
-      let hp = 100, elapsed = 0, spawn = 1.4, fire = 0, focus = null, aim = 0, muzzle = 0, overcharge = 0, overCd = 3, strikeCd = 4, strike = null, lumenFire = 1, orbit = 0, wave = 0, hurt = 0, shake = 0, line = null, lowWarned = false, kills = 0, lastTarget = null;
+      const L = s.difficulty, GATE = .69, LINE = .61, TURRET = { x: .5, y: .815 }, RANGE = .44, geo = arenaField(1, 1);
+      const raiders = [], rounds = [], shells = [], beams = [], flames = [], fx = [], popups = [], towers = LS_PADS.map(() => null);
+      const dist = (a, b) => Math.hypot((a.x - b.x) * FWH, a.y - b.y);
+      // the road as segments measured in canvas heights, so raider speeds read the same on every screen
+      const segs = []; let roadLength = 0; for (let i = 1; i < LS_PATH.length; i++) { const [x0, y0] = LS_PATH[i - 1], [x1, y1] = LS_PATH[i], len = Math.hypot((x1 - x0) * FWH, y1 - y0); segs.push({ x0, y0, x1, y1, len, at: roadLength }); roadLength += len; }
+      function along(d) { const sg = segs.find(q => d <= q.at + q.len) || segs[segs.length - 1], k = Math.max(0, Math.min(1, (d - sg.at) / sg.len)); return { x: sg.x0 + (sg.x1 - sg.x0) * k, y: sg.y0 + (sg.y1 - sg.y0) * k, angle: Math.atan2(sg.x1 - sg.x0, -(sg.y1 - sg.y0)) }; }
+      const squadSize = Math.max(3, Math.min(8, Object.values(s.squad || {}).reduce((a, b) => a + b, 0) || 3));
+      const soldiers = Array.from({ length: squadSize }, (_, i) => ({ x: .5 + (i - (squadSize - 1) / 2) * Math.min(.06, .3 / squadSize), y: LINE + .012, hp: 4, cd: Math.random() }));
+      // raiders get 18% tougher per threat level; towers don't, so later levels need upgrades and good placement
+      const tough = n => Math.max(1, Math.round(n * (1 + .18 * (L - 1))));
       const types = {
-        bike: { hp: L >= 10 ? 2 : 1, speed: .085, dmg: 6, art: 'lsBike', size: .1 },
-        technical: { hp: 3 + Math.floor(L / 6), speed: .06, dmg: 10, art: 'lsTechnical', size: .17, gun: true },
-        truck: { hp: 6 + Math.floor(L / 4), speed: .04, dmg: 20, art: 'lsTruck', size: .21 },
-        mortar: { hp: 3 + Math.floor(L / 8), speed: .075, dmg: 0, art: 'lsMortar', size: .16, stopAt: .3 },
+        bike: { hp: tough(1), speed: .085, dmg: 6, scrap: 2, art: 'lsBike', size: .1 },
+        technical: { hp: tough(3), speed: .06, dmg: 10, scrap: 5, art: 'lsTechnical', size: .17, gun: true },
+        truck: { hp: tough(6), speed: .042, dmg: 20, scrap: 8, art: 'lsTruck', size: .21, heavy: true },
+        mortar: { hp: tough(3), speed: .075, dmg: 0, scrap: 6, art: 'lsMortar', size: .16, park: .46 },
+        warrig: { hp: tough(26), speed: .03, dmg: 40, scrap: 20, art: 'lsWarrig', size: .28, heavy: true, boss: true },
       };
-      const speak = text => { line = { who: 'LUMEN', text, t: 3.4 }; };
-      function pick(phase) { const r = Math.random(), heavy = Math.min(.35, (L - 1) * .025 + phase * .05); if (L >= 4 && phase >= 2 && r < .08 + L * .005) return 'mortar'; if (L >= 3 && r < .18 + heavy * .4) return 'truck'; if (L >= 2 && r < .32 + heavy) return 'technical'; return 'bike'; }
-      function spawnRaider(phase) { const type = pick(phase), t = types[type]; raiders.push({ type, x: .12 + Math.random() * .76, y: -.05, hp: t.hp, max: t.hp, lane: .3 + Math.random() * .4, wob: Math.random() * 6, flash: 0, gunCd: 1.2 + Math.random(), lean: 0 }); }
+      let hp = 100, elapsed = 0, spawn = 0, fire = 0, focus = null, aim = 0, muzzle = 0, overcharge = 0, overCd = 3, strikeCd = 4, strike = null, orbit = 0, hurt = 0, shake = 0, line = null, lowWarned = false, kills = 0, scrap = 35, waveShown = 0, rigSent = false, buildPad = -1;
+      if (L === 1) towers[0] = { type: 'gun', level: 0, cd: 0, aim: 0 }; // a first nest is already up, so new players see a tower working
+      // the run's shape: a build window, three waves with short lulls, and the War Rig near the end
+      const waves = [{ from: 7, to: 23 }, { from: 27, to: 43 }, { from: 46, to: s.duration - 2 }];
+      const waveAt = t => waves.findIndex(w => t >= w.from && t < w.to) + 1;
+      const speak = text => { line = { who: 'LUMEN', text, t: 3.6 }; };
+      function pick(wave) { const r = Math.random(), heavy = Math.min(.35, (L - 1) * .025 + wave * .05); if (L >= 4 && wave >= 2 && r < .08 + L * .005) return 'mortar'; if (L >= 3 && r < .18 + heavy * .4) return 'truck'; if (L >= 2 && r < .32 + heavy) return 'technical'; return 'bike'; }
+      function send(type) { const t = types[type]; raiders.push({ type, d: 0, x: .5, y: -.06, hp: t.hp, max: t.hp, flash: 0, gunCd: 1.2 + Math.random(), slow: 0, mark: 0, engaged: null, hitCd: 0, angle: 0 }); }
       function hitGate(amount, x, y) { if (!amount) return; hp = Math.max(0, hp - amount); hurt = .5; shake = Math.min(9, shake + 4); haptic(30); burst(fx, x, y || GATE, '#ff6b3d', 14); popup(popups, x, (y || GATE) - .04, 'GATE -' + amount, '#ff8c76'); }
-      function hit(game, r, n, color) { r.hp -= n; r.flash = .1; burst(fx, r.x, r.y, color || '#ffb04d', 3); if (r.hp > 0) return; const i = raiders.indexOf(r); if (i < 0) return; raiders.splice(i, 1); kills++; game.score = kills; burst(fx, r.x, r.y, '#ff8a3d', r.max > 2 ? 30 : 16); popup(popups, r.x, r.y - .03, kills + ' / ' + s.target, kills >= s.target ? '#8cff9b' : '#ffe07a'); popups[popups.length - 1].big = true; if (focus === r) focus = null; }
+      function hit(game, r, n, color) {
+        if (!raiders.includes(r)) return; n *= 1 + r.mark; r.hp -= n; r.flash = .1; burst(fx, r.x, r.y, color || '#ffb04d', 3); if (r.hp > 0) return;
+        raiders.splice(raiders.indexOf(r), 1); kills++; game.score = kills; const t = types[r.type]; scrap += t.scrap; burst(fx, r.x, r.y, '#ff8a3d', r.max > 2 ? 30 : 16);
+        popup(popups, r.x, r.y - .03, '+' + t.scrap + ' scrap', '#ffd36a'); if (t.boss) { speak('The War Rig is down! That was the big one.'); shake = 9; } if (focus === r) focus = null;
+      }
+      function towerAt(i) { const [x, y] = LS_PADS[i]; return { x, y }; }
+      function inRangeOf(o, range) { return raiders.filter(r => dist(r, o) < range); }
+      function furthest(list) { return list.sort((a, b) => b.d - a.d)[0]; }
+      // the build menu: a small panel over the pad, with what you can afford lit up
+      function openBuild(i) {
+        buildPad = i; let m = root.querySelector('#opsBuild'); if (!m) { m = document.createElement('div'); m.id = 'opsBuild'; m.className = 'ops-build'; root.appendChild(m); }
+        const t = towers[i], p = towerAt(i), html = t ? (t.level < 2 ? '<b>' + LS_TOWERS[t.type].name + ' ' + 'I'.repeat(t.level + 1) + '</b><button data-up="' + i + '" data-cost="' + LS_TOWERS[t.type].cost[t.level + 1] + '">Upgrade ' + LS_TOWERS[t.type].cost[t.level + 1] + '</button>' : '<b>' + LS_TOWERS[t.type].name + ' III</b><small>Fully upgraded</small>')
+          : '<b>Build a tower</b>' + Object.entries(LS_TOWERS).map(([k, v]) => '<button data-build="' + k + '" data-cost="' + v.cost[0] + '">' + v.name + ' <i>' + v.cost[0] + '</i><small>' + v.hint + '</small></button>').join('');
+        m.innerHTML = html + '<button data-close="1" class="ops-build-x">Close</button>'; m.hidden = false; refreshBuild();
+        const r = canvas.getBoundingClientRect(), rr = root.getBoundingClientRect(), sx = r.left - rr.left + geo.x0 + p.x * geo.fw, sy = r.top - rr.top + p.y * geo.h;
+        m.style.left = Math.max(8, Math.min(rr.width - 196, sx - 94)) + 'px'; m.style.top = Math.max(70, Math.min(rr.height - m.offsetHeight - 8, sy + 26)) + 'px';
+        m.querySelectorAll('[data-build]').forEach(b => b.onclick = () => { const v = LS_TOWERS[b.dataset.build]; if (scrap < v.cost[0]) return; scrap -= v.cost[0]; towers[i] = { type: b.dataset.build, level: 0, cd: 0, aim: 0 }; burst(fx, p.x, p.y, '#ffd27a', 24); popup(popups, p.x, p.y - .05, v.name, '#ffd27a'); haptic(20); hideBuild(); buildPad = -1; });
+        m.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const tw = towers[i], v = LS_TOWERS[tw.type], c = v.cost[tw.level + 1]; if (scrap < c) return; scrap -= c; tw.level++; burst(fx, p.x, p.y, '#ffd27a', 24); popup(popups, p.x, p.y - .05, 'UPGRADED', '#ffd27a'); haptic(20); hideBuild(); buildPad = -1; });
+        m.querySelector('[data-close]').onclick = () => { hideBuild(); buildPad = -1; };
+      }
+      function refreshBuild() { const m = root.querySelector('#opsBuild'); if (m && !m.hidden) m.querySelectorAll('button[data-cost]').forEach(b => { b.disabled = scrap < +b.dataset.cost; }); }
       const game = { id: 'laststand', duration: s.duration, score: 0, failed: false,
-        tap(x, y) { const fx0 = (x * geo.w - geo.x0) / geo.fw; let best = null, bd = .1; raiders.forEach(r => { const d = Math.hypot((r.x - fx0) * geo.fw / geo.h, r.y - y); if (d < bd) { bd = d; best = r; } }); if (best) { focus = best; popup(popups, best.x, best.y - .06, 'FOCUS', '#7cf3ff'); } },
+        tap(x, y) {
+          const fx0 = (x * geo.w - geo.x0) / geo.fw, here = { x: fx0, y };
+          const pad = LS_PADS.findIndex(([px, py]) => dist({ x: px, y: py }, here) < .045); if (pad >= 0) { openBuild(pad); return; }
+          if (buildPad >= 0) { hideBuild(); buildPad = -1; }
+          let best = null, bd = .1; raiders.forEach(r => { const d = dist(r, here); if (d < bd) { bd = d; best = r; } }); if (best) { focus = best; popup(popups, best.x, best.y - .06, 'FOCUS', '#7cf3ff'); }
+        },
         controls() { return [{ id: 'overcharge', name: 'OVERCHARGE', hint: 'Turret fires faster', cooldown: overCd, max: 14 }, { id: 'strike', name: 'LUMEN: AIRSTRIKE', hint: 'Hit raiders near the gate', cooldown: strikeCd, max: 10 }]; },
         ability(id) {
           if (this.failed) return;
           if (id === 'overcharge' && overCd <= 0) { overCd = 14; overcharge = 4; haptic([15, 25, 15]); popup(popups, TURRET.x, TURRET.y - .09, 'OVERCHARGE', '#ffca62'); }
-          if (id === 'strike' && strikeCd <= 0) { const marked = [...raiders].filter(r => r.y > .05).sort((a, b) => b.y - a.y).slice(0, 3); if (!marked.length) { speak('Nothing close enough yet. Holding the strike.'); return; } strikeCd = 10; strike = { t: .55, marks: marked }; speak('Marking ' + marked.length + '. Strike inbound.'); }
+          if (id === 'strike' && strikeCd <= 0) { const marked = [...raiders].filter(r => r.y > .05).sort((a, b) => b.d - a.d).slice(0, 3); if (!marked.length) { speak('Nothing on the road yet. Holding the strike.'); return; } strikeCd = 10; strike = { t: .55, marks: marked }; speak('Marking ' + marked.length + '. Strike inbound.'); }
         },
         update(dt) {
           if (this.failed) return; elapsed += dt; if (elapsed > 5 && !$('opsTip').hidden) $('opsTip').hidden = true;
-          const phase = elapsed < this.duration / 3 ? 1 : elapsed < this.duration * 2 / 3 ? 2 : 3;
-          if (phase !== wave) { wave = phase; popup(popups, .5, .42, phase === 3 ? 'FINAL ASSAULT' : 'WAVE ' + phase, phase === 3 ? '#ff6c58' : '#ffd36a'); popups[popups.length - 1].big = true; speak(phase === 1 ? 'Raiders on the road. The turret fires by itself - press one to focus it.' : phase === 2 ? (L >= 3 ? 'Trucks soak up fire. Focus them before they reach the gate.' : 'More coming. Keep the turret on the closest ones.') : (L >= 4 ? 'Final push. Mortars stop short - take them out fast.' : 'Final push. Hold the gate!')); }
+          if (elapsed < .1) speak(L === 1 ? 'Raiders in a few seconds. Tap a glowing pad to build a tower with scrap.' : 'Build while you can. Raiders hit the road in seven seconds.');
+          const wave = waveAt(elapsed);
+          if (wave && wave !== waveShown) { waveShown = wave; popup(popups, .5, .58, wave === 3 ? 'FINAL WAVE' : 'WAVE ' + wave, wave === 3 ? '#ff6c58' : '#ffd36a'); popups[popups.length - 1].big = true; if (wave > 1) { scrap += 10; popup(popups, .5, .64, '+10 scrap', '#ffd36a'); } speak(wave === 1 ? 'Here they come. Your gunners hold the line at the gate.' : wave === 2 ? (L >= 3 ? 'Trucks take a beating: rail guns crack them open.' : 'More coming. Spend that scrap.') : 'Final wave. Something big is coming down the road.'); }
           hurt = Math.max(0, hurt - dt); shake = Math.max(0, shake - dt * 16); muzzle = Math.max(0, muzzle - dt); overcharge = Math.max(0, overcharge - dt); overCd = Math.max(0, overCd - dt); strikeCd = Math.max(0, strikeCd - dt); orbit += dt * 1.8; if (line) { line.t -= dt; if (line.t <= 0) line = null; }
-          spawn -= dt; if (spawn <= 0) { spawn = Math.max(.4, 1.1 - L * .025 - phase * .1) * (.75 + Math.random() * .5); spawnRaider(phase); }
-          raiders.forEach(r => { const t = types[r.type], oldX = r.x; r.wob += dt * 3; const lane = r.y < .3 ? r.lane + Math.sin(r.wob) * .05 : .5 + (r.lane - .5) * .45; r.x += (lane - r.x) * dt * .9; const parked = t.stopAt && r.y >= t.stopAt; if (!parked) r.y += t.speed * (1 + L * .02) * dt; r.lean = Math.max(-.3, Math.min(.3, (r.x - oldX) / Math.max(dt, .001) * 2)); r.flash = Math.max(0, r.flash - dt);
-            if (t.gun && r.y > .12 && r.y < .62) { r.gunCd -= dt; if (r.gunCd <= 0) { r.gunCd = Math.max(1.3, 2.4 - L * .05); shells.push({ kind: 'round', x0: r.x, y0: r.y + .03, tx: .5 + (Math.random() - .5) * .3, ty: GATE, t: 0, dur: .9, dmg: 2 + Math.floor(L / 8) }); } }
-            if (parked) { r.gunCd -= dt; if (r.gunCd <= 0) { r.gunCd = Math.max(2.6, 3.6 - L * .04); shells.push({ kind: 'mortar', x0: r.x, y0: r.y, tx: TURRET.x + (Math.random() - .5) * .16, ty: TURRET.y - .03, t: 0, dur: 1.7, dmg: 8 }); } } });
-          for (let i = raiders.length - 1; i >= 0; i--) if (raiders[i].y >= GATE) { const r = raiders[i]; hitGate(types[r.type].dmg, r.x); burst(fx, r.x, GATE, '#ff8a3d', 20); raiders.splice(i, 1); if (focus === r) focus = null; }
+          if (wave) { spawn -= dt; if (spawn <= 0) { spawn = Math.max(.4, 1.12 - L * .03 - wave * .08) * (.75 + Math.random() * .5); send(pick(wave)); } }
+          if (!rigSent && elapsed >= s.duration - 14) { rigSent = true; send('warrig'); popup(popups, .5, .1, 'WAR RIG INBOUND', '#ff6c58'); popups[popups.length - 1].big = true; }
+          // the road: raiders move along it, slowed by beacons, and stop to fight the squad's line
+          raiders.forEach(r => { const t = types[r.type]; r.flash = Math.max(0, r.flash - dt); r.slow = 0; r.mark = 0;
+            towers.forEach((tw, i) => { if (!tw || tw.type !== 'beacon') return; const v = LS_TOWERS.beacon; if (dist(r, towerAt(i)) < v.range[tw.level]) { r.slow = Math.max(r.slow, v.slow[tw.level]); r.mark = Math.max(r.mark, v.mark[tw.level]); } });
+            const atLine = r.y >= LINE - .015 && r.d > roadLength * .8, guard = atLine && !t.heavy ? soldiers.find(q => q.hp > 0 && Math.abs(q.x - r.x) < .12) || soldiers.find(q => q.hp > 0) : null;
+            if (guard) { r.hitCd -= dt; if (r.hitCd <= 0) { r.hitCd = .8; guard.hp -= 1; burst(fx, guard.x, guard.y, '#ff6b3d', 4); if (guard.hp <= 0) { popup(popups, guard.x, guard.y - .04, 'GUNNER DOWN', '#ff8c76'); if (soldiers.every(q => q.hp <= 0)) speak('The line has fallen. The turret is all that is left.'); } } }
+            else if (!(t.park && r.d >= roadLength * t.park)) { r.d += t.speed * (1 + L * .02) * (1 - r.slow) * dt; }
+            if (t.heavy && atLine) soldiers.forEach(q => { if (q.hp > 0 && Math.abs(q.x - r.x) < .06 && !q.trampled) { q.hp = 0; q.trampled = true; popup(popups, q.x, q.y - .04, 'GUNNER DOWN', '#ff8c76'); } });
+            const p = along(r.d); r.x = p.x; r.y = p.y; r.angle = p.angle;
+            if (t.gun && r.y > .12 && r.y < .6) { r.gunCd -= dt; if (r.gunCd <= 0) { r.gunCd = Math.max(1.3, 2.4 - L * .05); shells.push({ kind: 'round', x0: r.x, y0: r.y + .03, tx: .5 + (Math.random() - .5) * .3, ty: GATE, t: 0, dur: .9, dmg: 2 + Math.floor(L / 8) }); } }
+            if (t.park && r.d >= roadLength * t.park) { r.gunCd -= dt; if (r.gunCd <= 0) { r.gunCd = Math.max(2.6, 3.6 - L * .04); shells.push({ kind: 'mortar', x0: r.x, y0: r.y, tx: TURRET.x + (Math.random() - .5) * .16, ty: TURRET.y - .03, t: 0, dur: 1.7, dmg: 8 }); } } });
+          for (let i = raiders.length - 1; i >= 0; i--) if (raiders[i].d >= roadLength - .005) { const r = raiders[i]; hitGate(types[r.type].dmg, r.x); burst(fx, r.x, GATE, '#ff8a3d', 20); raiders.splice(i, 1); if (focus === r) focus = null; }
           for (let i = shells.length - 1; i >= 0; i--) { const q = shells[i]; q.t += dt; if (q.t >= q.dur) { hitGate(q.dmg, q.tx, q.ty); burst(fx, q.tx, q.ty, '#ff8a3d', q.kind === 'mortar' ? 26 : 8); shells.splice(i, 1); } }
-          // the turret turns to its target, then fires; a focused target gets a faster cadence
-          // it only reaches the lower road by itself; a focused raider is engaged at any distance
-          const inRange = r => Math.hypot((r.x - TURRET.x) * geo.fw, (r.y - TURRET.y) * geo.h) / geo.h < RANGE, target = focus && raiders.includes(focus) ? focus : raiders.filter(inRange).sort((a, b) => b.y - a.y)[0]; lastTarget = target;
+          // the squad fires from behind its sandbags
+          soldiers.forEach(q => { if (q.hp <= 0) return; q.cd -= dt; if (q.cd > 0) return; const r = furthest(inRangeOf(q, .2)); if (!r) return; q.cd = .9; rounds.push({ x: q.x, y: q.y - .02, target: r, kind: 'squad', vx: 0, vy: -1, dmg: 1 }); });
+          // towers
+          towers.forEach((tw, i) => { if (!tw) return; const v = LS_TOWERS[tw.type], at = towerAt(i); tw.cd -= dt; if (tw.type === 'beacon' || tw.cd > 0) return;
+            const list = inRangeOf(at, v.range[tw.level]); if (!list.length) return; tw.cd = v.rate[tw.level];
+            if (tw.type === 'gun') rounds.push({ x: at.x, y: at.y - .03, target: furthest(list), kind: 'round', vx: 0, vy: -1, dmg: v.dmg[tw.level] });
+            if (tw.type === 'burner') { list.forEach(r => hit(this, r, v.dmg[tw.level], '#ff9a3d')); flames.push({ x: at.x, y: at.y, r: v.range[tw.level], t: .3 }); }
+            if (tw.type === 'rail') { const r = furthest(list); beams.push({ x0: at.x, y0: at.y - .04, x1: r.x, y1: r.y, t: .18 }); hit(this, r, v.dmg[tw.level], '#9ff6ff'); } });
+          // the HQ turret reaches the lower road by itself; a focused raider is engaged at any distance
+          const target = focus && raiders.includes(focus) ? focus : furthest(raiders.filter(r => dist(r, TURRET) < RANGE));
           if (target) { const want = Math.atan2((target.y - TURRET.y) * geo.h, (target.x - TURRET.x) * geo.fw) + Math.PI / 2; aim += Math.atan2(Math.sin(want - aim), Math.cos(want - aim)) * Math.min(1, dt * 14); }
-          fire -= dt; if (fire <= 0 && target) { fire = (target === focus ? .18 : .4) / (overcharge > 0 ? 2.5 : 1); muzzle = .06; rounds.push({ x: TURRET.x + Math.sin(aim) * .07 * geo.asp, y: TURRET.y - Math.cos(aim) * .07, target, kind: 'round', vx: 0, vy: -1 }); }
-          lumenFire -= dt; if (lumenFire <= 0) { lumenFire = 1.1; const r = raiders.filter(q => inRange(q) && q !== target).sort((a, b) => b.y - a.y)[0] || target; if (r) rounds.push({ x: TURRET.x + Math.cos(orbit) * .14, y: TURRET.y - .07 + Math.sin(orbit) * .025, target: r, kind: 'partner', vx: 0, vy: -1 }); }
-          for (let i = rounds.length - 1; i >= 0; i--) { const b = rounds[i], alive = raiders.includes(b.target); if (alive) { const left = stepToward(b, b.target.x, b.target.y, 2.2, geo, dt); if (left < .02 * geo.h) { hit(this, b.target, 1, b.kind === 'partner' ? '#7cf3ff' : null); rounds.splice(i, 1); } } else { b.x += b.vx * dt; b.y += b.vy * dt; if (b.y < -.1 || b.y > 1.1 || b.x < -.2 || b.x > 1.2) rounds.splice(i, 1); } }
+          fire -= dt; if (fire <= 0 && target) { fire = (target === focus ? .18 : .4) / (overcharge > 0 ? 2.5 : 1); muzzle = .06; rounds.push({ x: TURRET.x + Math.sin(aim) * .07 / FWH, y: TURRET.y - Math.cos(aim) * .07, target, kind: 'round', vx: 0, vy: -1, dmg: 1 }); }
+          for (let i = rounds.length - 1; i >= 0; i--) { const b = rounds[i]; if (raiders.includes(b.target)) { const left = stepToward(b, b.target.x, b.target.y, 2.2, geo, dt); if (left < .02 * geo.h) { hit(this, b.target, b.dmg, b.kind === 'squad' ? '#ffcf8a' : null); rounds.splice(i, 1); } } else { b.x += b.vx * dt; b.y += b.vy * dt; if (b.y < -.1 || b.y > 1.1 || b.x < -.2 || b.x > 1.2) rounds.splice(i, 1); } }
           if (strike) { strike.t -= dt; if (strike.t <= 0) { strike.marks.forEach(r => { if (raiders.includes(r)) { burst(fx, r.x, r.y, '#ffd27a', 26); hit(this, r, 4, '#ffd27a'); } }); shake = Math.min(9, shake + 5); haptic([20, 30, 40]); strike = null; } }
+          beams.forEach(q => q.t -= dt); for (let i = beams.length - 1; i >= 0; i--) if (beams[i].t <= 0) beams.splice(i, 1);
+          flames.forEach(q => q.t -= dt); for (let i = flames.length - 1; i >= 0; i--) if (flames[i].t <= 0) flames.splice(i, 1);
           updateFx(fx, dt); updateFx(popups, dt);
+          if (buildPad >= 0) refreshBuild(); // light up what you can now afford
           if (!lowWarned && hp < 35) { lowWarned = true; speak('The gate will not take much more. Call the strike!'); strikeCd = Math.min(strikeCd, 1); }
-          if (hp <= 0) { this.score = 0; this.failed = true; speak('We lost the gate. Regroup and try again.'); this.duration = elapsed + 2; }
+          if (hp <= 0) { this.score = 0; this.failed = true; hideBuild(); speak('We lost the gate. Regroup and try again.'); this.duration = elapsed + 2; }
         },
         draw({ w, h }) {
-          ctx.clearRect(0, 0, w, h); Object.assign(geo, arenaField(w, h)); const X = x => geo.x0 + x * geo.fw, t = performance.now() / 1000;
+          ctx.clearRect(0, 0, w, h); Object.assign(geo, arenaField(w, h)); const X = x => geo.x0 + x * geo.fw, t = performance.now() / 1000, pulse = .5 + Math.sin(t * 5) * .5;
           ctx.save(); if (shake) ctx.translate((Math.random() - .5) * shake, (Math.random() - .5) * shake);
-          // mortar warnings sit on the ground, under everything
+          // pads: an empty one glows when you can afford a tower; a built one shows its tower and level
+          LS_PADS.forEach(([px, py], i) => { const tw = towers[i], cx = X(px), cy = py * h, r = geo.h * .036;
+            if (!tw) { const can = scrap >= 20; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = can ? .35 + pulse * .45 : .12; ctx.drawImage(glowDot('#ffd27a', 64), cx - r * 1.6, cy - r * 1.6, r * 3.2, r * 3.2); ctx.restore(); ctx.fillStyle = can ? '#ffe7a8' : '#a99d86'; ctx.font = '900 18px system-ui'; ctx.textAlign = 'center'; ctx.fillText('+', cx, cy + 6); ctx.textAlign = 'left'; } });
+          // ground effects under the units: beacon fields and mortar warnings
+          towers.forEach((tw, i) => { if (!tw || tw.type !== 'beacon') return; const at = towerAt(i), rr = LS_TOWERS.beacon.range[tw.level] * h; ctx.strokeStyle = 'rgba(255,210,122,' + (.25 + pulse * .2) + ')'; ctx.lineWidth = 2; ctx.setLineDash([6, 8]); ctx.beginPath(); ctx.ellipse(X(at.x), at.y * h, rr, rr * .7, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); });
           shells.forEach(q => { if (q.kind !== 'mortar') return; const k = q.t / q.dur, r = geo.h * (.05 - k * .02); ctx.strokeStyle = 'rgba(255,60,60,' + (.4 + k * .5) + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(X(q.tx), q.ty * h, r * 1.3, r * .7, 0, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(255,40,40,' + k * .25 + ')'; ctx.fill(); });
-          raiders.forEach(r => { const tp = types[r.type], size = tp.size * geo.fw; ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(X(r.x), r.y * h + size * .35, size * .35, size * .12, 0, 0, Math.PI * 2); ctx.fill(); if (!drawArt(tp.art, X(r.x), r.y * h, size, r.lean * .5, r.flash > 0)) circle(X(r.x), r.y * h, 12, '#b52e2e', '#ff9a78'); if (r.max > 1) bar(X(r.x) - size * .3, r.y * h - size * .62, size * .6, r.hp / r.max, r === focus ? '#7cf3ff' : '#ff655d'); });
+          // raiders, then the squad, then the towers (front-most last)
+          [...raiders].sort((a, b) => a.y - b.y).forEach(r => { const tp = types[r.type], size = tp.size * geo.fw; ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(X(r.x), r.y * h + size * .35, size * .35, size * .12, 0, 0, Math.PI * 2); ctx.fill();
+            if (!drawArt(tp.art, X(r.x), r.y * h, size, Math.max(-.35, Math.min(.35, r.angle * .35)), r.flash > 0)) circle(X(r.x), r.y * h, 12, '#b52e2e', '#ff9a78');
+            if (r.slow > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .45; ctx.drawImage(glowDot('#ffd27a', 48), X(r.x) - size * .5, r.y * h - size * .5, size, size); ctx.restore(); }
+            if (r.max > 1) bar(X(r.x) - size * .3, r.y * h - size * .62, size * .6, r.hp / r.max, r === focus ? '#7cf3ff' : tp.boss ? '#ff4b3e' : '#ff655d'); });
           if (focus && raiders.includes(focus)) { const size = types[focus.type].size * geo.fw * .62; ctx.save(); ctx.translate(X(focus.x), focus.y * h); ctx.rotate(t * 2); ctx.strokeStyle = '#7cf3ff'; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
+          soldiers.forEach(q => { if (q.hp <= 0) return; const size = geo.fw * .075; drawArt('leader', X(q.x), q.y * h, size); });
+          LS_PADS.forEach(([px, py], i) => { const tw = towers[i]; if (!tw) return; const v = LS_TOWERS[tw.type], size = geo.fw * (.15 + tw.level * .015); drawArt(v.art, X(px), py * h - size * .25, size); ctx.fillStyle = '#ffd27a'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('I'.repeat(tw.level + 1), X(px), py * h + size * .42); ctx.textAlign = 'left'; });
           if (strike) strike.marks.forEach(r => { if (!raiders.includes(r)) return; const k = strike.t / .55, size = geo.h * (.03 + k * .05); ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(X(r.x), r.y * h, size, 0, Math.PI * 2); ctx.moveTo(X(r.x) - size * 1.3, r.y * h); ctx.lineTo(X(r.x) + size * 1.3, r.y * h); ctx.moveTo(X(r.x), r.y * h - size * 1.3); ctx.lineTo(X(r.x), r.y * h + size * 1.3); ctx.stroke(); });
-          // light first, then solid shots on top so they read clearly
+          // light: flames, rail beams, muzzle flashes; then solid shots on top
           ctx.save(); ctx.globalCompositeOperation = 'lighter';
-          if (muzzle > 0) { const size = h * .07; ctx.drawImage(glowDot('#ffc35a', 64), X(TURRET.x + Math.sin(aim) * .08 * geo.asp) - size / 2, (TURRET.y - Math.cos(aim) * .08) * h - size / 2, size, size); }
+          flames.forEach(q => { const rr = q.r * h * (1.1 - q.t), a = q.t / .3; ctx.globalAlpha = a; ctx.drawImage(glowDot('#ff7a1e', 96), X(q.x) - rr, q.y * h - rr * .7, rr * 2, rr * 1.4); }); ctx.globalAlpha = 1;
+          beams.forEach(q => { [[12, '#29dfff55'], [5, '#7cf3ffaa'], [2, '#ffffff']].forEach(([lw, c]) => { ctx.globalAlpha = q.t / .18; ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(X(q.x0), q.y0 * h); ctx.lineTo(X(q.x1), q.y1 * h); ctx.stroke(); }); }); ctx.globalAlpha = 1;
+          if (muzzle > 0) { const size = h * .07; ctx.drawImage(glowDot('#ffc35a', 64), X(TURRET.x + Math.sin(aim) * .08 / FWH) - size / 2, (TURRET.y - Math.cos(aim) * .08) * h - size / 2, size, size); }
           if (overcharge > 0) { const size = h * .16; ctx.globalAlpha = .5 + .2 * Math.sin(t * 20); ctx.drawImage(glowDot('#ffb347', 96), X(TURRET.x) - size / 2, TURRET.y * h - size / 2, size, size); ctx.globalAlpha = 1; }
           ctx.restore(); drawSparks(fx, X, geo);
-          rounds.forEach(b => drawShot({ ...b, fw: geo.fw }, X, h, b.kind));
+          rounds.forEach(b => b.kind === 'squad' ? drawOrb(X(b.x), b.y * h, h * .007, '#ffb35c') : drawShot({ ...b, fw: geo.fw }, X, h, b.kind));
           shells.forEach(q => { const k = q.t / q.dur, x = q.x0 + (q.tx - q.x0) * k, y = q.y0 + (q.ty - q.y0) * k - (q.kind === 'mortar' ? Math.sin(Math.PI * k) * .16 : 0); drawOrb(X(x), y * h, h * (q.kind === 'mortar' ? .02 : .014), q.kind === 'mortar' ? '#ff5a1e' : '#ff8a1e', { vx: (q.tx - q.x0) / q.dur * geo.fw, vy: (q.ty - q.y0) / q.dur * h }); });
           // the turret and Lumen, who circles it
           const lx = X(TURRET.x + Math.cos(orbit) * .14), ly = (TURRET.y - .07 + Math.sin(orbit) * .025) * h, tsize = geo.fw * .2;
           if (Math.sin(orbit) < 0) drawLumen(lx, ly, tsize * .42);
           if (!drawArt('lsTurret', X(TURRET.x), TURRET.y * h, tsize, aim, hp < 30 && Math.floor(t * 6) % 2)) circle(X(TURRET.x), TURRET.y * h, 18, '#c43b30', '#fff');
           if (Math.sin(orbit) >= 0) drawLumen(lx, ly, tsize * .42);
-          if (strike) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = '#ffd27a88'; ctx.lineWidth = 2; strike.marks.forEach(r => { if (!raiders.includes(r)) return; ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(X(r.x), r.y * h); ctx.stroke(); }); ctx.restore(); }
           drawFieldPopups(popups, X, h);
           ctx.restore();
           const red = Math.max(hurt * 1.6, hp < 35 ? .25 + .2 * Math.sin(t * 6) : 0); if (red > 0) { ctx.save(); ctx.globalAlpha = Math.min(.85, red); ctx.drawImage(redEdge(w, h), 0, 0); ctx.restore(); }
-          drawHudBar(geo, X, 'GATE INTEGRITY  -  ' + (wave === 3 ? 'FINAL ASSAULT' : 'WAVE ' + Math.max(1, wave)), hp / 100, hp < 35 ? '#ff4b3e' : '#7cf0a0', wave === 3);
-          drawBanner(geo, 'RAIDERS STOPPED  ' + kills + ' / ' + s.target, kills >= s.target ? '#8cff9b' : '#ffd36a');
+          const wave = waveAt(elapsed), next = waves.find(q => q.from > elapsed);
+          drawHudBar(geo, X, 'GATE INTEGRITY  -  ' + (wave ? (wave === 3 ? 'FINAL WAVE' : 'WAVE ' + wave) : next ? 'NEXT WAVE IN ' + Math.ceil(next.from - elapsed) + 's' : 'HOLD'), hp / 100, hp < 35 ? '#ff4b3e' : '#7cf0a0', wave === 3);
+          drawBanner(geo, 'SCRAP ' + scrap + '   -   RAIDERS STOPPED ' + kills + ' / ' + s.target, kills >= s.target ? '#8cff9b' : '#ffd36a');
           drawSpeech(line, w, geo);
           if (this.failed) { ctx.font = '900 26px system-ui'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText('GATE OVERRUN', w / 2, h / 2); ctx.textAlign = 'left'; }
         }

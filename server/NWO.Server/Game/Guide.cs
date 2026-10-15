@@ -14,7 +14,7 @@ public static class Guide
     public static readonly Step[] Steps =
     [
         // Kept for players who were already between the old home tutorial and Field Guide when this changed.
-        new("laststand", "Defend your new base", "Raiders followed your construction signal and are closing on the Headquarters. Press enemies to focus the turret and stop at least 12 before they reach the gate.", "operation", "Survival", "Respond to the alarm", Cash: 600, Fuel: 80),
+        new("laststand", "Defend your new base", "Raiders followed your construction signal and are closing on the Headquarters. Build towers with scrap, press enemies to focus the turret, and stop at least 12 before they reach the gate.", "operation", "Survival", "Respond to the alarm", Cash: 600, Fuel: 80),
         new("claim", "Claim one parcel", "I will take you to the sector map and open an available parcel. Its resource tells you what the land produces best; claim it to expand your settlement.", "sector", "Expansion", "Show an available parcel", Cash: 1500),
         new("build", "Build on your land", "A gold border marks a parcel you own. Press one, then build the structure that matches its resource. A good match makes more resources.", "sector", "Expansion", "Show my parcel", Cash: 1000),
         new("extraction", "Recover supplies for expansion", "Your new land exposed an abandoned Caretaker supply yard, and patrols are closing in. Recover at least three crates, then press Extract during the final 12 seconds to escape with them.", "operation", "Expansion", "Launch the recovery run", Cash: 400, Fuel: 120),

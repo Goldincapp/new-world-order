@@ -10,12 +10,14 @@ from leviathan_post import sprites, arena
 
 # sprite name -> width in the game files
 SPRITES = {n: (w, []) for n, w in {
-    'ls-bike': 150, 'ls-technical': 200, 'ls-truck': 230, 'ls-mortar': 180, 'ls-turret': 180,
+    'ls-bike': 150, 'ls-technical': 200, 'ls-truck': 230, 'ls-mortar': 180, 'ls-turret': 180, 'ls-warrig': 260,
+    'ls-tower-gun': 170, 'ls-tower-burner': 170, 'ls-tower-rail': 170, 'ls-tower-beacon': 150,
     'ex-rover': 150, 'ex-patrol': 150, 'ex-sentry': 130, 'ex-drone': 150,
     'ex-crate-fuel': 110, 'ex-crate-trade': 110, 'ex-crate-tech': 110, 'ex-crate-black': 120}.items()}
 
 if __name__ == '__main__':
     raw, out = sys.argv[1], sys.argv[2]
-    sprites(raw, out, SPRITES)
-    arena(raw, out, 'laststand-arena', brightness=0.85)
-    arena(raw, out, 'extraction-arena', brightness=0.9)
+    only = set(os.environ.get('NWO_ONLY', '').split(',')) - {''}  # just these names, after re-rendering a few
+    sprites(raw, out, {k: v for k, v in SPRITES.items() if not only or k in only})
+    for name, brightness in (('laststand-arena', 0.85), ('extraction-arena', 0.9)):
+        if not only or name in only: arena(raw, out, name, brightness=brightness)

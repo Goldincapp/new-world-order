@@ -191,55 +191,150 @@ for name, build, ortho, target, w, h, tilt in units:
 for band in ('fuel', 'trade', 'tech', 'black'):
     if want('ex-crate-' + band): sprite('ex-crate-' + band, lambda: crate(band), 1.6, (0, 0, 0.3), 220, 200, 50, extra=[((0, -2, 3), (0.9, 0.95, 1.0), 40)])
 
+# ---------- Last Stand towers (player red and white, Lumen gold) and the raiders' War Rig ----------
+
+def gun_nest():
+    p = []
+    for k in range(9):
+        a = k / 9 * math.tau; p.append(K.sandbag((math.cos(a) * 0.55, math.sin(a) * 0.55, 0.06), rz=a + math.pi / 2))
+        p.append(K.sandbag((math.cos(a + 0.35) * 0.55, math.sin(a + 0.35) * 0.55, 0.16), rz=a + math.pi / 2 + 0.35))
+    p += [cyl(0.42, 0.06, (0, 0, 0.03), P_DARK, verts=24), cyl(0.06, 0.45, (0, 0, 0.25), M.steel, verts=10),
+          box((0.3, 0.4, 0.2), (0, 0, 0.52), P_RED, bevel=0.05), box((0.32, 0.12, 0.22), (0, 0.18, 0.55), P_WHITE, bevel=0.04)]
+    for x in (-0.07, 0.07): p.append(cyl(0.04, 0.6, (x, -0.42, 0.55), P_DARK, rot=(math.pi / 2, 0, 0), verts=10))
+    p.append(cyl(0.05, 0.04, (0, -0.1, 0.65), CYAN, verts=10, bevel=0))
+    return p
+
+
+def burner():
+    p = [cyl(0.45, 0.15, (0, 0, 0.08), P_DARK, verts=24)]
+    for x in (-0.2, 0.2): p += [cyl(0.15, 0.7, (x, 0.12, 0.5), P_RED, verts=16, bevel=0.03), ball(0.15, (x, 0.12, 0.86), P_RED, segs=14)]
+    p += [box((0.5, 0.1, 0.1), (0, 0.12, 0.6), M.hazard, bevel=0), rod((0, 0.05, 0.45), (0, -0.4, 0.42), 0.06, M.steel),
+          cyl(0.1, 0.14, (0, -0.45, 0.42), P_DARK, rot=(math.pi / 2, 0, 0), verts=12), cyl(0.07, 0.03, (0, -0.53, 0.42), HEADLAMP, rot=(math.pi / 2, 0, 0), verts=12, bevel=0)]
+    return p
+
+
+def railgun():
+    p = [cyl(0.42, 0.18, (0, 0, 0.09), P_DARK, verts=24), cyl(0.22, 0.4, (0, 0, 0.38), P_WHITE, verts=18),
+         box((0.36, 0.6, 0.26), (0, 0.05, 0.72), P_WHITE, bevel=0.06)]
+    for x in (-0.09, 0.09): p.append(box((0.06, 1.1, 0.08), (x, -0.55, 0.74), P_DARK, bevel=0.01))
+    for k in range(4): p.append(box((0.32, 0.06, 0.16), (0, -0.2 - k * 0.22, 0.74), CYAN, bevel=0))  # coils
+    p.append(box((0.38, 0.12, 0.28), (0, 0.32, 0.72), P_RED, bevel=0.03))
+    return p
+
+
+def beacon():
+    gold = worn('beacon_gold', (0.85, 0.66, 0.34), rough=0.3, metal=0.6, wear=0.2, grime=0.1, scale=6)
+    halo = glow('beacon_halo', (1.0, 0.75, 0.3), 5)
+    p = [cyl(0.4, 0.12, (0, 0, 0.06), P_DARK, verts=24), cyl(0.1, 1.0, (0, 0, 0.6), gold, verts=14),
+         ball(0.2, (0, 0, 1.2), gold, segs=20), ball(0.1, (0, -0.15, 1.22), glow('beacon_eye', (0.2, 1.0, 0.85), 7), scale=(1, 0.5, 1), segs=14)]
+    for z, r in ((0.55, 0.3), (0.9, 0.22)): p.append(torus(r, 0.025, (0, 0, z), halo))
+    return p
+
+
+def war_rig():
+    p = []
+    for x in (-0.95, 0.95):
+        for y in (-1.6, -0.5, 0.6, 1.5): p += wheel((x, y, 0.45), r=0.45, w=0.3)
+    p += [box((1.8, 4.2, 0.5), (0, 0, 0.8), RAIDER_BLACK, bevel=0.06), box((1.8, 1.3, 1.2), (0, -1.4, 1.55), RUST, bevel=0.1),
+          box((1.9, 2.6, 1.5), (0, 0.75, 1.7), RUST, bevel=0.1), box((2.3, 0.4, 0.9), (0, -2.35, 0.9), M.hazard, rot=(math.radians(-25), 0, 0), bevel=0.05)]
+    for x in (-0.8, -0.4, 0, 0.4, 0.8): p.append(rod((x, -2.45, 0.95), (x * 1.05, -2.95, 0.75), 0.06, M.steel))
+    for x in (-0.55, 0.55): p.append(cyl(0.11, 0.05, (x, -2.06, 1.4), HEADLAMP, rot=(math.pi / 2, 0, 0), verts=12, bevel=0))
+    for x in (-0.6, 0.6): p += [cyl(0.12, 1.2, (x, 1.6, 2.7), M.steel, verts=12), cyl(0.09, 0.05, (x, 1.6, 3.32), HEADLAMP, verts=12, bevel=0)]
+    for k in range(5): p.append(box((1.95, 0.06, 0.14), (0, 0.0 + k * 0.4, 2.0), M.steel, bevel=0.01))
+    p += [cyl(0.12, 0.5, (0, 0.7, 2.6), M.steel, verts=12), rod((0, 0.5, 2.85), (0, -0.6, 2.8), 0.07, RAIDER_BLACK)]
+    return p
+
+
+for name, build, ortho, target, w, h, tilt in [
+        ('ls-tower-gun', gun_nest, 1.7, (0, 0, 0.35), 260, 260, 50), ('ls-tower-burner', burner, 1.7, (0, 0, 0.45), 260, 260, 50),
+        ('ls-tower-rail', railgun, 2.1, (0, -0.25, 0.5), 260, 280, 50), ('ls-tower-beacon', beacon, 1.7, (0, 0, 0.65), 240, 280, 50),
+        ('ls-warrig', war_rig, 6.4, (0, -0.4, 1.4), 440, 520, 50)]:
+    if want(name): sprite(name, build, ortho, target, w, h, tilt, extra=[((0, -2, 3), (0.9, 0.95, 1.0), 60)])
+
 # ---------- arenas: same camera as the Leviathan's, so the floor fits the same playfield ----------
 
 def arena_camera():
     O.camera((0, -0.4, 0), 34, lens=30, dist=15.5)
 
 
+# The Last Stand road and build pads, in the game's field units (x across the floor, y down the canvas).
+# client/operations.js uses the same numbers (LS_PATH, LS_PADS, LS_LINE): keep them in step.
+LS_PATH = [(.5, -.06), (.5, .06), (.22, .16), (.24, .27), (.74, .36), (.76, .45), (.5, .53), (.5, .69)]
+LS_PADS = [(.40, .21), (.10, .27), (.56, .235), (.90, .40), (.50, .43), (.25, .48)]
+LS_LINE, LS_GATE, LS_TURRET = .61, .69, (.5, .815)
+
+
+def to_ground(fx, fy):
+    """Where a point of the game's field sits on the arena floor: a ray from the camera through that pixel, to z=0.
+    The field spans 14% to 86% of the backdrop's width; the backdrop is portrait, so the sensor fits its height."""
+    bpy.context.view_layer.update(); cam = bpy.context.scene.camera; lens = cam.data.lens; sh = 36.0; sw = sh * 1080 / 1620
+    u, v = .14 + .72 * fx, fy
+    d = cam.matrix_world.to_3x3() @ Vector(((u - .5) * sw / lens, (.5 - v) * sh / lens, -1))
+    t = -cam.location.z / d.z
+    return cam.location + d * t
+
+
 if want('laststand-arena'):
     rng = random.Random(11)
+    arena_camera()
     DIRT = worn('dirt', (0.2, 0.16, 0.12), rough=0.95, wear=0.0, grime=0.7, scale=3, pitted=0.6)
-    ROAD = worn('road', (0.27, 0.23, 0.18), rough=0.95, wear=0.0, grime=0.6, scale=5, pitted=0.5)
+    ROAD = worn('road', (0.3, 0.25, 0.19), rough=0.95, wear=0.0, grime=0.6, scale=5, pitted=0.5)
     COURT = worn('court', (0.3, 0.31, 0.32), rough=0.85, wear=0.2, grime=0.5, scale=4, plates=True)
+    PADMAT = worn('pad', (0.42, 0.42, 0.4), rough=0.8, wear=0.4, grime=0.4, scale=4, plates=True)
     bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, 0)); bpy.context.active_object.data.materials.append(DIRT)
-    bpy.ops.mesh.primitive_plane_add(size=1, location=(0, 4, 0.01)); road = bpy.context.active_object; road.scale = (3.4, 22, 1); road.data.materials.append(ROAD)
-    # the base: a concrete wall across the bottom with a gate, hazard lights and the turret platform behind it
-    box((20, 8, 0.05), (0, -9.0, 0.02), COURT, bevel=0)
+    # the winding road: straight slabs that run past each bend so they overlap there, each a hair higher than the last
+    pts = [to_ground(x, y) for x, y in LS_PATH]
+    for k, (a_, b_) in enumerate(zip(pts, pts[1:])):
+        mid = (a_ + b_) / 2; d = b_ - a_; ln = d.length
+        box((1.8, ln + 1.6, 0.02), (mid.x, mid.y, 0.012 + k * 0.002), ROAD, rot=(0, 0, math.atan2(d.y, d.x) - math.pi / 2), bevel=0)
+    for k in range(len(pts) - 1):  # wheel ruts down the middle
+        a_, b_ = pts[k], pts[k + 1]; d = b_ - a_
+        for off in (-0.35, 0.35):
+            n = Vector((-d.y, d.x, 0)).normalized() * off
+            box((0.08, d.length, 0.005), ((a_.x + b_.x) / 2 + n.x, (a_.y + b_.y) / 2 + n.y, 0.024), M.rubber, rot=(0, 0, math.atan2(d.y, d.x) - math.pi / 2), bevel=0)
+    # build pads: concrete plates with a hazard rim
+    for x, y in LS_PADS:
+        g = to_ground(x, y); cyl(0.62, 0.12, (g.x, g.y, 0.06), PADMAT, verts=32); torus(0.62, 0.035, (g.x, g.y, 0.13), HAZARD)
+        for k in range(4): box((0.14, 0.05, 0.02), (g.x + math.cos(k * math.pi / 2) * 0.4, g.y + math.sin(k * math.pi / 2) * 0.4, 0.13), M.hazard, rot=(0, 0, k * math.pi / 2), bevel=0)
+    # the squad's sandbag line across the road, just before the gate
+    line = to_ground(.5, LS_LINE - .015)  # just in front of where the soldiers stand
+    for k in range(9): K.sandbag((line.x - 1.6 + k * 0.4, line.y, 0.05)); K.sandbag((line.x - 1.4 + k * 0.4, line.y, 0.15))
+    # the base: a concrete wall with a gate, hazard lights and the turret platform behind it
+    gate = to_ground(.5, LS_GATE); tur = to_ground(*LS_TURRET)
+    box((20, 8, 0.05), (0, gate.y - 4.0, 0.02), COURT, bevel=0)
     for x0, x1 in ((-10, -1.3), (1.3, 10)):
-        wl = x1 - x0; box((wl, 0.6, 1.0), ((x0 + x1) / 2, -4.9, 0.5), M.concrete, bevel=0.04)
-        for k in range(int(wl / 0.9)): box((0.32, 0.05, 0.08), (x0 + 0.45 + k * 0.9, -5.22, 0.92), HAZARD, bevel=0)
-    for x in (-1.45, 1.45): box((0.35, 0.8, 1.5), (x, -4.9, 0.75), M.steel, bevel=0.04); cyl(0.12, 0.1, (x, -5.0, 1.55), M.red, verts=12, bevel=0)
-    cyl(1.25, 0.3, (0, -6.0, 0.15), M.conc_dark, verts=40); torus(1.25, 0.05, (0, -6.0, 0.31), HAZARD)
-    for k in range(10):  # sandbag ring around the platform
-        a = math.pi * (0.1 + 0.8 * k / 9) + math.pi; K.sandbag((math.cos(a) * 1.65, -6.0 + math.sin(a) * 1.65, 0.05), rz=a + math.pi / 2)
-    for x in (-5, 5): box((2.6, 2.0, 1.6), (x, -7.6, 0.8), M.armour, bevel=0.06)  # base buildings in the courtyard
-    # the approach: ruins, wrecks, tank traps and craters either side of the road
+        wl = x1 - x0; box((wl, 0.6, 1.0), ((x0 + x1) / 2, gate.y, 0.5), M.concrete, bevel=0.04)
+        for k in range(int(wl / 0.9)): box((0.32, 0.05, 0.08), (x0 + 0.45 + k * 0.9, gate.y - 0.32, 0.92), HAZARD, bevel=0)
+    for x in (-1.45, 1.45): box((0.35, 0.8, 1.5), (x, gate.y, 0.75), M.steel, bevel=0.04); cyl(0.12, 0.1, (x, gate.y - 0.1, 1.55), M.red, verts=12, bevel=0)
+    cyl(1.25, 0.3, (tur.x, tur.y, 0.15), M.conc_dark, verts=40); torus(1.25, 0.05, (tur.x, tur.y, 0.31), HAZARD)
+    for x in (-5, 5): box((2.6, 2.0, 1.6), (x, tur.y - 1.6, 0.8), M.armour, bevel=0.06)
+    # ruins and wrecks beyond the field's edges; scrub and tank traps only where they don't cover the road or pads
     for side in (-1, 1):
-        y = -3.5
+        y = gate.y + 1.0
         while y < 14:
-            d = rng.uniform(1.2, 2.6); hgt = rng.uniform(0.6, 2.8); x = side * rng.uniform(4.3, 6.5)
+            d = rng.uniform(1.2, 2.6); hgt = rng.uniform(0.6, 2.8); x = side * rng.uniform(4.6, 6.5)
             wd = rng.uniform(1.2, 2.4); mat = rng.choice([M.concrete, M.brick, M.conc_dark])
             box((wd, d, hgt), (x, y + d / 2, hgt / 2), mat, rot=(0, 0, rng.uniform(-0.1, 0.1)), bevel=0.04)
-            box((wd * 0.5, d * 0.6, rng.uniform(0.3, 0.9)), (x + rng.uniform(-0.3, 0.3), y + d / 2, hgt + 0.2), mat, rot=(rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), 0), bevel=0.04)  # broken top
+            box((wd * 0.5, d * 0.6, rng.uniform(0.3, 0.9)), (x + rng.uniform(-0.3, 0.3), y + d / 2, hgt + 0.2), mat, rot=(rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), 0), bevel=0.04)
             y += d + rng.uniform(0.4, 1.4)
-        for k in range(4):
-            x, y = side * rng.uniform(2.3, 3.6), rng.uniform(-3, 11)
-            for a in (0.0, math.pi / 2, math.pi / 4):
-                box((0.06, 0.7, 0.06), (x, y, 0.3), M.steel, rot=(math.radians(55), 0, a), bevel=0)  # tank trap
-        for k in range(2):
-            x, y = side * rng.uniform(2.6, 3.6), rng.uniform(0, 12)
-            box((0.9, 1.8, 0.6), (x, y, 0.35), M.scrap, rot=(0, 0.15, rng.uniform(-0.8, 0.8)), bevel=0.06)  # wrecked car
     SCRUB = worn('scrub', (0.16, 0.18, 0.08), rough=1, wear=0, scale=14, pitted=0.5)
-    for k in range(26):
-        side = rng.choice([-1, 1]); ball(rng.uniform(0.15, 0.35), (side * rng.uniform(2.0, 4.2), rng.uniform(-3.5, 13), 0.1), SCRUB, scale=(1, 1, 0.6), segs=10)
-    for y in (-2.5, 2.5, 7.5):
-        for side in (-1, 1):
-            cyl(0.06, 2.2, (side * 2.0, y, 1.1), M.steel, verts=8); ball(0.13, (side * 2.0, y, 2.2), M.lamp, segs=10)
+
+    def clear_of_play(fx, fy):
+        near_pad = any(math.hypot((fx - x) * .48, fy - y) < .07 for x, y in LS_PADS)
+        near_road = any(math.hypot((fx - (x0 + (x1 - x0) * k / 10)) * .48, fy - (y0 + (y1 - y0) * k / 10)) < .06 for (x0, y0), (x1, y1) in zip(LS_PATH, LS_PATH[1:]) for k in range(11))
+        return not near_pad and not near_road
+    placed = 0
+    while placed < 40:
+        fx, fy = rng.uniform(-.05, 1.05), rng.uniform(.0, .58)
+        if not clear_of_play(fx, fy): continue
+        g = to_ground(fx, fy); placed += 1
+        if placed % 5 == 0:
+            for a2 in (0.0, math.pi / 2, math.pi / 4): box((0.06, 0.7, 0.06), (g.x, g.y, 0.3), M.steel, rot=(math.radians(55), 0, a2), bevel=0)
+        else: ball(rng.uniform(0.15, 0.32), (g.x, g.y, 0.1), SCRUB, scale=(1, 1, 0.6), segs=10)
     O.lights(key=0.7, tint=(0.35, 0.5, 1.0), world=(0.08, 0.07, 0.07), extra=[
-        ((0, -5.5, 3), (1.0, 0.7, 0.3), 500), ((-4, -5, 2.5), (1.0, 0.5, 0.2), 200), ((4, -5, 2.5), (1.0, 0.5, 0.2), 200),
-        ((0, 9, 6), (1.0, 0.55, 0.3), 900)])
-    arena_camera(); O.render('laststand-arena', 1080, 1620, samples=64, transparent=False); O.clear()
+        ((tur.x, tur.y + 0.5, 3), (1.0, 0.7, 0.3), 500), ((-4, gate.y, 2.5), (1.0, 0.5, 0.2), 200), ((4, gate.y, 2.5), (1.0, 0.5, 0.2), 200),
+        ((0, 9, 6), (1.0, 0.55, 0.3), 900), ((0, 2, 6), (0.9, 0.85, 0.8), 400)])
+    O.render('laststand-arena', 1080, 1620, samples=64, transparent=False); O.clear()
 
 if want('extraction-arena'):
     rng = random.Random(5)

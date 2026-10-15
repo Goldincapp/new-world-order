@@ -409,7 +409,7 @@ Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Le
 
   | Operation | Length | Target at level 1 | Target per level | Base win reward |
   |---|---|---|---|---|
-  | Last Stand | 40 s | 12 raiders | +3 | 150 cash, 20 fuel |
+  | Last Stand | 60 s | 12 raiders | +3 | 150 cash, 20 fuel |
   | Extraction Run | 50 s | 3 cargo | +2.5 (rounded down) | 120 cash, 40 fuel |
   | Leviathan Assault | 90 s | 1,800 damage | +120 | 250 cash, 1 gold (+1 gold per 4 levels) |
 
@@ -418,11 +418,21 @@ Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Le
 
 #### Last Stand
 
-Raiders race down an approach road at the base's gate. The turret fires by itself at raiders on the lower road; pressing a raider focuses it at any range and fires faster. Three waves.
+A tower defence with a hands-on turret. Raiders follow a winding road to the base's gate over 60 seconds: a 7-second build window, three waves with short lulls, and a War Rig (a boss truck) in the last 14 seconds.
 
-- **Abilities.** Overcharge (14 s: fire rate x2.5 for 4 s) and Lumen: Airstrike (10 s: 4 damage to the three raiders nearest the gate).
-- **Raiders.** Bikes (from level 1, 6 gate damage); technicals that also shoot at the gate (level 2+); armoured trucks (level 3+, 20 gate damage); mortar teams that stop at range and shell the turret platform, with a red warning ring before each shell (level 4+). Toughness, speed and spawn rate rise gently with the level.
-- **Losing.** Gate integrity starts at 100; at 0 the run ends.
+- **Scrap and towers.** Every raider stopped earns scrap (bike 2, technical 5, mortar 6, truck 8, War Rig 20; +10 at the start of waves 2 and 3; 35 to start). Tap one of the six pads to build, tap a tower to upgrade it (three levels):
+
+  | Tower | Cost (I / II / III) | Does |
+  |---|---|---|
+  | Gun nest | 20 / 25 / 35 | Fast single shots at the raider furthest along the road |
+  | Burner | 25 / 30 / 40 | Damages every raider close to it |
+  | Rail gun | 35 / 35 / 45 | Long range, slow, heavy hits: for trucks and the War Rig |
+  | Lumen beacon | 25 / 25 / 30 | Slows raiders in range (35 to 55%) and marks them to take 25 to 50% more damage |
+
+- **The squad.** The defenders the player has trained (the tutorial trains five gunners; 3 to 8 shown) hold a sandbag line just before the gate. Raiders that reach it stop and fight them; trucks and the War Rig smash through. It's a drill: losses here don't count.
+- **The HQ turret** fires by itself at raiders on the lower road; pressing a raider focuses it at any range and fires faster. Abilities: Overcharge (14 s: fire rate x2.5 for 4 s) and Lumen: Airstrike (10 s: 4 damage to the three raiders furthest along).
+- **Raiders.** Bikes (6 gate damage); technicals that also shoot at the gate (level 2+); armoured trucks (level 3+, 20 gate damage); mortar teams that park mid-road and shell the turret platform, with a red warning ring before each shell (level 4+); the War Rig (40 gate damage). Raiders get 18% tougher per level and come faster; towers don't, so later levels need upgrades and good placement. At level 1 a gun nest is already built.
+- **Losing.** Gate integrity starts at 100; at 0 the run ends. The road and pad positions are shared by `client/operations.js` and `tools/blender/operations_art.py` (keep them in step).
 
 #### Extraction Run
 
