@@ -31,6 +31,8 @@ public class Player
     public int HqLevel { get; set; } = 1;
     /// <summary>How far the home base walls reach (an index into HomeBase.Sizes).</summary>
     public int HomeLevel { get; set; }
+    /// <summary>How strong the base's walls are, 1 to 5. Raises Last Stand's gate integrity and the base's tower and HQ health in raids.</summary>
+    public int WallLevel { get; set; } = 1;
     public int TutorialStep { get; set; }
     /// <summary>Progress through the Field Guide that follows the home tutorial.</summary>
     public int GuideStep { get; set; }

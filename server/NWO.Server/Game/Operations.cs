@@ -8,8 +8,8 @@ namespace NWO.Server.Game;
 /// replayable missions. Each has a threat level that rises with every win; wins pay a reward that grows with it.</summary>
 public static class Operations
 {
-    /// <summary>Squad: the defenders the player has trained, who hold the line in Last Stand (a drill: losses there don't count).</summary>
-    public record StartResult(bool Ok, string? Error = null, string? Name = null, int Duration = 0, int Difficulty = 1, int Target = 0, string? Reward = null, int PaidLeft = 0, Dictionary<string, int>? Squad = null);
+    /// <summary>Squad: the defenders the player has trained, who hold the line in Last Stand (a drill: losses there don't count). Walls: the wall level, which sets the gate's integrity there.</summary>
+    public record StartResult(bool Ok, string? Error = null, string? Name = null, int Duration = 0, int Difficulty = 1, int Target = 0, string? Reward = null, int PaidLeft = 0, Dictionary<string, int>? Squad = null, int Walls = 1);
     public record EndResult(bool Ok, string? Error = null, string? Summary = null, object? Player = null, bool Rewarded = false, string? Reward = null, int Level = 1);
     record Session(DateTime StartedAt, int Duration, int Target, int Level);
     record Rule(string Name, int Duration, int Target, double TargetPerLevel, double Cash, double Fuel, int Gold, int EarliestFinish);
@@ -79,7 +79,7 @@ public static class Operations
         var level = Level(p, operation);
         var target = Target(rule, level);
         Running[(playerId, operation)] = new(DateTime.UtcNow, rule.Duration, target, level);
-        return new(true, Name: rule.Name, Duration: rule.Duration, Difficulty: level, Target: target, Reward: Describe(Reward(rule, level)), PaidLeft: PaidLeft(p, DateTime.UtcNow), Squad: operation == "laststand" ? Defense.Trained(p) : null);
+        return new(true, Name: rule.Name, Duration: rule.Duration, Difficulty: level, Target: target, Reward: Describe(Reward(rule, level)), PaidLeft: PaidLeft(p, DateTime.UtcNow), Squad: operation == "laststand" ? Defense.Trained(p) : null, Walls: p.WallLevel);
     }
 
     public static async Task<EndResult> Complete(World world, Guid playerId, string operation, int score)

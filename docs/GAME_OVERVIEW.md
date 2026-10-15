@@ -56,7 +56,7 @@ Core server patterns:
 **First session (about 15 minutes)**
 
 1. **Sign up.** Pick a name (3 to 16 letters, numbers, `._-`). No email or password: the device keeps a secret token, and a year-long cookie backs it up. The player gets a home plot in the least-crowded open Region 1 sector.
-2. **Survival chapter (5 focused objectives).** The opening uses a problem → action → visible reward rhythm: build a Barracks, immediately defend it in Last Stand, add food and power, then collect the base's first production. Only the controls and resource counters needed for the current objective are shown; the wider interface unfolds after the chapter. Every objective names its reward before the player acts.
+2. **Survival chapter (8 focused objectives).** The opening uses a problem → action → visible reward rhythm: build a Barracks, train five gunners, defend the base in Last Stand, reinforce the walls the raiders reached, meet the settlers, add food and power, then collect the base's first production. Only the controls and resource counters needed for the current objective are shown; the wider interface unfolds after the chapter. Every objective names its reward before the player acts.
 3. **Field Guide (13 objectives grouped into chapters).** Claim land → build on it → Extraction Run → upgrade HQ → research → market → delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
 4. **Chaptered Field Guide.** Expansion, Growth, Trade, Defence, World Threats and the Caretaker each introduce one new system through a concrete action. Community and Leadership are explicitly optional so an empty server cannot block a solo tester. Each prompt defines the new term, gives one direct call to action and highlights the relevant control. Three mobile action games break up that strategy path. Last Stand now appears during Survival, immediately after the Barracks, so the building has an understandable purpose and an instant payoff. Extraction Run and Leviathan Assault arrive later as tests of expansion and world-threat readiness. Completed Operations remain replayable without repeat tutorial payouts.
 
@@ -197,6 +197,7 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   - **Fog:** beyond the yard is fog. It's drawn as white low-poly clouds in the new graphics.
 - **HQ.** 3×3 in the centre.
 - **Building limit:** 4 + 3 × HQ level buildings, +2 with Town planning research.
+- **Walls** (`HomeBase.ReinforceWalls`, Reinforce walls on the HQ card). Wall strength, separate from the base's size, goes from level 1 to 5. Reaching level 2 costs 400 cash, then 2,000, then 6,000 and 40 power, then 15,000 and 120 power. Each level adds 25 to Last Stand's gate integrity (100 at level 1) and 10% to the base's tower and HQ health when it's raided. The tutorial's fourth step, right after Last Stand, has the player reinforce once (reward 200 cash).
 - **Home buildings:**
 
   | Building | Cost (cash) | Size | Effect |
@@ -212,7 +213,7 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
 
 - **Placement UI.** A ghost model appears at the nearest free spot by the HQ. Drag it or use the arrows, Rotate, then confirm. Green means it fits, red means blocked.
 - **Defence:**
-  - **Free garrison** sized by HQ level and barracks.
+  - **Free garrison** sized by HQ level and barracks. Tower and HQ health also grow 10% per wall level.
   - **Doctrine** sets how much of the garrison patrols from the start: Heavy patrols 70%, Balanced 50%, Deep reserve 25%.
   - **Trained defenders** cost militia 15, gunner 40, launcher 90, tank 300, heli 400. Trained defenders killed in a raid are gone.
 
@@ -432,7 +433,7 @@ A tower defence with a hands-on turret. Raiders follow a winding road to the bas
 - **The squad.** The defenders the player has trained (the tutorial trains five gunners; 3 to 8 shown) hold a sandbag line just before the gate. Raiders that reach it stop and fight them; trucks and the War Rig smash through. It's a drill: losses here don't count.
 - **The HQ turret** fires by itself at raiders on the lower road; pressing a raider focuses it at any range and fires faster. Abilities: Overcharge (14 s: fire rate x2.5 for 4 s) and Lumen: Airstrike (10 s: 4 damage to the three raiders furthest along).
 - **Raiders.** Bikes (6 gate damage); technicals that also shoot at the gate (level 2+); armoured trucks (level 3+, 20 gate damage); mortar teams that park mid-road and shell the turret platform, with a red warning ring before each shell (level 4+); the War Rig (40 gate damage). Raiders get 18% tougher per level and come faster; towers don't, so later levels need upgrades and good placement. At level 1 a gun nest is already built.
-- **Losing.** Gate integrity starts at 100; at 0 the run ends. The road and pad positions are shared by `client/operations.js` and `tools/blender/operations_art.py` (keep them in step).
+- **Losing.** Gate integrity starts at 100, plus 25 per wall level above 1 (reinforcement plates show on the gate); at 0 the run ends. The road and pad positions are shared by `client/operations.js` and `tools/blender/operations_art.py` (keep them in step).
 
 #### Extraction Run
 
@@ -582,7 +583,7 @@ Server → client events include:
 
 | Area | Entities |
 |---|---|
-| Players | **Player** (resources, standing, HQ level, home sector, tutorial and guide step, techs, research, alliance and role, nation, defence doctrine and trained defenders, raid timestamps, token hash plus `ExtraTokens`, recovery hash, `IsBot`), **HomeTile** |
+| Players | **Player** (resources, standing, HQ level, wall level, home sector, tutorial and guide step, techs, research, alliance and role, nation, defence doctrine and trained defenders, raid timestamps, token hash plus `ExtraTokens`, recovery hash, `IsBot`), **HomeTile** |
 | Land | **Parcel** (sector, i, j, resource, buildings CSV, owner, `IsHome`, claimed at) |
 | Economy | **LedgerEntry**, **Order**, **Trade**, **Contract**, **Shipment** |
 | Caretaker | **RecordEntry**, **Drone**, **Camp**, **SectorPresence** (presence, target, concessions, petition and assault times, outpost T1/T2/HQ fractions, contributors) |

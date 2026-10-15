@@ -17,6 +17,10 @@ public static class HomeBase
     public static readonly int[] Sizes = [14, 18, 22, 26];
     public static readonly double[] ExpandCash = [0, 8000, 40000, 120000];
     public static readonly double[] ExpandPower = [0, 60, 250, 600];
+    /// <summary>Wall fortification, separate from the base's size: what reaching each level costs (index = the level reached).</summary>
+    public const int MaxWallLevel = 5;
+    public static readonly double[] WallCash = [0, 0, 400, 2000, 6000, 15000];
+    public static readonly double[] WallPower = [0, 0, 0, 0, 40, 120];
     public const int HqSize = 3;
     /// <summary>A strip of open land around the walls where fields, pumps and panels can go. Beyond it is fog.</summary>
     public const int Yard = 3;
@@ -44,6 +48,7 @@ public static class HomeBase
         new("barracks", "Build your first building", "Your Headquarters cannot defend the settlement alone. Build a Barracks so you can train defenders and respond to attacks.", Cash: 300),
         new("train", "Train your first defenders", "A Barracks provides a basic garrison, but trained units make your defence stronger and replace troops lost in future raids. Train five gunners now.", Cash: 200),
         new("laststand", "Raiders at the perimeter", "Alarm: raider bikes are racing toward your unfinished base. Hold them off before they reach the Headquarters. Build towers on the pads with scrap from kills, press an enemy to focus the turret, and stop at least 12 raiders. Your new gunners hold the line at the gate.", Cash: 600, Fuel: 80),
+        new("walls", "Reinforce the gate", "Raiders reached your gate. Stronger walls give it more integrity in Last Stand and make your towers and Headquarters tougher when anyone raids your base. Reinforce the walls once.", Cash: 200),
         new("people", "Meet your settlers", "People make the settlement work. They fill jobs, produce resources and pay taxes—but every person also needs housing, grain and power.", Cash: 150),
         new("crops", "Feed your settlers", "Your population consumes grain every hour. Build a Crop plot now so the settlement can keep growing instead of losing people.", Cash: 250),
         new("solar", "Make power", "A Solar panel makes power. Your buildings and growing population need it. Build one now.", Cash: 250, Power: 20),
@@ -134,6 +139,19 @@ public static class HomeBase
         return null;
     }
 
+    public static string? ReinforceWalls(GameDb db, Player p)
+    {
+        var next = p.WallLevel + 1;
+        if (next > MaxWallLevel) return "Your walls are as strong as they can be.";
+        if (p.Cash < WallCash[next]) return $"Reinforcing the walls to level {next} costs {WallCash[next]:N0} cash.";
+        if (p.Power < WallPower[next]) return $"Reinforcing the walls to level {next} also needs {WallPower[next]:N0} power for the gate motors. Build solar panels.";
+        Ledger.Add(db, p, "cash", -WallCash[next], $"Reinforced the walls to level {next}");
+        if (WallPower[next] > 0) Ledger.Add(db, p, "power", -WallPower[next], "Power for the gate motors");
+        p.WallLevel = next;
+        Advance(db, p, "walls");
+        return null;
+    }
+
     public static string? Expand(GameDb db, Player p)
     {
         var next = p.HomeLevel + 1;
@@ -183,6 +201,7 @@ public static class HomeBase
             tiles = tiles.Select(t => new { t.Id, t.Type, t.X, t.Y, rotated = t.Rotated }),
             kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field }),
             expand = next < 0 ? null : new { size = Sizes[next], cash = ExpandCash[next], power = ExpandPower[next], needHq = next + 1 },
+            walls = new { level = p.WallLevel, max = MaxWallLevel, next = p.WallLevel < MaxWallLevel ? new { cash = WallCash[p.WallLevel + 1], power = WallPower[p.WallLevel + 1] } : null },
             tutorial = p.TutorialStep < Tutorial.Length ? new
             {
                 step = p.TutorialStep + 1,
@@ -223,7 +242,7 @@ public static class HomeBase
         var start = new Player();
         foreach (var r in Ledger.Resources)
             Ledger.Add(db, p, r, Ledger.Get(start, r) - Ledger.Get(p, r), "Started over");
-        p.HqLevel = 1; p.HomeLevel = 0; p.TutorialStep = 0; p.GuideStep = 0;
+        p.HqLevel = 1; p.HomeLevel = 0; p.WallLevel = 1; p.TutorialStep = 0; p.GuideStep = 0;
         p.LastCollectAt = DateTime.UtcNow;
     }
 }

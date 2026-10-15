@@ -813,6 +813,9 @@ namespace NWO.Server.Data.Migrations
                     b.Property<int>("TutorialStep")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("WallLevel")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("WarScore")
                         .HasColumnType("INTEGER");
 

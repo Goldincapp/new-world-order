@@ -171,7 +171,9 @@
         mortar: { hp: tough(3), speed: .075, dmg: 0, scrap: 6, art: 'lsMortar', size: .16, park: .46 },
         warrig: { hp: tough(26), speed: .03, dmg: 40, scrap: 20, art: 'lsWarrig', size: .28, heavy: true, boss: true },
       };
-      let hp = 100, elapsed = 0, spawn = 0, fire = 0, focus = null, aim = 0, muzzle = 0, overcharge = 0, overCd = 3, strikeCd = 4, strike = null, orbit = 0, hurt = 0, shake = 0, line = null, lowWarned = false, kills = 0, scrap = 35, waveShown = 0, rigSent = false, buildPad = -1;
+      // the wall level the player has reinforced to sets how much the gate can take
+      const walls = Math.max(1, s.walls || 1), maxHp = 100 + 25 * (walls - 1);
+      let hp = maxHp, elapsed = 0, spawn = 0, fire = 0, focus = null, aim = 0, muzzle = 0, overcharge = 0, overCd = 3, strikeCd = 4, strike = null, orbit = 0, hurt = 0, shake = 0, line = null, lowWarned = false, kills = 0, scrap = 35, waveShown = 0, rigSent = false, buildPad = -1;
       if (L === 1) towers[0] = { type: 'gun', level: 0, cd: 0, aim: 0 }; // a first nest is already up, so new players see a tower working
       // the run's shape: a build window, three waves with short lulls, and the War Rig near the end
       const waves = [{ from: 7, to: 23 }, { from: 27, to: 43 }, { from: 46, to: s.duration - 2 }];
@@ -252,7 +254,7 @@
           flames.forEach(q => q.t -= dt); for (let i = flames.length - 1; i >= 0; i--) if (flames[i].t <= 0) flames.splice(i, 1);
           updateFx(fx, dt); updateFx(popups, dt);
           if (buildPad >= 0) refreshBuild(); // light up what you can now afford
-          if (!lowWarned && hp < 35) { lowWarned = true; speak('The gate will not take much more. Call the strike!'); strikeCd = Math.min(strikeCd, 1); }
+          if (!lowWarned && hp < maxHp * .35) { lowWarned = true; speak('The gate will not take much more. Call the strike!'); strikeCd = Math.min(strikeCd, 1); }
           if (hp <= 0) { this.score = 0; this.failed = true; hideBuild(); speak('We lost the gate. Regroup and try again.'); this.duration = elapsed + 2; }
         },
         draw({ w, h }) {
@@ -261,6 +263,8 @@
           // pads: an empty one glows when you can afford a tower; a built one shows its tower and level
           LS_PADS.forEach(([px, py], i) => { const tw = towers[i], cx = X(px), cy = py * h, r = geo.h * .036;
             if (!tw) { const can = scrap >= 20; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = can ? .35 + pulse * .45 : .12; ctx.drawImage(glowDot('#ffd27a', 64), cx - r * 1.6, cy - r * 1.6, r * 3.2, r * 3.2); ctx.restore(); ctx.fillStyle = can ? '#ffe7a8' : '#a99d86'; ctx.font = '900 18px system-ui'; ctx.textAlign = 'center'; ctx.fillText('+', cx, cy + 6); ctx.textAlign = 'left'; } });
+          // reinforcement on the gate: steel plates bolted across it, one more row per wall level
+          for (let k = 1; k < walls; k++) { const y = (GATE - .012 - k * .012) * h, x0 = X(.36), x1 = X(.64); ctx.fillStyle = k % 2 ? '#5b6168' : '#4a4f55'; ctx.fillRect(x0, y, x1 - x0, h * .01); ctx.fillStyle = '#ffd36a'; for (let b = x0 + 6; b < x1 - 4; b += 18) ctx.fillRect(b, y + h * .004, 3, 2); }
           // ground effects under the units: beacon fields and mortar warnings
           towers.forEach((tw, i) => { if (!tw || tw.type !== 'beacon') return; const at = towerAt(i), rr = LS_TOWERS.beacon.range[tw.level] * h; ctx.strokeStyle = 'rgba(255,210,122,' + (.25 + pulse * .2) + ')'; ctx.lineWidth = 2; ctx.setLineDash([6, 8]); ctx.beginPath(); ctx.ellipse(X(at.x), at.y * h, rr, rr * .7, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); });
           shells.forEach(q => { if (q.kind !== 'mortar') return; const k = q.t / q.dur, r = geo.h * (.05 - k * .02); ctx.strokeStyle = 'rgba(255,60,60,' + (.4 + k * .5) + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(X(q.tx), q.ty * h, r * 1.3, r * .7, 0, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(255,40,40,' + k * .25 + ')'; ctx.fill(); });
@@ -289,9 +293,9 @@
           if (Math.sin(orbit) >= 0) drawLumen(lx, ly, tsize * .42);
           drawFieldPopups(popups, X, h);
           ctx.restore();
-          const red = Math.max(hurt * 1.6, hp < 35 ? .25 + .2 * Math.sin(t * 6) : 0); if (red > 0) { ctx.save(); ctx.globalAlpha = Math.min(.85, red); ctx.drawImage(redEdge(w, h), 0, 0); ctx.restore(); }
+          const red = Math.max(hurt * 1.6, hp < maxHp * .35 ? .25 + .2 * Math.sin(t * 6) : 0); if (red > 0) { ctx.save(); ctx.globalAlpha = Math.min(.85, red); ctx.drawImage(redEdge(w, h), 0, 0); ctx.restore(); }
           const wave = waveAt(elapsed), next = waves.find(q => q.from > elapsed);
-          drawHudBar(geo, X, 'GATE INTEGRITY  -  ' + (wave ? (wave === 3 ? 'FINAL WAVE' : 'WAVE ' + wave) : next ? 'NEXT WAVE IN ' + Math.ceil(next.from - elapsed) + 's' : 'HOLD'), hp / 100, hp < 35 ? '#ff4b3e' : '#7cf0a0', wave === 3);
+          drawHudBar(geo, X, 'GATE  -  WALLS LV ' + walls + '  -  ' + (wave ? (wave === 3 ? 'FINAL WAVE' : 'WAVE ' + wave) : next ? 'NEXT WAVE IN ' + Math.ceil(next.from - elapsed) + 's' : 'HOLD'), hp / maxHp, hp < maxHp * .35 ? '#ff4b3e' : '#7cf0a0', wave === 3);
           drawBanner(geo, 'SCRAP ' + scrap + '   -   RAIDERS STOPPED ' + kills + ' / ' + s.target, kills >= s.target ? '#8cff9b' : '#ffd36a');
           drawSpeech(line, w, geo);
           if (this.failed) { ctx.font = '900 26px system-ui'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText('GATE OVERRUN', w / 2, h / 2); ctx.textAlign = 'left'; }

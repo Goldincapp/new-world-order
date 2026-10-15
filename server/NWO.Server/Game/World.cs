@@ -171,6 +171,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         ChangePlayer(playerId, (db, me) => HomeBase.Move(db, me, me.HomeTiles, id, x, y, rotate));
 
     public Task<Result> ExpandHome(Guid playerId) => ChangePlayer(playerId, (db, me) => HomeBase.Expand(db, me));
+    public Task<Result> ReinforceWalls(Guid playerId) => ChangePlayer(playerId, (db, me) => HomeBase.ReinforceWalls(db, me));
 
     public Task<Result> UpgradeHq(Guid playerId) => ChangePlayer(playerId, (db, me) =>
     {

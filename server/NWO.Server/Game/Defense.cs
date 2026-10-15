@@ -42,9 +42,10 @@ public static class Defense
         var patrol = total.ToDictionary(kv => kv.Key, kv => (int)Math.Round(kv.Value * share));
         var garrison = total.ToDictionary(kv => kv.Key, kv => kv.Value - patrol[kv.Key]);
         var engineers = shrink < 1;
+        var walls = 1 + 0.1 * (Math.Clamp(p.WallLevel, 1, HomeBase.MaxWallLevel) - 1);  // stronger walls: +10% per level
         return new ArenaSim.Defense(patrol, garrison,
-            TowerHp: (1300 + 300 * p.HqLevel + 200 * b) * (engineers ? 0.85 : 1),
-            HqHp: (2600 + 800 * p.HqLevel) * (engineers ? 0.85 : 1),
+            TowerHp: (1300 + 300 * p.HqLevel + 200 * b) * walls * (engineers ? 0.85 : 1),
+            HqHp: (2600 + 800 * p.HqLevel) * walls * (engineers ? 0.85 : 1),
             TowerDps: 20 + 4 * p.HqLevel,
             GarrisonRate: 0.55 + 0.12 * b);
     }
@@ -68,6 +69,7 @@ public static class Defense
             trained, capacity = Capacity(p), used = trained.Values.Sum(),
             costs = TrainCost,
             free = new { patrol = free.Patrol.Values.Sum(), reserve = free.Garrison.Values.Sum(), towerHp = Math.Round(free.TowerHp), hqHp = Math.Round(free.HqHp) },
+            walls = p.WallLevel,
             barracks = Barracks(p),
         };
     }
