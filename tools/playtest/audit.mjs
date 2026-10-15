@@ -236,6 +236,32 @@ const onboardingRoutes = {
   barracks: 'Home → Headquarters → Build → Barracks → place', train: 'Home → Barracks → Train five gunners', laststand: 'Operations → Last Stand', walls: 'Home → Headquarters → Reinforce walls', people: 'Population counter', crops: 'Home → Headquarters → Build → Crop plot → place', solar: 'Home → Headquarters → Build → Solar panel → place', collect: 'Collect resources',
   claim: 'Sector → available parcel → Claim', build: 'Sector → owned parcel → Build', extraction: 'Operations → Extraction Run', hq: 'Home → Headquarters → Upgrade HQ', research: 'Home → Research lab → recommended research', order: 'Market → Grain → Buy', ship: 'Contracts → affordable delivery', battle: 'Sector → militia camp → Gunner → lane', leviathan: 'Operations → Leviathan Assault', alliance: 'Alliance → join, found, or skip', vote: 'Politics → available vote or skip', record: 'Record', sentinel: 'Home → Headquarters → The Sentinel',
 };
+const progressionMeta = {
+  barracks: { minutes: 2, screen: 'Home base', introduces: ['Headquarters', 'Cash', 'Buildings'], unlocks: ['Barracks', 'Base defence'] },
+  train: { minutes: 2, screen: 'Barracks', introduces: ['Gunners', 'Training cost'], unlocks: ['Trained defenders'] },
+  laststand: { minutes: 3, screen: 'Operations · Last Stand', introduces: ['Operations', 'Scrap', 'Towers', 'Fuel'], unlocks: ['Threat progression'] },
+  walls: { minutes: 1, screen: 'Headquarters', introduces: ['Wall integrity'], unlocks: ['Stronger gate and raid defence'] },
+  people: { minutes: 1, screen: 'Population', introduces: ['Population', 'Housing', 'Upkeep'], unlocks: ['Population details'] },
+  crops: { minutes: 2, screen: 'Home base placement', introduces: ['Grain', 'Hourly production'], unlocks: ['Crop production'] },
+  solar: { minutes: 2, screen: 'Home base placement', introduces: ['Power', 'Building demand'], unlocks: ['Power production'] },
+  collect: { minutes: 1, screen: 'Resource collection', introduces: ['Stored production'], unlocks: ['Expansion Field Guide'] },
+  claim: { minutes: 3, screen: 'Sector map · available parcel', introduces: ['Parcels', 'Land resources'], unlocks: ['First expansion parcel'] },
+  build: { minutes: 3, screen: 'Owned parcel', introduces: ['Resource suitability'], unlocks: ['Parcel production'] },
+  extraction: { minutes: 4, screen: 'Operations · Extraction Run', introduces: ['Cargo', 'Extraction beacon'], unlocks: ['Extraction threat progression'] },
+  hq: { minutes: 2, screen: 'Headquarters', introduces: ['HQ level', 'Building slots'], unlocks: ['More building capacity'] },
+  research: { minutes: 3, screen: 'Research lab', introduces: ['Permanent technology'], unlocks: ['Research progression'] },
+  order: { minutes: 4, screen: 'Market · Grain', introduces: ['Buy orders', 'Sell orders', 'Unit price'], unlocks: ['Player market'] },
+  ship: { minutes: 4, screen: 'Contracts', introduces: ['Delivery jobs', 'Route risk'], unlocks: ['Logistics contracts'] },
+  battle: { minutes: 4, screen: 'Sector battle', introduces: ['Command points', 'Deployment lanes'], unlocks: ['Regional combat'] },
+  leviathan: { minutes: 4, screen: 'Operations · Leviathan Assault', introduces: ['Boss attacks', 'Damage ranking', 'Gold'], unlocks: ['Boss threat progression'] },
+  alliance: { minutes: 3, screen: 'Alliances', introduces: ['Team membership', 'Alliance help'], unlocks: ['Alliance play'] },
+  vote: { minutes: 3, screen: 'Politics', introduces: ['Elections', 'Laws'], unlocks: ['Political participation'] },
+  record: { minutes: 1, screen: 'Caretaker record', introduces: ['Standing', 'Consequences'], unlocks: ['Standing history'] },
+  sentinel: { minutes: 2, screen: 'Headquarters · Sentinel', introduces: ['Shared boss', 'Ashlands'], unlocks: ['Long-term world objective'] },
+};
+const missingProgressionMeta = onboardingSteps.filter(x => !progressionMeta[x.id]);
+if (missingProgressionMeta.length) warn('Progression', 'Some objectives are missing storyboard design metadata', missingProgressionMeta.map(x => x.id).join(', '), ['tools/playtest/audit.mjs']);
+else pass('Progression', 'Every objective has storyboard metadata', `${onboardingSteps.length} objectives define an intended screen, time estimate, introduced concepts, and unlocks.`, ['tools/playtest/audit.mjs']);
 const dynamicHomeCompletions = new Set(['barracks', 'crops', 'solar', 'walls']);
 const dynamicOperationCompletions = new Set(serverOps);
 const completionFor = id => dynamicHomeCompletions.has(id) || dynamicOperationCompletions.has(id) || new RegExp(`completeReadingGuide\\('${id}'\\)`).test(source.index) || gameSources.some(x => new RegExp(`(?:HomeBase|Guide)\\.Advance\\([^;]+"${id}"`).test(x.text));
@@ -324,9 +350,17 @@ else if (ahead > 0) warn('Repository', 'Local commits are not backed up remotely
 else pass('Repository', 'Branch is backed up remotely', `${branch} is not ahead of ${upstream}.`);
 
 const counts = Object.fromEntries(['pass', 'warn', 'fail'].map(level => [level, results.filter(x => x.level === level).length]));
-const onboarding = onboardingSteps.map(x => ({ ...x, route: onboardingRoutes[x.id] || 'Unmapped', completionHook: completionFor(x.id) }));
+let progressionMinute = 0;
+const onboarding = onboardingSteps.map(x => {
+  const compatibilityOnly = x.kind === 'guide' && x.id === 'laststand';
+  const meta = progressionMeta[x.id] || { minutes: 2, screen: x.show || 'Unknown', introduces: [], unlocks: [] };
+  const startMinute = progressionMinute;
+  if (!compatibilityOnly) progressionMinute += meta.minutes;
+  return { ...x, route: onboardingRoutes[x.id] || 'Unmapped', completionHook: completionFor(x.id), ...meta, startMinute, endMinute: progressionMinute, firstThirty: !compatibilityOnly && startMinute < 30, compatibilityOnly };
+});
 const economy = { startResources, tutorialRewardTotals, guideRewardTotals, tutorialLedger, homeKinds, endingResources: balances };
-const report = { generatedAt, branch, head, upstream: upstream || null, ahead, counts, operations: serverRules, balance, onboarding, economy, assetRetirement: retirementPairs, assets, results };
+const progression = { estimatedMinutes: progressionMinute, firstThirtySteps: onboarding.filter(x => x.firstThirty).length, items: onboarding };
+const report = { generatedAt, branch, head, upstream: upstream || null, ahead, counts, operations: serverRules, balance, onboarding, progression, economy, assetRetirement: retirementPairs, assets, results };
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const assetHref = file => relative(dirname(outputHtml), resolve(paths.assets, file)).split(sep).join('/');

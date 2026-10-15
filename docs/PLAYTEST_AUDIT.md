@@ -24,8 +24,15 @@ node tools/playtest/serve.mjs
 Open `http://localhost:5090` on the PC. The command also prints the Wi-Fi address to open on a phone, such as `http://192.168.1.148:5090`. Keep the PowerShell window running during the test. The lab includes:
 
 - The generated audit report.
+- A live progression storyboard showing every tutorial and Field Guide screen in order, with a dedicated first-30-minute view. It displays the intended screen, Caretaker copy, highlighted click path, concepts, rewards, and unlocks.
 - A 12-second phone canvas benchmark with normal, heavy-combat, and worst-case loads. It records average FPS, 95th-percentile frame time, slow frames, input response, device details, and an exportable JSON result.
 - A structured playtest feedback form that autosaves locally and exports JSON. It does not submit or change anything automatically.
+
+While the Playtest Lab is running, relevant tutorial, operation, economy, and overview source files are watched. A change automatically regenerates the audit data; the progression page checks for a new version every two seconds. Titles, instructions, rewards, ordering, and completion coverage therefore stay synchronized with the code. Timing estimates, concept labels, and unlock descriptions are maintained in `tools/playtest/audit.mjs`, because those are design intentions rather than facts the runtime can infer.
+
+The first-30-minute view includes objectives that begin before minute 30, so a lesson that starts at minute 29 may finish slightly afterward. The full-progression view preserves later systems in their intended order, and the missing-contracts view isolates any step without a known route or completion hook.
+
+Leave the progression page open during design work; it refreshes itself without a manual page reload.
 
 ## What it checks
 
