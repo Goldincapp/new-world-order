@@ -26,6 +26,8 @@ Open the HTML report in a browser after each major operation or Blender export c
 - Each operation has a home tutorial or Field Guide entry.
 - Threat-level and paid-win fields exist in both the database model and migration snapshot.
 - Core operation durations appear in the game overview.
+- Threat 1–30 target, reward, and relative pressure curves for every operation.
+- Extraction targets never exceed the total cargo physically spawned in the arena.
 - Simple malformed Markdown table separators.
 - Whether the current branch has uncommitted or unpushed work.
 
@@ -34,6 +36,8 @@ Warnings are review prompts and may be intentional. Failures represent broken re
 ```powershell
 node tools/playtest/audit.mjs --strict
 ```
+
+The balance section is a deterministic regression model, not a promise about player win rates. It combines each server target with the explicit toughness, spawn-rate, hazard-count, projectile-speed, and attack-cadence formulas in the client. Use it to spot sudden curve changes and mathematically impossible targets, then confirm feel through the manual playtest loop.
 
 To write the report elsewhere:
 

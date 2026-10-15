@@ -462,16 +462,6 @@ A 90-second boss fight against a Caretaker war-mech, unlocked by the Field Guide
   | Breach Wall | phase 2 | A falling wall with one safe lane | 12 |
 
 - **Losing.** Armour starts at 100; at 0 the run ends.
-
----|---|---|---|
-  | Targeting Burst | phase 1 | Aimed shots from the arm cannons | 9 to 11 |
-  | Tithe Spiral | phase 1 | Orbs spiral out of the core | 9 to 11 |
-  | Quarantine Grid | phase 1 | 4 to 6 of 12 floor tiles light up, then burn (your tile is always one) | 15 |
-  | Compliance Scan | phase 1 | A beam sweeps the half of the floor you're on (both halves in turn in phase 3) | 16 |
-  | Enforcer Discs | phase 2 | Spinning blades that bounce off the walls three times | 14 |
-  | Breach Wall | phase 2 | A falling wall with one safe lane | 12 |
-
-- **Winning.** Deal at least 1,800 damage (+200 per difficulty level, which is the HQ level up to 5) and survive. Your damage doesn't grow with the HQ; the mech's attacks get faster instead. Armour starts at 100; at 0 the run ends.
 - **Art.** `tools/blender/leviathan_assault.py` builds the mech, leader, Lumen and the arena (sprites for the 2D view, GLBs for the optional 3D view); `tools/blender/leviathan_post.py` adds the glow. The arena backdrop is drawn to the screen's height, so the floor keeps its shape on any screen.
 
 ---
