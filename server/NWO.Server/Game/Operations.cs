@@ -20,7 +20,7 @@ public static class Operations
     // runs out a run may end, for Extraction's beacon, which opens in the final 12 seconds.
     static readonly Dictionary<string, Rule> Rules = new()
     {
-        ["laststand"] = new("Last Stand", 60, 12, 3, Cash: 150, Fuel: 20, Gold: 0, EarliestFinish: 0),
+        ["laststand"] = new("Last Stand", 120, 12, 3, Cash: 150, Fuel: 20, Gold: 0, EarliestFinish: 0),
         ["extraction"] = new("Extraction Run", 50, 3, 2.5, Cash: 120, Fuel: 40, Gold: 0, EarliestFinish: 12),
         ["leviathan"] = new("Leviathan Assault", 90, 1800, 120, Cash: 250, Fuel: 0, Gold: 1, EarliestFinish: 0),
     };

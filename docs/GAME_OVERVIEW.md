@@ -410,7 +410,7 @@ Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Le
 
   | Operation | Length | Target at level 1 | Target per level | Base win reward |
   |---|---|---|---|---|
-  | Last Stand | 60 s | 12 raiders | +3 | 150 cash, 20 fuel |
+  | Last Stand | 120 s | 12 raiders | +3 | 150 cash, 20 fuel |
   | Extraction Run | 50 s | 3 cargo | +2.5 (rounded down) | 120 cash, 40 fuel |
   | Leviathan Assault | 90 s | 1,800 damage | +120 | 250 cash, 1 gold (+1 gold per 4 levels) |
 
@@ -419,9 +419,9 @@ Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Le
 
 #### Last Stand
 
-A tower defence with a hands-on turret. Raiders follow a winding road to the base's gate over 60 seconds: a 7-second build window, three waves with short lulls, and a War Rig (a boss truck) in the last 14 seconds.
+A tower defence with a hands-on turret. Raiders follow a winding road to the base's gate over 2 minutes: a 7-second build window, four waves with short lulls, and a War Rig (a boss truck) in the last 16 seconds. Vehicles are drawn from overhead and turned to follow the road, which the game rounds off at the bends; each keeps its own lane, eases off into turns, bounces and kicks up dust.
 
-- **Scrap and towers.** Every raider stopped earns scrap (bike 2, technical 5, mortar 6, truck 8, War Rig 20; +10 at the start of waves 2 and 3; 35 to start). Tap one of the six pads to build, tap a tower to upgrade it (three levels):
+- **Scrap and towers.** Every raider stopped earns scrap (bike 2, technical 5, mortar 6, truck 8, War Rig 20; +10 at the start of each wave after the first; 35 to start). Tap one of the six pads to build, tap a tower to upgrade it (three levels):
 
   | Tower | Cost (I / II / III) | Does |
   |---|---|---|

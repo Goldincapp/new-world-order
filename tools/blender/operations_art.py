@@ -176,9 +176,10 @@ def crate(band):
 
 # ---------- render the sprites ----------
 units = [
-    ('ls-bike', raider_bike, 1.75, (0, 0, 0.6), 300, 300, 50),
-    ('ls-technical', raider_technical, 3.2, (0, -0.1, 0.8), 360, 380, 50),
-    ('ls-truck', raider_truck, 4.4, (0, -0.2, 1.0), 420, 460, 50),
+    # raider vehicles are seen from nearly overhead, nose down the screen, so the game can turn them to follow the road
+    ('ls-bike', raider_bike, 1.9, (0, 0, 0.6), 220, 320, 12),
+    ('ls-technical', raider_technical, 3.4, (0, -0.1, 0.8), 300, 400, 12),
+    ('ls-truck', raider_truck, 5.2, (0, -0.3, 1.0), 300, 480, 12),
     ('ls-mortar', raider_mortar, 2.6, (0, 0, 0.3), 320, 300, 50),
     ('ls-turret', turret, 2.9, (0, 0.2, 0.5), 300, 300, 0),
     ('ex-rover', rover, 3.0, (0, 0, 0.6), 280, 320, 0),
@@ -248,7 +249,7 @@ def war_rig():
 for name, build, ortho, target, w, h, tilt in [
         ('ls-tower-gun', gun_nest, 1.7, (0, 0, 0.35), 260, 260, 50), ('ls-tower-burner', burner, 1.7, (0, 0, 0.45), 260, 260, 50),
         ('ls-tower-rail', railgun, 2.1, (0, -0.25, 0.5), 260, 280, 50), ('ls-tower-beacon', beacon, 1.7, (0, 0, 0.65), 240, 280, 50),
-        ('ls-warrig', war_rig, 6.4, (0, -0.4, 1.4), 440, 520, 50)]:
+        ('ls-warrig', war_rig, 7.0, (0, -0.4, 1.4), 360, 520, 12)]:
     if want(name): sprite(name, build, ortho, target, w, h, tilt, extra=[((0, -2, 3), (0.9, 0.95, 1.0), 60)])
 
 # ---------- arenas: same camera as the Leviathan's, so the floor fits the same playfield ----------

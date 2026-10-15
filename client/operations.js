@@ -158,29 +158,30 @@
       const raiders = [], rounds = [], shells = [], beams = [], flames = [], fx = [], popups = [], towers = LS_PADS.map(() => null);
       const dist = (a, b) => Math.hypot((a.x - b.x) * FWH, a.y - b.y);
       // the road as segments measured in canvas heights, so raider speeds read the same on every screen
-      const segs = []; let roadLength = 0; for (let i = 1; i < LS_PATH.length; i++) { const [x0, y0] = LS_PATH[i - 1], [x1, y1] = LS_PATH[i], len = Math.hypot((x1 - x0) * FWH, y1 - y0); segs.push({ x0, y0, x1, y1, len, at: roadLength }); roadLength += len; }
-      function along(d) { const sg = segs.find(q => d <= q.at + q.len) || segs[segs.length - 1], k = Math.max(0, Math.min(1, (d - sg.at) / sg.len)); return { x: sg.x0 + (sg.x1 - sg.x0) * k, y: sg.y0 + (sg.y1 - sg.y0) * k, angle: Math.atan2(sg.x1 - sg.x0, -(sg.y1 - sg.y0)) }; }
+      let route = LS_PATH; for (let k = 0; k < 3; k++) route = [route[0], ...route.slice(0, -1).flatMap((p, i) => { const q = route[i + 1]; return [[p[0] * .75 + q[0] * .25, p[1] * .75 + q[1] * .25], [p[0] * .25 + q[0] * .75, p[1] * .25 + q[1] * .75]]; }), route[route.length - 1]];
+      const segs = []; let roadLength = 0; for (let i = 1; i < route.length; i++) { const [x0, y0] = route[i - 1], [x1, y1] = route[i], len = Math.hypot((x1 - x0) * FWH, y1 - y0); segs.push({ x0, y0, x1, y1, len, at: roadLength }); roadLength += len; }
+      function along(d) { const sg = segs.find(q => d <= q.at + q.len) || segs[segs.length - 1], k = Math.max(0, Math.min(1, (d - sg.at) / sg.len)); const dx = (sg.x1 - sg.x0) * FWH, dy = sg.y1 - sg.y0, len = Math.hypot(dx, dy) || 1; return { x: sg.x0 + (sg.x1 - sg.x0) * k, y: sg.y0 + (sg.y1 - sg.y0) * k, angle: Math.atan2(-dx, dy), nx: -dy / len, ny: dx / len }; }
       const squadSize = Math.max(3, Math.min(8, Object.values(s.squad || {}).reduce((a, b) => a + b, 0) || 3));
       const soldiers = Array.from({ length: squadSize }, (_, i) => ({ x: .5 + (i - (squadSize - 1) / 2) * Math.min(.06, .3 / squadSize), y: LINE + .012, hp: 4, cd: Math.random() }));
       // raiders get 18% tougher per threat level; towers don't, so later levels need upgrades and good placement
       const tough = n => Math.max(1, Math.round(n * (1 + .18 * (L - 1))));
       const types = {
-        bike: { hp: tough(1), speed: .085, dmg: 6, scrap: 2, art: 'lsBike', size: .1 },
-        technical: { hp: tough(3), speed: .06, dmg: 10, scrap: 5, art: 'lsTechnical', size: .17, gun: true },
-        truck: { hp: tough(6), speed: .042, dmg: 20, scrap: 8, art: 'lsTruck', size: .21, heavy: true },
+        bike: { hp: tough(1), speed: .085, dmg: 6, scrap: 2, art: 'lsBike', size: .065 },
+        technical: { hp: tough(3), speed: .06, dmg: 10, scrap: 5, art: 'lsTechnical', size: .11, gun: true },
+        truck: { hp: tough(6), speed: .042, dmg: 20, scrap: 8, art: 'lsTruck', size: .12, heavy: true },
         mortar: { hp: tough(3), speed: .075, dmg: 0, scrap: 6, art: 'lsMortar', size: .16, park: .46 },
-        warrig: { hp: tough(26), speed: .03, dmg: 40, scrap: 20, art: 'lsWarrig', size: .28, heavy: true, boss: true },
+        warrig: { hp: tough(26), speed: .03, dmg: 40, scrap: 20, art: 'lsWarrig', size: .17, heavy: true, boss: true },
       };
       // the wall level the player has reinforced to sets how much the gate can take
       const walls = Math.max(1, s.walls || 1), maxHp = 100 + 25 * (walls - 1);
       let hp = maxHp, elapsed = 0, spawn = 0, fire = 0, focus = null, aim = 0, muzzle = 0, overcharge = 0, overCd = 3, strikeCd = 4, strike = null, orbit = 0, hurt = 0, shake = 0, line = null, lowWarned = false, kills = 0, scrap = 35, waveShown = 0, rigSent = false, buildPad = -1;
       if (L === 1) towers[0] = { type: 'gun', level: 0, cd: 0, aim: 0 }; // a first nest is already up, so new players see a tower working
       // the run's shape: a build window, three waves with short lulls, and the War Rig near the end
-      const waves = [{ from: 7, to: 23 }, { from: 27, to: 43 }, { from: 46, to: s.duration - 2 }];
+      const waves = s.duration >= 100 ? [{ from: 7, to: 32 }, { from: 36, to: 61 }, { from: 65, to: 90 }, { from: 94, to: s.duration - 2 }] : [{ from: 7, to: 23 }, { from: 27, to: 43 }, { from: 46, to: s.duration - 2 }], lastWave = waves.length;
       const waveAt = t => waves.findIndex(w => t >= w.from && t < w.to) + 1;
       const speak = text => { line = { who: 'LUMEN', text, t: 3.6 }; };
       function pick(wave) { const r = Math.random(), heavy = Math.min(.35, (L - 1) * .025 + wave * .05); if (L >= 4 && wave >= 2 && r < .08 + L * .005) return 'mortar'; if (L >= 3 && r < .18 + heavy * .4) return 'truck'; if (L >= 2 && r < .32 + heavy) return 'technical'; return 'bike'; }
-      function send(type) { const t = types[type]; raiders.push({ type, d: 0, x: .5, y: -.06, hp: t.hp, max: t.hp, flash: 0, gunCd: 1.2 + Math.random(), slow: 0, mark: 0, engaged: null, hitCd: 0, angle: 0 }); }
+      function send(type) { const t = types[type], lane = (Math.random() - .5) * (t.heavy ? .015 : .04); raiders.push({ type, d: 0, x: .5, y: -.06, hp: t.hp, max: t.hp, flash: 0, gunCd: 1.2 + Math.random(), slow: 0, mark: 0, engaged: null, hitCd: 0, angle: 0, heading: 0, lane, laneGoal: lane, pace: .7, wob: Math.random() * 6, dust: 0 }); }
       function hitGate(amount, x, y) { if (!amount) return; hp = Math.max(0, hp - amount); hurt = .5; shake = Math.min(9, shake + 4); haptic(30); burst(fx, x, y || GATE, '#ff6b3d', 14); popup(popups, x, (y || GATE) - .04, 'GATE -' + amount, '#ff8c76'); }
       function hit(game, r, n, color) {
         if (!raiders.includes(r)) return; n *= 1 + r.mark; r.hp -= n; r.flash = .1; burst(fx, r.x, r.y, color || '#ffb04d', 3); if (r.hp > 0) return;
@@ -220,18 +221,20 @@
           if (this.failed) return; elapsed += dt; if (elapsed > 5 && !$('opsTip').hidden) $('opsTip').hidden = true;
           if (elapsed < .1) speak(L === 1 ? 'Raiders in a few seconds. Tap a glowing pad to build a tower with scrap.' : 'Build while you can. Raiders hit the road in seven seconds.');
           const wave = waveAt(elapsed);
-          if (wave && wave !== waveShown) { waveShown = wave; popup(popups, .5, .58, wave === 3 ? 'FINAL WAVE' : 'WAVE ' + wave, wave === 3 ? '#ff6c58' : '#ffd36a'); popups[popups.length - 1].big = true; if (wave > 1) { scrap += 10; popup(popups, .5, .64, '+10 scrap', '#ffd36a'); } speak(wave === 1 ? 'Here they come. Your gunners hold the line at the gate.' : wave === 2 ? (L >= 3 ? 'Trucks take a beating: rail guns crack them open.' : 'More coming. Spend that scrap.') : 'Final wave. Something big is coming down the road.'); }
+          if (wave && wave !== waveShown) { waveShown = wave; popup(popups, .5, .58, wave === lastWave ? 'FINAL WAVE' : 'WAVE ' + wave, wave === lastWave ? '#ff6c58' : '#ffd36a'); popups[popups.length - 1].big = true; if (wave > 1) { scrap += 10; popup(popups, .5, .64, '+10 scrap', '#ffd36a'); } speak(wave === 1 ? 'Here they come. Your gunners hold the line at the gate.' : wave === lastWave ? 'Final wave. Something big is coming down the road.' : wave === 2 ? (L >= 3 ? 'Trucks take a beating: rail guns crack them open.' : 'More coming. Spend that scrap.') : (L >= 4 ? 'They are bringing mortars. Hit them before they set up.' : 'Halfway there. Upgrade what is working.')); }
           hurt = Math.max(0, hurt - dt); shake = Math.max(0, shake - dt * 16); muzzle = Math.max(0, muzzle - dt); overcharge = Math.max(0, overcharge - dt); overCd = Math.max(0, overCd - dt); strikeCd = Math.max(0, strikeCd - dt); orbit += dt * 1.8; if (line) { line.t -= dt; if (line.t <= 0) line = null; }
           if (wave) { spawn -= dt; if (spawn <= 0) { spawn = Math.max(.4, 1.12 - L * .03 - wave * .08) * (.75 + Math.random() * .5); send(pick(wave)); } }
-          if (!rigSent && elapsed >= s.duration - 14) { rigSent = true; send('warrig'); popup(popups, .5, .1, 'WAR RIG INBOUND', '#ff6c58'); popups[popups.length - 1].big = true; }
+          if (!rigSent && elapsed >= s.duration - 16) { rigSent = true; send('warrig'); popup(popups, .5, .1, 'WAR RIG INBOUND', '#ff6c58'); popups[popups.length - 1].big = true; }
           // the road: raiders move along it, slowed by beacons, and stop to fight the squad's line
           raiders.forEach(r => { const t = types[r.type]; r.flash = Math.max(0, r.flash - dt); r.slow = 0; r.mark = 0;
             towers.forEach((tw, i) => { if (!tw || tw.type !== 'beacon') return; const v = LS_TOWERS.beacon; if (dist(r, towerAt(i)) < v.range[tw.level]) { r.slow = Math.max(r.slow, v.slow[tw.level]); r.mark = Math.max(r.mark, v.mark[tw.level]); } });
             const atLine = r.y >= LINE - .015 && r.d > roadLength * .8, guard = atLine && !t.heavy ? soldiers.find(q => q.hp > 0 && Math.abs(q.x - r.x) < .12) || soldiers.find(q => q.hp > 0) : null;
             if (guard) { r.hitCd -= dt; if (r.hitCd <= 0) { r.hitCd = .8; guard.hp -= 1; burst(fx, guard.x, guard.y, '#ff6b3d', 4); if (guard.hp <= 0) { popup(popups, guard.x, guard.y - .04, 'GUNNER DOWN', '#ff8c76'); if (soldiers.every(q => q.hp <= 0)) speak('The line has fallen. The turret is all that is left.'); } } }
-            else if (!(t.park && r.d >= roadLength * t.park)) { r.d += t.speed * (1 + L * .02) * (1 - r.slow) * dt; }
+            else if (!(t.park && r.d >= roadLength * t.park)) { const turn = Math.abs(Math.atan2(Math.sin(along(r.d + .04).angle - along(r.d).angle), Math.cos(along(r.d + .04).angle - along(r.d).angle))); r.pace += ((1 - Math.min(.35, turn * .9)) - r.pace) * Math.min(1, dt * 2.5); r.d += t.speed * (1 + L * .02) * (1 - r.slow) * r.pace * dt; }
             if (t.heavy && atLine) soldiers.forEach(q => { if (q.hp > 0 && Math.abs(q.x - r.x) < .06 && !q.trampled) { q.hp = 0; q.trampled = true; popup(popups, q.x, q.y - .04, 'GUNNER DOWN', '#ff8c76'); } });
-            const p = along(r.d); r.x = p.x; r.y = p.y; r.angle = p.angle;
+            if (Math.random() < dt * .5) r.laneGoal = (Math.random() - .5) * (t.heavy ? .015 : .04); r.lane += (r.laneGoal - r.lane) * Math.min(1, dt * 1.2); r.wob += dt * (t.heavy ? 5 : 9);
+            const p = along(r.d); r.x = p.x + p.nx * r.lane / FWH; r.y = p.y + p.ny * r.lane; r.heading += Math.atan2(Math.sin(p.angle - r.heading), Math.cos(p.angle - r.heading)) * Math.min(1, dt * 5); r.angle = r.heading;
+            r.dust -= dt; if (r.dust <= 0 && r.y > 0) { r.dust = t.heavy ? .05 : .08; fx.push({ x: r.x - Math.sin(-r.heading) * .02 / FWH, y: r.y - Math.cos(r.heading) * .025, vx: (Math.random() - .5) * .03, vy: -.01, t: .45, color: '#a8875a' }); }
             if (t.gun && r.y > .12 && r.y < .6) { r.gunCd -= dt; if (r.gunCd <= 0) { r.gunCd = Math.max(1.3, 2.4 - L * .05); shells.push({ kind: 'round', x0: r.x, y0: r.y + .03, tx: .5 + (Math.random() - .5) * .3, ty: GATE, t: 0, dur: .9, dmg: 2 + Math.floor(L / 8) }); } }
             if (t.park && r.d >= roadLength * t.park) { r.gunCd -= dt; if (r.gunCd <= 0) { r.gunCd = Math.max(2.6, 3.6 - L * .04); shells.push({ kind: 'mortar', x0: r.x, y0: r.y, tx: TURRET.x + (Math.random() - .5) * .16, ty: TURRET.y - .03, t: 0, dur: 1.7, dmg: 8 }); } } });
           for (let i = raiders.length - 1; i >= 0; i--) if (raiders[i].d >= roadLength - .005) { const r = raiders[i]; hitGate(types[r.type].dmg, r.x); burst(fx, r.x, GATE, '#ff8a3d', 20); raiders.splice(i, 1); if (focus === r) focus = null; }
@@ -269,10 +272,11 @@
           towers.forEach((tw, i) => { if (!tw || tw.type !== 'beacon') return; const at = towerAt(i), rr = LS_TOWERS.beacon.range[tw.level] * h; ctx.strokeStyle = 'rgba(255,210,122,' + (.25 + pulse * .2) + ')'; ctx.lineWidth = 2; ctx.setLineDash([6, 8]); ctx.beginPath(); ctx.ellipse(X(at.x), at.y * h, rr, rr * .7, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); });
           shells.forEach(q => { if (q.kind !== 'mortar') return; const k = q.t / q.dur, r = geo.h * (.05 - k * .02); ctx.strokeStyle = 'rgba(255,60,60,' + (.4 + k * .5) + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(X(q.tx), q.ty * h, r * 1.3, r * .7, 0, 0, Math.PI * 2); ctx.stroke(); ctx.fillStyle = 'rgba(255,40,40,' + k * .25 + ')'; ctx.fill(); });
           // raiders, then the squad, then the towers (front-most last)
-          [...raiders].sort((a, b) => a.y - b.y).forEach(r => { const tp = types[r.type], size = tp.size * geo.fw; ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(X(r.x), r.y * h + size * .35, size * .35, size * .12, 0, 0, Math.PI * 2); ctx.fill();
-            if (!drawArt(tp.art, X(r.x), r.y * h, size, Math.max(-.35, Math.min(.35, r.angle * .35)), r.flash > 0)) circle(X(r.x), r.y * h, 12, '#b52e2e', '#ff9a78');
+          [...raiders].sort((a, b) => a.y - b.y).forEach(r => { const tp = types[r.type], size = tp.size * geo.fw, im = art[tp.art], len = im && im.naturalWidth ? size * im.naturalHeight / im.naturalWidth : size, bob = Math.sin(r.wob) * len * (tp.heavy ? .008 : .015), judder = tp.park ? 0 : Math.sin(r.wob * 1.7) * (tp.heavy ? .01 : .03);
+            ctx.save(); ctx.translate(X(r.x) + 3, r.y * h + 4); ctx.rotate(r.heading); ctx.fillStyle = '#0007'; ctx.beginPath(); ctx.ellipse(0, 0, size * .42, len * .46, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+            if (!drawArt(tp.art, X(r.x), r.y * h + bob, size, tp.park ? 0 : r.heading + judder, r.flash > 0)) circle(X(r.x), r.y * h, 12, '#b52e2e', '#ff9a78');
             if (r.slow > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .45; ctx.drawImage(glowDot('#ffd27a', 48), X(r.x) - size * .5, r.y * h - size * .5, size, size); ctx.restore(); }
-            if (r.max > 1) bar(X(r.x) - size * .3, r.y * h - size * .62, size * .6, r.hp / r.max, r === focus ? '#7cf3ff' : tp.boss ? '#ff4b3e' : '#ff655d'); });
+            if (r.max > 1) bar(X(r.x) - geo.h * .025, r.y * h - len * .55 - 6, geo.h * .05, r.hp / r.max, r === focus ? '#7cf3ff' : tp.boss ? '#ff4b3e' : '#ff655d'); });
           if (focus && raiders.includes(focus)) { const size = types[focus.type].size * geo.fw * .62; ctx.save(); ctx.translate(X(focus.x), focus.y * h); ctx.rotate(t * 2); ctx.strokeStyle = '#7cf3ff'; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
           soldiers.forEach(q => { if (q.hp <= 0) return; const size = geo.fw * .075; drawArt('leader', X(q.x), q.y * h, size); });
           LS_PADS.forEach(([px, py], i) => { const tw = towers[i]; if (!tw) return; const v = LS_TOWERS[tw.type], size = geo.fw * (.15 + tw.level * .015); drawArt(v.art, X(px), py * h - size * .25, size); ctx.fillStyle = '#ffd27a'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('I'.repeat(tw.level + 1), X(px), py * h + size * .42); ctx.textAlign = 'left'; });
@@ -295,7 +299,7 @@
           ctx.restore();
           const red = Math.max(hurt * 1.6, hp < maxHp * .35 ? .25 + .2 * Math.sin(t * 6) : 0); if (red > 0) { ctx.save(); ctx.globalAlpha = Math.min(.85, red); ctx.drawImage(redEdge(w, h), 0, 0); ctx.restore(); }
           const wave = waveAt(elapsed), next = waves.find(q => q.from > elapsed);
-          drawHudBar(geo, X, 'GATE  -  WALLS LV ' + walls + '  -  ' + (wave ? (wave === 3 ? 'FINAL WAVE' : 'WAVE ' + wave) : next ? 'NEXT WAVE IN ' + Math.ceil(next.from - elapsed) + 's' : 'HOLD'), hp / maxHp, hp < maxHp * .35 ? '#ff4b3e' : '#7cf0a0', wave === 3);
+          drawHudBar(geo, X, 'GATE  -  WALLS LV ' + walls + '  -  ' + (wave ? (wave === lastWave ? 'FINAL WAVE' : 'WAVE ' + wave + ' OF ' + lastWave) : next ? 'NEXT WAVE IN ' + Math.ceil(next.from - elapsed) + 's' : 'HOLD'), hp / maxHp, hp < maxHp * .35 ? '#ff4b3e' : '#7cf0a0', wave === lastWave);
           drawBanner(geo, 'SCRAP ' + scrap + '   -   RAIDERS STOPPED ' + kills + ' / ' + s.target, kills >= s.target ? '#8cff9b' : '#ffd36a');
           drawSpeech(line, w, geo);
           if (this.failed) { ctx.font = '900 26px system-ui'; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText('GATE OVERRUN', w / 2, h / 2); ctx.textAlign = 'left'; }
