@@ -35,6 +35,7 @@ const paths = {
   blender: resolve(root, 'tools/blender/operations_art.py'),
   overview: resolve(root, 'docs/GAME_OVERVIEW.md'),
   assets: resolve(root, 'client/assets/operations'),
+  game: resolve(root, 'server/NWO.Server/Game'),
 };
 
 const source = Object.fromEntries(Object.entries(paths).filter(([, p]) => extname(p)).map(([k, p]) => [k, readFileSync(p, 'utf8')]));
@@ -75,6 +76,32 @@ function pyTupleArray(name) {
 
 function sameNumbers(a, b) {
   return !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
+}
+
+function namedNumber(text, name) {
+  const match = text.match(new RegExp(`${name}\\s*(?:=|:)\\s*([\\d_]+(?:\\.\\d+)?)`));
+  return match ? +match[1].replaceAll('_', '') : 0;
+}
+
+function parseSteps(text, kind) {
+  const marker = text.match(kind === 'tutorial' ? /Step\[\]\s+Tutorial\s*=/ : /Step\[\]\s+Steps\s*=/);
+  const block = marker ? captureBlock(text.slice(marker.index + marker[0].length), /^\s*/, '[', ']') : '';
+  return [...block.matchAll(/new\("([^"]+)",\s*"([^"]+)",\s*"([^"]+)"([^\n]*)/g)].map((match, index) => {
+    const tail = match[4];
+    const quoted = [...tail.matchAll(/"([^"]*)"/g)].map(x => x[1]);
+    return {
+      kind,
+      number: index + 1,
+      id: match[1],
+      title: match[2],
+      text: match[3],
+      show: kind === 'guide' ? quoted[0] || '' : '',
+      chapter: kind === 'guide' ? quoted[1] || '' : 'Survival',
+      cta: kind === 'guide' ? quoted[2] || '' : '',
+      optional: /Optional:\s*true/.test(tail),
+      reward: { cash: namedNumber(tail, 'Cash'), fuel: namedNumber(tail, 'Fuel'), power: namedNumber(tail, 'Power'), gold: namedNumber(tail, 'Gold') },
+    };
+  });
 }
 
 function imageSize(buffer, extension) {
@@ -199,11 +226,74 @@ if (impossibleExtraction.length) {
   const first = impossibleExtraction[0];
   fail('Balance', 'Extraction becomes mathematically unwinnable', `Threat ${first.level} requires ${first.target} cargo, but all ${first.capacity.count} crates contain only ${first.capacity.value}. Threats ${first.level}–${impossibleExtraction.at(-1).level} cannot meet the server target even with perfect play.`, ['client/operations.js', 'server/NWO.Server/Game/Operations.cs']);
 } else pass('Balance', 'Extraction targets fit available cargo', `Every target through Threat ${maxThreat} can be met by the crates spawned.`, ['client/operations.js', 'server/NWO.Server/Game/Operations.cs']);
+const tutorialSteps = parseSteps(source.tutorial, 'tutorial');
+const guideSteps = parseSteps(source.guide, 'guide');
+const onboardingSteps = [...tutorialSteps, ...guideSteps];
+const gameSources = readdirSync(paths.game).filter(file => file.endsWith('.cs')).map(file => ({ file, text: readFileSync(resolve(paths.game, file), 'utf8') }));
+gameSources.push({ file: 'Program.cs', text: readFileSync(resolve(root, 'server/NWO.Server/Program.cs'), 'utf8') });
+const onboardingRoutes = {
+  barracks: 'Home → Headquarters → Build → Barracks → place', train: 'Home → Barracks → Train five gunners', laststand: 'Operations → Last Stand', walls: 'Home → Headquarters → Reinforce walls', people: 'Population counter', crops: 'Home → Headquarters → Build → Crop plot → place', solar: 'Home → Headquarters → Build → Solar panel → place', collect: 'Collect resources',
+  claim: 'Sector → available parcel → Claim', build: 'Sector → owned parcel → Build', extraction: 'Operations → Extraction Run', hq: 'Home → Headquarters → Upgrade HQ', research: 'Home → Research lab → recommended research', order: 'Market → Grain → Buy', ship: 'Contracts → affordable delivery', battle: 'Sector → militia camp → Gunner → lane', leviathan: 'Operations → Leviathan Assault', alliance: 'Alliance → join, found, or skip', vote: 'Politics → available vote or skip', record: 'Record', sentinel: 'Home → Headquarters → The Sentinel',
+};
+const dynamicHomeCompletions = new Set(['barracks', 'crops', 'solar', 'walls']);
+const dynamicOperationCompletions = new Set(serverOps);
+const completionFor = id => dynamicHomeCompletions.has(id) || dynamicOperationCompletions.has(id) || new RegExp(`completeReadingGuide\\('${id}'\\)`).test(source.index) || gameSources.some(x => new RegExp(`(?:HomeBase|Guide)\\.Advance\\([^;]+"${id}"`).test(x.text));
+const missingRoutes = onboardingSteps.filter(x => !onboardingRoutes[x.id]);
+if (missingRoutes.length) fail('Onboarding', 'Some steps have no known click path', missingRoutes.map(x => x.id).join(', '), ['client/index.html']);
+else pass('Onboarding', 'Every step has a click path', `${onboardingSteps.length} tutorial and Field Guide steps map to a first control and completion action.`, ['client/index.html']);
+const missingHooks = onboardingSteps.filter(x => !completionFor(x.id));
+if (missingHooks.length) fail('Onboarding', 'Some steps have no completion hook', missingHooks.map(x => x.id).join(', '), ['server/NWO.Server/Game']);
+else pass('Onboarding', 'Every step has a completion hook', `${onboardingSteps.length} objectives can advance from a matching server action.`, ['server/NWO.Server/Game']);
+const tapCopy = onboardingSteps.filter(x => /\btap\b/i.test(`${x.text} ${x.cta}`));
+if (tapCopy.length) warn('Onboarding', '“Tap” remains in player-facing onboarding copy', tapCopy.map(x => x.id).join(', '), ['server/NWO.Server/Game/HomeBase.cs', 'server/NWO.Server/Game/Guide.cs']);
+else pass('Onboarding', 'Onboarding consistently says “press”', 'No tutorial or Field Guide objective uses “tap”.', ['server/NWO.Server/Game/HomeBase.cs', 'server/NWO.Server/Game/Guide.cs']);
+const autoNavigationCopy = onboardingSteps.filter(x => /\b(?:I will|we will)\s+(?:take|open|show|bring)\b/i.test(x.text));
+if (autoNavigationCopy.length) warn('Onboarding', 'Copy promises automatic navigation', `${autoNavigationCopy.map(x => x.id).join(', ')} conflicts with the learn-by-navigation approach and should tell the player what to press.`, ['server/NWO.Server/Game/Guide.cs']);
+else pass('Onboarding', 'Copy supports manual navigation', 'No objective promises to move the player automatically.', ['server/NWO.Server/Game/Guide.cs']);
 for (const op of serverOps) {
   const inGuide = new RegExp(`new\\("${op}"`).test(source.guide) || new RegExp(`new\\("${op}"`).test(source.tutorial);
   if (inGuide) pass('Progression', `${op} has an onboarding entry`, 'Found in the home tutorial or Field Guide.', ['server/NWO.Server/Game/Guide.cs', 'server/NWO.Server/Game/HomeBase.cs']);
   else warn('Progression', `${op} has no onboarding entry`, 'The operation may be intentionally optional, but its unlock path should be documented.', ['server/NWO.Server/Game/Guide.cs', 'server/NWO.Server/Game/HomeBase.cs']);
 }
+
+// Opening economy: prove that mandatory tutorial actions cannot strand a default new player.
+const startResources = {
+  cash: +(source.db.match(/Cash\s*\{[^}]+\}\s*=\s*Start\([^,]+,\s*([\d_]+)/)?.[1] || '6000').replaceAll('_', ''),
+  oil: +(source.db.match(/Oil\s*\{[^}]+\}\s*=\s*([\d_]+)/)?.[1] || '200').replaceAll('_', ''),
+  fuel: +(source.db.match(/Fuel\s*\{[^}]+\}\s*=\s*Start\([^,]+,\s*([\d_]+)/)?.[1] || '120').replaceAll('_', ''),
+  grain: +(source.db.match(/Grain\s*\{[^}]+\}\s*=\s*([\d_]+)/)?.[1] || '300').replaceAll('_', ''),
+  gold: +(source.db.match(/Gold\s*\{[^}]+\}\s*=\s*Start\([^,]+,\s*([\d_]+)/)?.[1] || '50').replaceAll('_', ''),
+  power: 0,
+};
+const homeKinds = [...source.tutorial.matchAll(/\["([^"]+)"\]\s*=\s*new\("([^"]+)",\s*([\d.]+),\s*(\d+),\s*(\d+),\s*"([^"]+)",\s*([\d.]+),\s*"([^"]+)"/g)].map(m => ({ id: m[1], name: m[2], cost: +m[3], width: +m[4], height: +m[5], resource: m[6], perHour: +m[7], description: m[8] }));
+const kindById = new Map(homeKinds.map(x => [x.id, x]));
+const gunnerCost = +(gameSources.find(x => x.file === 'Defense.cs')?.text.match(/\["gunner"\]\s*=\s*([\d.]+)/)?.[1] || 40);
+const wallCosts = [...(source.tutorial.match(/WallCash\s*=\s*\[([^\]]+)/)?.[1] || '').matchAll(/[\d.]+/g)].map(x => +x[0]);
+const tutorialLedger = [];
+const balances = { ...startResources };
+for (const step of tutorialSteps) {
+  let cashCost = kindById.get(step.id)?.cost || 0;
+  if (step.id === 'train') cashCost = gunnerCost * 5;
+  if (step.id === 'walls') cashCost = wallCosts[2] || 0;
+  const before = balances.cash;
+  balances.cash -= cashCost;
+  const affordable = balances.cash >= 0;
+  balances.cash += step.reward.cash;
+  balances.fuel += step.reward.fuel;
+  balances.power += step.reward.power;
+  tutorialLedger.push({ ...step, cashCost, before, after: balances.cash, affordable });
+}
+const blockedEconomy = tutorialLedger.filter(x => !x.affordable);
+if (blockedEconomy.length) fail('Economy', 'Mandatory tutorial action is unaffordable', blockedEconomy.map(x => `${x.title} from ${x.before} cash`).join('; '), ['server/NWO.Server/Data/GameDb.cs', 'server/NWO.Server/Game/HomeBase.cs', 'server/NWO.Server/Game/Defense.cs']);
+else pass('Economy', 'Default player can afford the full tutorial', `Cash moves from ${startResources.cash.toLocaleString()} to ${balances.cash.toLocaleString()} after all mandatory costs and rewards.`, ['server/NWO.Server/Data/GameDb.cs', 'server/NWO.Server/Game/HomeBase.cs']);
+const tutorialRewardTotals = tutorialSteps.reduce((sum, x) => { for (const key of Object.keys(sum)) sum[key] += x.reward[key] || 0; return sum; }, { cash: 0, fuel: 0, power: 0, gold: 0 });
+const guideRewardTotals = guideSteps.reduce((sum, x) => { for (const key of Object.keys(sum)) sum[key] += x.reward[key] || 0; return sum; }, { cash: 0, fuel: 0, power: 0, gold: 0 });
+
+const retirementPairs = [
+  ['last-stand-field.jpg', 'laststand-arena.jpg'], ['extraction-yard.jpg', 'extraction-arena.jpg'], ['leviathan-sky.jpg', 'leviathan-arena.jpg'], ['leviathan.png', 'caretaker-mech.png'], ['patrol-buggy.png', 'ex-patrol.png'], ['raider-bike.png', 'ls-bike.png'], ['recovery-rover.png', 'ex-rover.png'], ['strike-skimmer.png', 'strike-leader.png'], ['supply-crate.png', 'ex-crate-fuel.png'], ['hq-bunker.png', 'ls-turret.png'],
+].map(([oldFile, replacement]) => ({ oldFile, replacement, oldExists: diskFiles.includes(oldFile), replacementExists: diskFiles.includes(replacement), oldReferenced: assetEntries.some(x => x.file === oldFile) }));
+const safeRetirements = retirementPairs.filter(x => x.oldExists && x.replacementExists && !x.oldReferenced);
+if (safeRetirements.length) warn('Assets', 'Legacy assets are candidates for retirement', `${safeRetirements.length} side-by-side replacements are ready for human review; this tool never deletes them.`, ['client/assets/operations']);
 const expectedFields = ['OperationLevels', 'OperationPaidDay', 'OperationPaidWins'];
 for (const field of expectedFields) {
   const model = source.db.includes(field), snapshot = source.snapshot.includes(field);
@@ -233,7 +323,9 @@ else if (ahead > 0) warn('Repository', 'Local commits are not backed up remotely
 else pass('Repository', 'Branch is backed up remotely', `${branch} is not ahead of ${upstream}.`);
 
 const counts = Object.fromEntries(['pass', 'warn', 'fail'].map(level => [level, results.filter(x => x.level === level).length]));
-const report = { generatedAt, branch, head, upstream: upstream || null, ahead, counts, operations: serverRules, balance, assets, results };
+const onboarding = onboardingSteps.map(x => ({ ...x, route: onboardingRoutes[x.id] || 'Unmapped', completionHook: completionFor(x.id) }));
+const economy = { startResources, tutorialRewardTotals, guideRewardTotals, tutorialLedger, homeKinds, endingResources: balances };
+const report = { generatedAt, branch, head, upstream: upstream || null, ahead, counts, operations: serverRules, balance, onboarding, economy, assetRetirement: retirementPairs, assets, results };
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const assetHref = file => relative(dirname(outputHtml), resolve(paths.assets, file)).split(sep).join('/');
@@ -250,6 +342,11 @@ const balanceCards = balance.map(op => {
   return `<article class="balance"><div class="balance-head"><div><h3>${esc(op.name)}</h3><small>Estimated average ceiling: T${op.averageCeiling} · skilled ceiling: T${op.skilledCeiling}</small></div><b>${op.duration}s</b></div>${chart(op.levels.map(x => x.pressure))}<table><thead><tr><th>Threat</th><th>Target${op.id === 'extraction' ? ' / capacity' : ''}</th><th>Pressure</th><th>Band</th><th>Paid reward</th></tr></thead><tbody>${rows}</tbody></table></article>`;
 }).join('');
 const assetCards = assets.map(a => `<article class="asset ${a.referenced ? '' : 'unused'}"><div class="checker"><img src="${esc(assetHref(a.file))}" alt="${esc(a.file)}" loading="lazy"></div><strong>${esc(a.file)}</strong><small>${a.width || '?'}×${a.height || '?'} · ${bytes(a.bytes)}${a.key ? ` · ${esc(a.key)}` : ' · unreferenced'}</small></article>`).join('');
+const rewardText = reward => Object.entries(reward).filter(([, n]) => n).map(([key, n]) => `${n.toLocaleString()} ${key}`).join(' · ') || 'None';
+const onboardingRows = onboarding.map(x => `<tr><td>${esc(x.chapter)}<small>${x.kind} ${x.number}</small></td><td><strong>${esc(x.title)}</strong><small>${esc(x.id)}${x.optional ? ' · optional' : ''}</small></td><td>${esc(x.route)}</td><td>${x.completionHook ? 'Yes' : '<span class="status fail">Missing</span>'}</td><td>${esc(rewardText(x.reward))}</td></tr>`).join('');
+const economyRows = tutorialLedger.map(x => `<tr class="${x.affordable ? '' : 'impossible'}"><td>${x.number}</td><td><strong>${esc(x.title)}</strong><small>${esc(x.id)}</small></td><td>${x.before.toLocaleString()}</td><td>${x.cashCost ? `−${x.cashCost.toLocaleString()}` : '—'}</td><td>${x.reward.cash ? `+${x.reward.cash.toLocaleString()}` : '—'}</td><td>${x.after.toLocaleString()}</td></tr>`).join('');
+const productionRows = homeKinds.map(x => `<tr><td><strong>${esc(x.name)}</strong><small>${esc(x.id)} · ${x.width}×${x.height}</small></td><td>${x.cost.toLocaleString()} cash</td><td>${x.perHour ? `+${x.perHour} ${esc(x.resource)}/h` : 'Utility'}</td><td>${esc(x.description)}</td></tr>`).join('');
+const retirementCards = retirementPairs.filter(x => x.oldExists).map(x => `<article class="retirement"><div class="compare"><div><div class="checker"><img src="${esc(assetHref(x.oldFile))}" alt="${esc(x.oldFile)}" loading="lazy"></div><small>Legacy</small><strong>${esc(x.oldFile)}</strong></div><div><div class="checker"><img src="${esc(assetHref(x.replacement))}" alt="${esc(x.replacement)}" loading="lazy"></div><small>Current replacement</small><strong>${esc(x.replacement)}</strong></div></div><p>${x.oldReferenced ? '<span class="status fail">Still referenced</span>' : x.replacementExists ? '<span class="status pass">Review to retire</span>' : '<span class="status warn">Replacement missing</span>'}</p></article>`).join('');
 const checklist = [
   ['First-run tutorial', 'Restart the tutorial. Confirm only one requested control is highlighted, all other controls are dimmed, and placement instructions never cover Build here.'],
   ['Last Stand · Threat 1', 'Build or upgrade a tower, focus the HQ turret, use both abilities, confirm trained defenders appear, and finish with a readable reward.'],
@@ -263,7 +360,7 @@ const checklist = [
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NWO Playtest Audit</title>
 <style>
-:root{color-scheme:dark;--bg:#080d12;--panel:#101922;--line:#263746;--text:#eef4f7;--muted:#91a5b2;--gold:#f3c65d;--pass:#62d68a;--warn:#ffc45b;--fail:#ff6e6e}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#193047 0,transparent 35%),var(--bg);color:var(--text);font:15px/1.45 system-ui,sans-serif}main{width:min(1180px,94vw);margin:auto;padding:38px 0 70px}header{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:22px}h1{margin:0;font-size:clamp(28px,5vw,54px);letter-spacing:-.04em}h2{margin:42px 0 14px;font-size:24px}p{color:#c2d0d7}.eyebrow{color:var(--gold);font-weight:900;letter-spacing:.14em;text-transform:uppercase}.meta{text-align:right;color:var(--muted)}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0}.metric,.panel{background:linear-gradient(145deg,#14212c,#0d151d);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 35px #0005}.metric{padding:18px}.metric b{display:block;font-size:32px}.metric small,.asset small,.check small,td small{display:block;color:var(--muted)}.metric.pass b{color:var(--pass)}.metric.warn b{color:var(--warn)}.metric.fail b{color:var(--fail)}.panel{padding:16px;overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px 10px;border-bottom:1px solid #21313d;vertical-align:top}th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.status{display:inline-block;border:1px solid;border-radius:99px;padding:3px 8px;font-size:11px;font-weight:900;text-transform:uppercase}.status.pass{color:var(--pass)}.status.warn{color:var(--warn)}.status.fail{color:var(--fail)}code{display:inline-block;color:#b7cedd;background:#081018;border-radius:5px;padding:2px 5px;margin:1px}.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}button{border:1px solid var(--line);background:#142330;color:var(--text);padding:8px 12px;border-radius:9px;font-weight:750;cursor:pointer}button.active{border-color:var(--gold);color:var(--gold)}.balance-grid{display:grid;gap:14px}.balance{background:linear-gradient(145deg,#14212c,#0d151d);border:1px solid var(--line);border-radius:14px;padding:16px;overflow:auto}.balance-head{display:flex;justify-content:space-between;gap:12px;align-items:start}.balance h3{margin:0;font-size:20px}.balance svg{display:block;width:100%;height:auto;max-height:190px;margin:8px 0}.balance svg line{stroke:#435767;stroke-width:1}.balance svg polyline{fill:none;stroke:var(--gold);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.balance svg text{fill:var(--muted);font:12px system-ui}.balance .impossible{background:#5a171733;color:#ffd0d0}.assets{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}.asset{min-width:0;background:#101922;border:1px solid var(--line);border-radius:12px;padding:10px}.asset.unused{border-color:#ffc45b77}.checker{height:150px;display:grid;place-items:center;margin-bottom:9px;border-radius:8px;background-color:#15212c;background-image:linear-gradient(45deg,#202f3b 25%,transparent 25%),linear-gradient(-45deg,#202f3b 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#202f3b 75%),linear-gradient(-45deg,transparent 75%,#202f3b 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}.checker img{max-width:100%;max-height:100%;object-fit:contain}.checklist{display:grid;gap:9px}.check{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid var(--line);border-radius:10px;background:#101922}.check input{width:20px;height:20px;accent-color:var(--gold)}.check:has(input:checked){opacity:.62}.note{padding:13px;border-left:3px solid var(--gold);background:#17180f;color:#dcd9bd}@media(max-width:700px){header{grid-template-columns:1fr}.meta{text-align:left}.summary{grid-template-columns:1fr}.balance{padding:10px}th:nth-child(4),td:nth-child(4){display:none}}@media print{body{background:#fff;color:#111}main{width:100%;padding:0}.panel,.metric,.asset,.check,.balance{box-shadow:none;background:#fff;color:#111}.filters,button{display:none}.checker{background:#eee}p,.metric small,.asset small,.check small,td small{color:#444}}
+:root{color-scheme:dark;--bg:#080d12;--panel:#101922;--line:#263746;--text:#eef4f7;--muted:#91a5b2;--gold:#f3c65d;--pass:#62d68a;--warn:#ffc45b;--fail:#ff6e6e}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#193047 0,transparent 35%),var(--bg);color:var(--text);font:15px/1.45 system-ui,sans-serif}main{width:min(1180px,94vw);margin:auto;padding:38px 0 70px}header{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:end;border-bottom:1px solid var(--line);padding-bottom:22px}h1{margin:0;font-size:clamp(28px,5vw,54px);letter-spacing:-.04em}h2{margin:42px 0 14px;font-size:24px}p{color:#c2d0d7}.eyebrow{color:var(--gold);font-weight:900;letter-spacing:.14em;text-transform:uppercase}.meta{text-align:right;color:var(--muted)}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:24px 0}.metric,.panel{background:linear-gradient(145deg,#14212c,#0d151d);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 35px #0005}.metric{padding:18px}.metric b{display:block;font-size:32px}.metric small,.asset small,.check small,td small{display:block;color:var(--muted)}.metric.pass b{color:var(--pass)}.metric.warn b{color:var(--warn)}.metric.fail b{color:var(--fail)}.panel{padding:16px;overflow:auto}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px 10px;border-bottom:1px solid #21313d;vertical-align:top}th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.08em}.status{display:inline-block;border:1px solid;border-radius:99px;padding:3px 8px;font-size:11px;font-weight:900;text-transform:uppercase}.status.pass{color:var(--pass)}.status.warn{color:var(--warn)}.status.fail{color:var(--fail)}code{display:inline-block;color:#b7cedd;background:#081018;border-radius:5px;padding:2px 5px;margin:1px}.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}button{border:1px solid var(--line);background:#142330;color:var(--text);padding:8px 12px;border-radius:9px;font-weight:750;cursor:pointer}button.active{border-color:var(--gold);color:var(--gold)}.balance-grid{display:grid;gap:14px}.balance{background:linear-gradient(145deg,#14212c,#0d151d);border:1px solid var(--line);border-radius:14px;padding:16px;overflow:auto}.balance-head{display:flex;justify-content:space-between;gap:12px;align-items:start}.balance h3{margin:0;font-size:20px}.balance svg{display:block;width:100%;height:auto;max-height:190px;margin:8px 0}.balance svg line{stroke:#435767;stroke-width:1}.balance svg polyline{fill:none;stroke:var(--gold);stroke-width:4;stroke-linecap:round;stroke-linejoin:round}.balance svg text{fill:var(--muted);font:12px system-ui}.balance .impossible,.impossible{background:#5a171733;color:#ffd0d0}.assets,.retirements{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}.asset,.retirement{min-width:0;background:#101922;border:1px solid var(--line);border-radius:12px;padding:10px}.asset.unused{border-color:#ffc45b77}.checker{height:150px;display:grid;place-items:center;margin-bottom:9px;border-radius:8px;background-color:#15212c;background-image:linear-gradient(45deg,#202f3b 25%,transparent 25%),linear-gradient(-45deg,#202f3b 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#202f3b 75%),linear-gradient(-45deg,transparent 75%,#202f3b 75%);background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0}.checker img{max-width:100%;max-height:100%;object-fit:contain}.compare{display:grid;grid-template-columns:1fr 1fr;gap:8px}.compare .checker{height:110px}.compare strong{display:block;overflow-wrap:anywhere}.checklist{display:grid;gap:9px}.check{display:flex;gap:12px;align-items:flex-start;padding:13px;border:1px solid var(--line);border-radius:10px;background:#101922}.check input{width:20px;height:20px;accent-color:var(--gold)}.check:has(input:checked){opacity:.62}.note{padding:13px;border-left:3px solid var(--gold);background:#17180f;color:#dcd9bd}@media(max-width:700px){header{grid-template-columns:1fr}.meta{text-align:left}.summary{grid-template-columns:1fr}.balance{padding:10px}th:nth-child(4),td:nth-child(4){display:none}}@media print{body{background:#fff;color:#111}main{width:100%;padding:0}.panel,.metric,.asset,.retirement,.check,.balance{box-shadow:none;background:#fff;color:#111}.filters,button{display:none}.checker{background:#eee}p,.metric small,.asset small,.check small,td small{color:#444}}
 </style></head><body><main>
 <header><div><div class="eyebrow">Playtest & content audit</div><h1>Operation health report</h1><p>Read-only checks across the browser client, server rules, onboarding, Blender geometry, persistence, documentation, and exported artwork.</p></div><div class="meta"><strong>${esc(branch)}</strong><br>${esc(head)}<br>${esc(new Date(generatedAt).toLocaleString())}</div></header>
 <div class="summary"><div class="metric pass"><small>Passing checks</small><b>${counts.pass}</b></div><div class="metric warn"><small>Review suggested</small><b>${counts.warn}</b></div><div class="metric fail"><small>Blocking failures</small><b>${counts.fail}</b></div></div>
@@ -271,7 +368,11 @@ ${counts.fail ? '<p class="note">Blocking failures were found. Fix those before 
 <h2>Automated checks</h2><div class="panel"><div class="filters"><button class="active" data-filter="all">All</button><button data-filter="fail">Failures</button><button data-filter="warn">Warnings</button><button data-filter="pass">Passing</button></div><table><thead><tr><th>Status</th><th>Area</th><th>Finding</th><th>Files</th></tr></thead><tbody>${resultRows}</tbody></table></div>
 <h2>Current operation contract</h2><div class="panel"><table><thead><tr><th>Operation</th><th>Length</th><th>Level 1 target</th><th>Per threat</th><th>Base paid reward</th></tr></thead><tbody>${operationRows}</tbody></table></div>
 <h2>Threat 1–${maxThreat} balance model</h2><p>The gold curve is a relative pressure index built from the current target and explicit hazard scaling formulas. It is a regression signal, not a simulated win probability. Level 1 equals 1× within each operation.</p><div class="balance-grid">${balanceCards}</div>
+<h2>Onboarding coverage</h2><p>This sequence is read directly from the server. A route describes what a new player must discover and press; the completion column proves a matching server action can advance the objective.</p><div class="panel"><table><thead><tr><th>Chapter</th><th>Objective</th><th>Expected click path</th><th>Completion</th><th>Reward</th></tr></thead><tbody>${onboardingRows}</tbody></table></div>
+<h2>Opening economy</h2><p>Default start: ${rewardText(startResources)}. Tutorial rewards: ${rewardText(tutorialRewardTotals)}. All Field Guide rewards: ${rewardText(guideRewardTotals)}.</p><div class="panel"><table><thead><tr><th>Step</th><th>Action</th><th>Cash before</th><th>Cost</th><th>Reward</th><th>Cash after</th></tr></thead><tbody>${economyRows}</tbody></table></div>
+<h2>Home building economy</h2><div class="panel"><table><thead><tr><th>Building</th><th>Build cost</th><th>Production</th><th>Purpose</th></tr></thead><tbody>${productionRows}</tbody></table></div>
 <h2>Manual playtest loop</h2><p>Checkboxes are saved only in this browser. They do not affect the game or repository.</p><div class="checklist">${checklist}</div>
+<h2>Asset retirement review</h2><p>Side-by-side candidates only. No files are removed automatically; review the legacy image before deleting it in a separate art cleanup.</p><div class="retirements">${retirementCards || '<p>No mapped legacy assets remain.</p>'}</div>
 <h2>Operation asset gallery</h2><p>${assets.length} files · ${bytes(assets.reduce((n, x) => n + x.bytes, 0))}. Yellow-bordered cards are present on disk but not in the active operation manifest.</p><div class="assets">${assetCards}</div>
 </main><script>
 const key='nwo-playtest-audit-checks';let saved={};try{saved=JSON.parse(localStorage.getItem(key)||'{}')}catch{}document.querySelectorAll('[data-check]').forEach(x=>{x.checked=!!saved[x.dataset.check];x.onchange=()=>{saved[x.dataset.check]=x.checked;localStorage.setItem(key,JSON.stringify(saved))}});document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('tbody tr[data-level]').forEach(r=>r.hidden=b.dataset.filter!=='all'&&r.dataset.level!==b.dataset.filter)})

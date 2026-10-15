@@ -15,6 +15,18 @@ It writes two ignored files:
 
 Open the HTML report in a browser after each major operation or Blender export change. The report uses relative image paths, so keep it inside the repository if you want the artwork gallery to load.
 
+For the full Playtest Lab, including phone tools, run:
+
+```powershell
+node tools/playtest/serve.mjs
+```
+
+Open `http://localhost:5090` on the PC. The command also prints the Wi-Fi address to open on a phone, such as `http://192.168.1.148:5090`. Keep the PowerShell window running during the test. The lab includes:
+
+- The generated audit report.
+- A 12-second phone canvas benchmark with normal, heavy-combat, and worst-case loads. It records average FPS, 95th-percentile frame time, slow frames, input response, device details, and an exportable JSON result.
+- A structured playtest feedback form that autosaves locally and exports JSON. It does not submit or change anything automatically.
+
 ## What it checks
 
 - JavaScript syntax for the main inline client module and `client/operations.js`.
@@ -28,6 +40,11 @@ Open the HTML report in a browser after each major operation or Blender export c
 - Core operation durations appear in the game overview.
 - Threat 1–30 target, reward, and relative pressure curves for every operation.
 - Extraction targets never exceed the total cargo physically spawned in the arena.
+- Every onboarding objective has a known click path and server completion hook.
+- Onboarding terminology uses “press” consistently and does not promise navigation the interface no longer performs.
+- The default starting economy can afford every mandatory tutorial action, with a step-by-step cash ledger.
+- Tutorial, Field Guide, and production-building costs and rewards are summarized from current server values.
+- Legacy operation artwork is paired with its likely current replacement for human retirement review; no asset is deleted automatically.
 - Simple malformed Markdown table separators.
 - Whether the current branch has uncommitted or unpushed work.
 
