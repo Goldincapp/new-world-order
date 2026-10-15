@@ -770,6 +770,15 @@ namespace NWO.Server.Data.Migrations
                     b.Property<double>("Oil")
                         .HasColumnType("REAL");
 
+                    b.Property<string>("OperationLevels")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("OperationPaidDay")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OperationPaidWins")
+                        .HasColumnType("INTEGER");
+
                     b.Property<double>("Population")
                         .HasColumnType("REAL");
 

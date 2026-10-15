@@ -400,17 +400,59 @@ Hold 10% of a sector's claimable land (about 98 parcels) to name it. Anyone who 
   - `POST /api/admin/feedback/{id}?status=seen|done|wontdo&note=` marks progress.
 - **GitHub issues.** If `NWO_GITHUB_TOKEN` and `NWO_GITHUB_REPO` (`owner/repo`) are set, each piece of feedback also opens a GitHub issue labelled `feedback` and its kind. The player sees the issue link.
 
-### 5.18 Leviathan Assault (`Operations.cs`, `client/operations.js`)
+### 5.18 Operations: threat levels and rewards (`Operations.cs`, `client/operations.js`)
 
-A 90-second boss fight against a Caretaker war-mech, unlocked by the Field Guide's World threats chapter (reward 800 cash and 10 gold, once).
+Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Leviathan Assault** (Field Guide). They share one look: Blender-rendered arenas fitted to the screen's height, solid outlined projectiles with glow, damage numbers, red screen edges when hurt, and **Lumen**, a friendly AI drone that flies with the player in every operation and talks them through it.
 
-- **The team.** The player is a strike leader on foot, fighting with **Lumen**, a friendly AI drone that circles them. The leader's rifle fires a fan of rounds by itself (3 rounds, widening to 5 in phase 2), and Lumen fires its own bolts at the mech's core. Hits on the glass dome are critical (double damage).
-- **Abilities.** Missile Salvo (6 s cooldown, two homing missiles) and Lumen's Overwatch (12 s: a 2.6 s shield that also scrambles every enemy shot on screen).
+- **Threat levels.** Each operation has its own threat level (`Player.OperationLevels`), starting at 1. Every win raises it by one, up to 30; losing keeps it. The level sets the enemies and the target. Player damage doesn't grow with it.
+- **Rewards.** The guided run (the tutorial or Field Guide step) pays that step's reward, as before. Every other win pays a reward that grows 20% per level (up to five times the base at level 21), for the first **5 wins each UTC day** across all operations (`OperationPaidDay`, `OperationPaidWins`). Wins after that still raise the level.
+
+  | Operation | Length | Target at level 1 | Target per level | Base win reward |
+  |---|---|---|---|---|
+  | Last Stand | 40 s | 12 raiders | +3 | 150 cash, 20 fuel |
+  | Extraction Run | 50 s | 3 cargo | +2.5 (rounded down) | 120 cash, 40 fuel |
+  | Leviathan Assault | 90 s | 1,800 damage | +120 | 250 cash, 1 gold (+1 gold per 4 levels) |
+
+- **Balance.** Tuned with simulated players (`sim` harness, not in the repo): levels 1 to 3 can be passed with little input; a careful player tops out around level 12 to 16.
+- **Art.** `tools/blender/leviathan_assault.py` and `tools/blender/operations_art.py` (sharing `ops_kit.py`) build the units and arenas; `leviathan_post.py` and `operations_post.py` add the glow. Sprites are used in the 2D view; the optional 3D view only has models for the Leviathan.
+
+#### Last Stand
+
+Raiders race down an approach road at the base's gate. The turret fires by itself at raiders on the lower road; pressing a raider focuses it at any range and fires faster. Three waves.
+
+- **Abilities.** Overcharge (14 s: fire rate x2.5 for 4 s) and Lumen: Airstrike (10 s: 4 damage to the three raiders nearest the gate).
+- **Raiders.** Bikes (from level 1, 6 gate damage); technicals that also shoot at the gate (level 2+); armoured trucks (level 3+, 20 gate damage); mortar teams that stop at range and shell the turret platform, with a red warning ring before each shell (level 4+). Toughness, speed and spawn rate rise gently with the level.
+- **Losing.** Gate integrity starts at 100; at 0 the run ends.
+
+#### Extraction Run
+
+Drive the rover over crates in a Caretaker supply yard; the beacon opens in the final 12 seconds: reach the pad or press Extract. Running out of time without extracting scores 0.
+
+- **Getting hit** drops the last crate: it's flung clear and the Caretaker reclaims it after 2.5 s unless you grab it back. Rams knock the rover clear and stall it briefly.
+- **Abilities.** Nitro (6 s: faster and can't be hit for 1.6 s) and Lumen: Scramble (12 s: blinds patrols, sentries and drones for 3.5 s and clears their shots).
+- **Defences.** Patrols with vision cones that chase when they see you (from level 1, more every 2 levels); sentries with telegraphed shots (level 2+); patrols that shoot (level 3+); searchlight drones that alert every patrol (level 4+). Crates: 8 plus 1.5 per level; one black cache worth 3.
+
+#### Leviathan Assault
+
+A 90-second boss fight against a Caretaker war-mech, unlocked by the Field Guide's World threats chapter (guided reward 800 cash and 10 gold).
+
+- **The team.** The player is a strike leader on foot, with Lumen circling them. The leader's rifle fires a fan of rounds by itself (3 rounds, widening to 5 in phase 2), and Lumen fires its own bolts at the mech's core. Hits on the glass dome are critical (double damage).
+- **Abilities.** Missile Salvo (6 s cooldown, two homing missiles) and Lumen: Overwatch (12 s: a 2.6 s shield that also scrambles every enemy shot on screen).
 - **Phases** (30 s each): Hunt, Crossfire, then Overheat, when the mech turns crimson and fires extra aimed shots between attacks.
 - **Attacks**, one at a time with a named warning:
 
   | Attack | From | What it does | Hit |
   |---|---|---|---|
+  | Targeting Burst | phase 1 | Aimed shots from the arm cannons (one more every 5 levels) | 9 to 11 |
+  | Tithe Spiral | phase 1 | Orbs spiral out of the core (an extra arm from level 6) | 9 to 11 |
+  | Quarantine Grid | phase 1 | 4 to 6 of 12 floor tiles light up, then burn (your tile is always one) | 15 |
+  | Compliance Scan | phase 1 | A beam sweeps the half of the floor you're on (both halves in turn in phase 3) | 16 |
+  | Enforcer Discs | phase 2 | Spinning blades that bounce off the walls three times | 14 |
+  | Breach Wall | phase 2 | A falling wall with one safe lane | 12 |
+
+- **Losing.** Armour starts at 100; at 0 the run ends.
+
+---|---|---|---|
   | Targeting Burst | phase 1 | Aimed shots from the arm cannons | 9 to 11 |
   | Tithe Spiral | phase 1 | Orbs spiral out of the core | 9 to 11 |
   | Quarantine Grid | phase 1 | 4 to 6 of 12 floor tiles light up, then burn (your tile is always one) | 15 |
