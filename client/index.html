@@ -3416,7 +3416,7 @@ function instModel(k,group,list,place,tint){const src=MODELS[k];if(!src||!list.l
 const HOME_MODEL={barracks:'barracks',warehouse:'warehouse',research:'research',workshop:'workshop',generator:'generator',solar:'solar'};
 if(WASTE)Object.assign(HOME_MODEL,{oilpump:'wOil',crops:'wCrops'});
 /** Small, cumulative additions make every HQ level visible on every home structure. A future tile.level overrides the HQ level automatically. */
-function decorateHomeBuilding(g,type,level,w,h){const lv=Math.max(1,Math.min(10,level||1)),P0=P;P=g;const steel=WASTE?0x41464c:0x645d55,accent=WASTE?0xd5a51d:0xd4ad4a,blue=0x65ddff;
+function decorateHomeBuilding(g,type,level,w,h){const lv=Math.max(1,Math.min(10,level||1)),P0=P,bounds=new THREE.Box3().setFromObject(g),roof=Math.max(.55,bounds.max.y||0);P=g;const steel=WASTE?0x41464c:0x645d55,accent=WASTE?0xd5a51d:0xd4ad4a,blue=0x65ddff;
  const box=(ww,hh,dd,x,y,z,c=steel,glow=0)=>add(new RoundedBoxGeometry(ww,hh,dd,2,.025),c,x,y,z,null,glow?{metalness:.38,roughness:.4,emissive:c,emissiveIntensity:glow}:{metalness:.35,roughness:.58});
  const lamp=(x,y,z,c=accent)=>add(new THREE.SphereGeometry(.055,9,6),c,x,y,z,null,{emissive:c,emissiveIntensity:2},true);
  if(lv>=2)[-.28,.28].forEach(x=>lamp(x*w,.2,h*.44));
@@ -3438,6 +3438,35 @@ function decorateHomeBuilding(g,type,level,w,h){const lv=Math.max(1,Math.min(10,
  if(lv>=8){[-1,1].forEach(s=>{box(.035,.5,.035,s*w*.42,.55,-h*.35,steel);box(.08,.08,h*.5,s*w*.42,.78,-.1,accent,.18);});}
  if(lv>=9){[-.36,0,.36].forEach(x=>lamp(x*w,.94,h*.43,blue));box(w*.72,.035,.06,0,.94,h*.42,blue,1.2);}
  if(lv>=10){const crown=add(new THREE.TorusGeometry(Math.max(.3,Math.min(w,h)*.3),.035,8,32),accent,0,1.25,0,null,{metalness:.5,roughness:.25,emissive:accent,emissiveIntensity:.75});crown.rotation.x=Math.PI/2;}
+ // Major tiers alter the silhouette, so an upgraded structure reads as larger and more capable even from a distance.
+ if(lv>=2){box(w*.72,.18,.12,0,Math.min(roof*.42,.48),h*.47,accent,.12);[-1,1].forEach(s=>box(.13,Math.min(.55,roof*.62),.18,s*w*.39,Math.min(roof*.34,.4),h*.46,steel));}
+ if(lv>=3){
+  if(['barracks','warehouse','workshop','generator','hq'].includes(type)){box(w*.6,.3,h*.52,0,roof+.15,-h*.05,steel);box(w*.48,.06,h*.56,0,roof+.32,-h*.05,accent,.2);}
+  else if(type==='research'){const dome=add(new THREE.SphereGeometry(Math.min(w,h)*.34,20,12,0,Math.PI*2,0,Math.PI/2),0x7bcfe9,0,roof-.02,0,null,{transparent:true,opacity:.9,metalness:.25,roughness:.18,emissive:0x164b62,emissiveIntensity:.55});dome.scale.y=.8;}
+  else if(type==='crops'){[-.34,0,.34].forEach(x=>{const arch=add(new THREE.TorusGeometry(.45,.025,6,18,Math.PI),0xa9c8b9,x,.08,0);arch.rotation.y=Math.PI/2;});}
+  else if(type==='oilpump'){[-.34,.34].forEach(x=>{box(.055,.95,.055,x,.48,0,steel);});box(.78,.06,.1,0,.92,0,accent);}
+  else if(type==='solar'){[-.27,.27].forEach(x=>{const panel=box(.48,.045,.72,x,roof+.16,0,0x24568b,.38);panel.rotation.x=-.38;});}
+ }
+ if(lv>=5){
+  if(type==='barracks'){box(.52,.9,.52,w*.3,roof+.45,-h*.22,steel);box(.66,.08,.66,w*.3,roof+.92,-h*.22,accent);}
+  else if(type==='warehouse'){box(w*.72,.48,h*.58,0,roof+.56,0,0x59616a);[-.24,.24].forEach(x=>box(.34,.3,.24,x*w,roof+.96,h*.05,0x765b3c));}
+  else if(type==='research'){box(.06,1.15,.06,0,roof+.72,0,steel);const ring=add(new THREE.TorusGeometry(.52,.045,8,30),blue,0,roof+.78,0,null,{emissive:blue,emissiveIntensity:1});ring.rotation.x=Math.PI/2;}
+  else if(type==='crops'){box(w*.82,.08,h*.75,0,.72,0,0xb7d9ce);[-.36,.36].forEach(x=>box(.04,.7,.04,x,.38,0,steel));}
+  else if(type==='oilpump'){add(new THREE.CylinderGeometry(.3,.34,.72,16),0x555b61,.28,.36,-.22);box(.62,.08,.08,0,.46,-.22,accent);}
+  else if(type==='solar'){box(.72,.48,.48,0,.25,-.28,0x303b47);[-.32,.32].forEach(x=>lamp(x,.42,-.05,blue));}
+  else if(type==='workshop'){box(.74,.72,.62,-w*.22,roof+.36,0,0x665743);box(.86,.08,.72,-w*.22,roof+.74,0,accent);}
+  else if(type==='generator'){[-.22,.22].forEach(x=>add(new THREE.CylinderGeometry(.15,.18,.85,12),0x474d54,x,roof+.42,0));}
+  else if(type==='hq'){[-.68,.68].forEach(x=>{box(.62,1.25,.62,x,roof+.62,0,steel);box(.74,.08,.74,x,roof+1.28,0,accent);});}
+ }
+ if(lv>=7){
+  if(['barracks','warehouse','workshop','hq'].includes(type))[-1,1].forEach(s=>box(w*.28,.72,h*.5,s*w*.38,roof+.36,h*.08,steel));
+  else if(type==='research'){[-.45,.45].forEach(x=>{const pod=add(new THREE.SphereGeometry(.24,16,10),0x7bcfe9,x,roof+.28,0,null,{emissive:0x164b62,emissiveIntensity:.65});pod.scale.y=.72;});}
+  else if(type==='crops'){[-.3,.3].forEach(x=>add(new THREE.CylinderGeometry(.05,.07,.8,8),blue,x,.42,0,null,{emissive:blue,emissiveIntensity:.55}));}
+  else if(type==='oilpump'){box(.72,1.15,.08,0,.58,0,steel);box(.9,.08,.12,0,1.12,0,accent);}
+  else if(type==='solar'){[-.42,0,.42].forEach(x=>{const panel=box(.36,.04,.82,x,.82,.05,0x24568b,.5);panel.rotation.x=-.45;});}
+  else if(type==='generator'){box(.82,.62,.72,0,roof+.31,0,steel);box(.68,.06,.76,0,roof+.64,0,blue,.8);}
+ }
+ if(lv>=9){const apex=type==='research'?blue:accent;box(.08,1.35,.08,0,roof+.75,0,steel);box(Math.max(.45,w*.5),.22,Math.max(.4,h*.42),0,roof+1.45,0,steel);box(Math.max(.34,w*.38),.06,Math.max(.32,h*.34),0,roof+1.59,0,apex,.9);lamp(0,roof+1.75,0,apex);}
  P=P0;g.userData.visualLevel=lv;return g;}
 function homeModel2(type,w,h,level=1){const kd=homeKindOf(type),mk=HOME_MODEL[type];
  if(mk&&MODELS[mk]){const m=model(mk,kd.w*0.92,kd.h*0.92);if(m)return decorateHomeBuilding(m,type,level,w,h);}
