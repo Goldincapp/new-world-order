@@ -3432,7 +3432,7 @@ function homeModel2(type,w,h){const kd=homeKindOf(type),mk=HOME_MODEL[type];
 /** Castle-kit walls: narrow wall segments along every side, an arched gate in the south wall, square towers on the corners. */
 function castlePiece(k,sx,sy,sz){const src=MODELS[k];const g=src.clone(true);const box=new THREE.Box3().setFromObject(g),cn=box.getCenter(new THREE.Vector3());g.position.set(-cn.x,-box.min.y,-cn.z);const w=new THREE.Group();w.add(g);w.scale.set(sx,sy,sz);return w;}
 /** Wasteland walls: concrete barrier segments with scrap tops and wire, a hazard gate, scaffold watchtowers; junk piled about. */
-function wasteWalls(lo,hi,c,Y){const G=HB.group;
+function wasteWalls(lo,hi,c,Y,wallLevel){const G=HB.group;
  const seg=(x,z,alongX)=>{const p=model('bWall',0.45,1.0);if(!p)return;if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
  for(let k=lo;k<hi;k++){seg(k+0.5,lo-0.15,true);seg(lo-0.15,k+0.5,false);seg(hi+0.15,k+0.5,false);if(Math.abs(k+0.5-c)>=1)seg(k+0.5,hi+0.15,true);}
  // One full-width gate replaces the two centre wall segments, leaving an unmistakable entrance.
@@ -3444,7 +3444,7 @@ function wasteWalls(lo,hi,c,Y){const G=HB.group;
  [[lo+0.55,lo+0.55],[hi-0.55,lo+0.55],[lo+0.55,hi-0.55],[hi-0.55,hi-0.55]].forEach(([x,z],i)=>drop(x,z,props[i%props.length],0.55));
  // and junk scattered round the outside of the yard
  const R=(hi-lo)/2+(Y||0)+1.1;for(let i=0;i<22;i++){const a=i/22*Math.PI*2+hash(i,5)*0.2,r=R+hash(i,9)*1.4;drop(c+Math.cos(a)*r,c+Math.sin(a)*r,props[Math.floor(hash(i,i*3)*props.length)],0.5+hash(i,2)*0.35);}}
-function castleWalls(lo,hi,c){const G=HB.group,WH=0.55,T=0.6;
+function castleWalls(lo,hi,c,wallLevel){const G=HB.group,WH=0.55,T=0.6;
  const seg=(x,z,alongX)=>{const p=castlePiece('wallN',T,WH,1);if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
  for(let k=lo;k<hi;k++){seg(k+0.5,lo-0.15,true);seg(lo-0.15,k+0.5,false);seg(hi+0.15,k+0.5,false);
   if(Math.abs(k+0.5-c)>=1)seg(k+0.5,hi+0.15,true);}
@@ -3453,7 +3453,33 @@ function castleWalls(lo,hi,c){const G=HB.group,WH=0.55,T=0.6;
   let top=0.02+0.86;if(MODELS.towerMid){const m=castlePiece('towerMid',0.95,0.6,0.95);m.position.set(x,top,z);G.add(m);top+=0.6;}
   if(MODELS.towerTop){const t=castlePiece('towerTop',1.0,0.9,1.0);t.position.set(x,top,z);G.add(t);}
   if(MODELS.pennant&&i%3===0){const fl=castlePiece('pennant',0.8,0.8,0.8);fl.position.set(x,top+0.26,z);G.add(fl);}});}
-function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSON.stringify([h.lo,h.hi,h.hqLevel,h.tiles]);
+/** The entrance becomes a visible record of wall progression: scrap gate, reinforced arch, powered checkpoint, defended gate, citadel. */
+function upgradeGate(lo,hi,c,wallLevel){const G=HB.group,z=hi+0.15,lv=Math.max(1,Math.min(5,wallLevel||1)),steel=WASTE?0x34383d:0x62594f,trim=WASTE?0xd5a51d:0xd6b45d,light=lv>=5?0x70f3ff:lv>=3?0x64d9ff:0xffa928;
+ const box=(w,h,d,x,y,zz,color=steel,glow=0)=>add(new RoundedBoxGeometry(w,h,d,2,0.035),color,x,y,zz,null,glow?{metalness:.35,roughness:.42,emissive:color,emissiveIntensity:glow}:{metalness:.35,roughness:.52});
+ // Level 1: a named checkpoint with amber approach beacons, rather than an anonymous gap in the wall.
+ [-1.12,1.12].forEach(x=>{box(.24,.72,.5,c+x,.38,z,steel);add(new THREE.SphereGeometry(.085,10,7),light,c+x,.83,z,null,{emissive:light,emissiveIntensity:2.2},true);});
+ label('ENTRY GATE  ·  WALL '+lv,lv>=5?'#70f3ff':'#ffc933',c,1.35,z+.03,.62,G,true);
+ if(lv>=2){
+  // Level 2: heavy side buttresses and yellow armour bands.
+  [-1.2,1.2].forEach(x=>{box(.42,1.2,.72,c+x,.62,z,steel);box(.48,.13,.78,c+x,.7,z,trim,.18);box(.48,.13,.78,c+x,.98,z,trim,.18);});
+ }
+ if(lv>=3){
+  // Level 3: powered arch, status lamps, and a luminous security header.
+  box(2.85,.25,.62,c,1.52,z,steel);box(2.35,.09,.68,c,1.52,z+.01,light,1.35);
+  [-1.18,1.18].forEach(x=>{box(.08,.82,.76,c+x,1.13,z+.01,light,1.1);for(let y=.38;y<1.45;y+=.34)add(new THREE.SphereGeometry(.035,7,5),light,c+x,y,z+.4,null,{emissive:light,emissiveIntensity:2},true);});
+ }
+ if(lv>=4){
+  // Level 4: dedicated gate watch posts and close-range automated defenses.
+  [-1.62,1.62].forEach((x,i)=>{if(WASTE&&MODELS.bTower){const tower=model('bTower',.72,.72,1.45);tower.position.set(c+x,.02,z-.12);tower.rotation.y=i?Math.PI:0;G.add(tower);}else{box(.72,1.45,.72,c+x,.74,z-.12,steel);}
+   if(MODELS.wTurret){const gun=model('wTurret',.42,.42,.5);gun.position.set(c+x,1.28,z-.12);gun.rotation.y=i?-.45:.45;G.add(gun);}else{const gun=add(new THREE.CylinderGeometry(.18,.23,.22,10),steel,c+x,1.5,z-.12);const barrel=box(.08,.08,.5,c+x+(i?-.14:.14),1.55,z+.16,trim);barrel.rotation.y=i?-.45:.45;}});
+ }
+ if(lv>=5){
+  // Level 5: a second armoured gate creates a glowing defensive airlock.
+  const innerZ=z-.72;if(WASTE&&MODELS.bGate){const inner=model('bGate',.78,2.25);inner.rotation.y=Math.PI/2;inner.position.set(c,.02,innerZ);G.add(inner);}else if(MODELS.wallGate){const inner=castlePiece('wallGate',.64,.62,2.05);inner.rotation.y=Math.PI/2;inner.position.set(c,.02,innerZ);G.add(inner);}else box(2.15,.72,.22,c,.4,innerZ,steel);
+  box(2.8,.1,.78,c,1.82,z,light,1.65);[-.74,.74].forEach(x=>{for(let q=0;q<4;q++){const stripe=box(.2,.055,.88,c+x,0.22+q*.19,z+.02,q%2?steel:trim,q%2?0:.2);stripe.rotation.z=x<0?-.42:.42;}});
+ }
+}
+function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const wallLevel=h.walls&&h.walls.level||1,key=JSON.stringify([h.lo,h.hi,h.hqLevel,wallLevel,h.tiles]);
  if(!HB.built){hq.children.forEach(o=>{if(!pickHQ.includes(o)||o.userData.info!=='hq')o.visible=false;});hqLabels.forEach(l=>l.visible=false);
   HB.group=new THREE.Group();hq.add(HB.group);HB.built=true;}
  if(key===HB.key){renderTutorial();return;}HB.key=key;
@@ -3475,11 +3501,12 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  // walls with corner towers and a south gate
  const W=(x,z,w,d)=>add(new RoundedBoxGeometry(1,1,1,1,0.05),0x6f6a62,x,0.32,z).scale.set(w,0.6,d);
  const L=hi-lo,c=(lo+hi)/2;
- if(WASTE&&MODELS.bWall&&MODELS.bTower){wasteWalls(lo,hi,c,Y);}else if(NEWGFX&&MODELS.wallN&&MODELS.towerBase){castleWalls(lo,hi,c);}else{
+ if(WASTE&&MODELS.bWall&&MODELS.bTower){wasteWalls(lo,hi,c,Y,wallLevel);}else if(NEWGFX&&MODELS.wallN&&MODELS.towerBase){castleWalls(lo,hi,c,wallLevel);}else{
  W(c,lo-0.15,L+0.3,0.3);W(lo-0.15,c,0.3,L+0.3);W(hi+0.15,c,0.3,L+0.3);W(lo+(L/2-1)/2-0.15,hi+0.15,L/2-1+0.3,0.3);W(hi-(L/2-1)/2+0.15,hi+0.15,L/2-1+0.3,0.3);
  // Procedural fallback gate: two lit posts and an overhead lintel frame the same two-cell opening.
  [-1,1].forEach(s=>{W(c+s,hi+0.15,0.32,0.55);add(new THREE.SphereGeometry(0.08,8,6),0xffc933,c+s,1.05,hi+0.15,null,{emissive:0xff9a18,emissiveIntensity:2},true);});const lintel=W(c,hi+0.15,2.25,0.35);lintel.position.y=1.05;lintel.scale.y=.22;
  [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z])=>{add(new THREE.CylinderGeometry(0.4,0.45,1.2,12),0x5f5a53,x,0.6,z);add(new THREE.ConeGeometry(0.5,0.5,12),0x7a2a22,x,1.45,z);const fl=add(new THREE.SphereGeometry(0.08,8,6),0xffa040,x,1.0,z,null,{emissive:0xff7a1a,emissiveIntensity:2},true);});}
+ upgradeGate(lo,hi,c,wallLevel);
  // fog over everything beyond the walls
  if(NEWGFX){const puffs=[],ext=G/2+Y+3,inside=(x,z,m)=>Math.max(Math.abs(x-c),Math.abs(z-c))<L/2+Y+m;
    for(let i=0;i<70;i++){const a=hash(i,7)*Math.PI*2,r=(L/2+Y+1.6)+hash(i,3)*(G/2-L/2+3);const x=c+Math.cos(a)*r,z=c+Math.sin(a)*r;if(Math.abs(x)>half+2||Math.abs(z)>half+2)continue;
