@@ -245,7 +245,7 @@ const progressionMeta = {
   crops: { minutes: 2, screen: 'Home base placement', introduces: ['Grain', 'Hourly production'], unlocks: ['Crop production'] },
   solar: { minutes: 2, screen: 'Home base placement', introduces: ['Power', 'Building demand'], unlocks: ['Power production'] },
   collect: { minutes: 1, screen: 'Resource collection', introduces: ['Stored production'], unlocks: ['Expansion Field Guide'] },
-  claim: { minutes: 3, screen: 'Sector map · available parcel', introduces: ['Parcels', 'Land resources'], unlocks: ['First expansion parcel'] },
+  claim: { minutes: 3, screen: 'Sector map · available parcel', introduces: ['Parcels', 'Land types'], unlocks: ['First expansion parcel'] },
   build: { minutes: 3, screen: 'Owned parcel', introduces: ['Resource suitability'], unlocks: ['Parcel production'] },
   extraction: { minutes: 4, screen: 'Operations · Extraction Run', introduces: ['Cargo', 'Extraction beacon'], unlocks: ['Extraction threat progression'] },
   hq: { minutes: 2, screen: 'Headquarters', introduces: ['HQ level', 'Building slots'], unlocks: ['More building capacity'] },
@@ -274,6 +274,14 @@ else pass('Onboarding', 'Every step has a completion hook', `${onboardingSteps.l
 const tapCopy = onboardingSteps.filter(x => /\btap\b/i.test(`${x.text} ${x.cta}`));
 if (tapCopy.length) warn('Onboarding', '“Tap” remains in player-facing onboarding copy', tapCopy.map(x => x.id).join(', '), ['server/NWO.Server/Game/HomeBase.cs', 'server/NWO.Server/Game/Guide.cs']);
 else pass('Onboarding', 'Onboarding consistently says “press”', 'No tutorial or Field Guide objective uses “tap”.', ['server/NWO.Server/Game/HomeBase.cs', 'server/NWO.Server/Game/Guide.cs']);
+const longCopy = onboardingSteps.filter(x => x.text.trim().split(/\s+/).length > 55);
+if (longCopy.length) warn('Onboarding', 'Some objective copy is too long for a focused prompt', longCopy.map(x => `${x.id} (${x.text.trim().split(/\s+/).length} words)`).join(', '), ['server/NWO.Server/Game/HomeBase.cs', 'server/NWO.Server/Game/Guide.cs']);
+else pass('Onboarding', 'Objective copy stays concise', 'Every tutorial and Field Guide prompt is 55 words or fewer.', ['server/NWO.Server/Game/HomeBase.cs', 'server/NWO.Server/Game/Guide.cs']);
+const vagueCtas = guideSteps.filter(x => /^(?:show me|show my|show the|got it)$/i.test(x.cta.trim()));
+if (vagueCtas.length) warn('Onboarding', 'Some guide buttons hide the next action', vagueCtas.map(x => `${x.id}: ${x.cta}`).join(', '), ['server/NWO.Server/Game/Guide.cs']);
+else pass('Onboarding', 'Guide buttons name the next action', 'Every Field Guide call to action describes what the player will open or find.', ['server/NWO.Server/Game/Guide.cs']);
+if (/function\s+tutorialCaretakerText\(t\)\s*\{\s*return\s+t\.text;\s*\}/.test(source.index)) pass('Onboarding', 'Home tutorial has one copy source', 'The Caretaker uses the server objective text, so the game and live storyboard cannot drift apart.', ['client/index.html', 'server/NWO.Server/Game/HomeBase.cs']);
+else warn('Onboarding', 'Home tutorial copy may drift between client and server', 'Caretaker dialogue is overriding the server objective text.', ['client/index.html', 'server/NWO.Server/Game/HomeBase.cs']);
 const autoNavigationCopy = onboardingSteps.filter(x => /\b(?:I will|we will)\s+(?:take|open|show|bring)\b/i.test(x.text));
 if (autoNavigationCopy.length) warn('Onboarding', 'Copy promises automatic navigation', `${autoNavigationCopy.map(x => x.id).join(', ')} conflicts with the learn-by-navigation approach and should tell the player what to press.`, ['server/NWO.Server/Game/Guide.cs']);
 else pass('Onboarding', 'Copy supports manual navigation', 'No objective promises to move the player automatically.', ['server/NWO.Server/Game/Guide.cs']);

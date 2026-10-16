@@ -45,14 +45,14 @@ public static class HomeBase
     public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
     public static readonly Step[] Tutorial =
     [
-        new("barracks", "Build your first building", "Your Headquarters cannot defend the settlement alone. Build a Barracks so you can train defenders and respond to attacks.", Cash: 300),
-        new("train", "Train your first defenders", "A Barracks provides a basic garrison, but trained units make your defence stronger and replace troops lost in future raids. Train five gunners now.", Cash: 200),
-        new("laststand", "Raiders at the perimeter", "Alarm: raider bikes are racing toward your unfinished base. Hold them off before they reach the Headquarters. Build towers on the pads with scrap from kills, press an enemy to focus the turret, and stop at least 12 raiders. Your new gunners hold the line at the gate.", Cash: 600, Fuel: 80),
-        new("walls", "Reinforce the gate", "Raiders reached your gate. Stronger walls give it more integrity in Last Stand and make your towers and Headquarters tougher when anyone raids your base. Reinforce the walls once.", Cash: 200),
-        new("people", "Meet your settlers", "People make the settlement work. They fill jobs, produce resources and pay taxes—but every person also needs housing, grain and power.", Cash: 150),
-        new("crops", "Feed your settlers", "Your population consumes grain every hour. Build a Crop plot now so the settlement can keep growing instead of losing people.", Cash: 250),
-        new("solar", "Make power", "A Solar panel makes power. Your buildings and growing population need it. Build one now.", Cash: 250, Power: 20),
-        new("collect", "Collect your resources", "Buildings make resources over time. Use the yellow collection button to move what is ready into the resource numbers at the top of the screen.", Cash: 300),
+        new("barracks", "Build your first building", "The Headquarters coordinates construction, sets your home-building limit, and anchors the walls. A Barracks adds a free garrison and unlocks defender training.", Cash: 300),
+        new("train", "Train your first defenders", "Your Barracks provides a small free garrison. Trained defenders make real base raids harder, but any trained defenders killed in those raids must be replaced.", Cash: 200),
+        new("laststand", "Raiders at the perimeter", "Raider bikes are racing toward your unfinished base. Build towers on the glowing pads with scrap earned during the fight. Press a raider to make the Headquarters turret focus on it, and stop at least 12 raiders before time runs out. This mission is a drill, so your trained gunners cannot be lost.", Cash: 600, Fuel: 80),
+        new("walls", "Reinforce the gate", "Walls determine how much damage your gate can take in Last Stand. They also strengthen your towers and Headquarters during real base raids.", Cash: 200),
+        new("people", "Meet your settlers", "People fill jobs that help your buildings produce at full output. Every settler also needs housing and consumes grain and power each hour.", Cash: 150),
+        new("crops", "Feed your settlers", "Your settlers consume grain each hour. Stored grain covers a shortage for a while, but population falls if it runs out. Crop plots produce a steady local supply.", Cash: 250),
+        new("solar", "Make power", "Your settlers consume power each hour. A power shortage eventually reduces population and leaves jobs unfilled. Solar panels produce power without consuming another resource.", Cash: 250, Power: 20),
+        new("collect", "Collect stored production", "Your land and production buildings keep working while you are away, up to their storage limit. Collection moves everything ready into the resource totals at the top of the screen.", Cash: 300),
     ];
 
     public static (int lo, int hi) Bounds(Player p)
