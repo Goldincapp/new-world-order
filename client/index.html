@@ -377,7 +377,9 @@ html.app .screen{border-radius:0}
 .guide-shield{position:absolute;z-index:45;background:rgba(2,5,9,.84);pointer-events:none;transition:left .16s ease,top .16s ease,width .16s ease,height .16s ease}
 .guide-target{z-index:50!important;outline:calc(.45*var(--u)) solid #ffd34d!important;outline-offset:calc(.35*var(--u));box-shadow:0 0 calc(4*var(--u)) rgba(255,211,77,.9)!important;animation:guidePulse 1s ease-in-out infinite}
 button.guide-target{position:relative}
-button.guide-target::after{content:attr(data-guide-label);position:absolute;left:50%;bottom:calc(100% + 1.1em);transform:translateX(-50%);background:#ffd34d;color:#17120a;border-radius:99px;padding:.45em .8em;font:800 .8rem/1 system-ui,sans-serif;white-space:nowrap;pointer-events:none;box-shadow:0 .25em 1em rgba(0,0,0,.45)}
+.guide-callout{position:absolute;z-index:52;max-width:min(72cqw,18rem);box-sizing:border-box;background:#ffd34d;color:#17120a;border:2px solid #fff2a8;border-radius:.8rem;padding:.55rem .8rem;font:800 clamp(.76rem,calc(2.3*var(--u)),.98rem)/1.2 system-ui,sans-serif;text-align:center;overflow-wrap:anywhere;pointer-events:none;box-shadow:0 .35rem 1.2rem rgba(0,0,0,.55);transition:left .14s ease,top .14s ease}
+/* Only one instructional surface may occupy the play area at a time. */
+#screen:has(#placeBar:not([hidden])) #tutBar,#screen:has(.card:not([hidden])) #tutBar,#screen:has(.sheet:not([hidden])) #tutBar,#screen:has(.techEl:not([hidden])) #tutBar,#screen:has(.allyEl:not([hidden])) #tutBar,#screen:has(.chat:not([hidden])) #tutBar,#screen:has(.action-celebration) #tutBar{visibility:hidden!important}
 @keyframes guidePulse{50%{outline-color:#fff2a8;box-shadow:0 0 calc(7*var(--u)) rgba(255,211,77,1)}}
 #placeBar .nud{display:inline-flex;gap:.2em}#placeBar .nud button{min-width:2.4em}
 .tutbar b{font:800 calc(2.6*var(--u))/1 'Baloo 2',sans-serif;color:#c9a24a;white-space:nowrap}.tutbar button{font:700 calc(2.4*var(--u))/1 'Baloo 2',sans-serif;background:#c9a24a;color:#1a1408;border:0;border-radius:99px;padding:calc(1.2*var(--u)) calc(2.4*var(--u));cursor:pointer;white-space:nowrap}
@@ -3431,8 +3433,10 @@ function homeModel2(type,w,h){const kd=homeKindOf(type),mk=HOME_MODEL[type];
 function castlePiece(k,sx,sy,sz){const src=MODELS[k];const g=src.clone(true);const box=new THREE.Box3().setFromObject(g),cn=box.getCenter(new THREE.Vector3());g.position.set(-cn.x,-box.min.y,-cn.z);const w=new THREE.Group();w.add(g);w.scale.set(sx,sy,sz);return w;}
 /** Wasteland walls: concrete barrier segments with scrap tops and wire, a hazard gate, scaffold watchtowers; junk piled about. */
 function wasteWalls(lo,hi,c,Y){const G=HB.group;
- const seg=(x,z,alongX,gate)=>{const p=model(gate&&MODELS.bGate?'bGate':'bWall',0.45,1.0);if(!p)return;if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
- for(let k=lo;k<hi;k++){seg(k+0.5,lo-0.15,true);seg(lo-0.15,k+0.5,false);seg(hi+0.15,k+0.5,false);seg(k+0.5,hi+0.15,true,Math.abs(k+0.5-c)<1);}
+ const seg=(x,z,alongX)=>{const p=model('bWall',0.45,1.0);if(!p)return;if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
+ for(let k=lo;k<hi;k++){seg(k+0.5,lo-0.15,true);seg(lo-0.15,k+0.5,false);seg(hi+0.15,k+0.5,false);if(Math.abs(k+0.5-c)>=1)seg(k+0.5,hi+0.15,true);}
+ // One full-width gate replaces the two centre wall segments, leaving an unmistakable entrance.
+ if(MODELS.bGate){const gate=model('bGate',0.75,2.2);gate.rotation.y=Math.PI/2;gate.position.set(c,0.02,hi+0.15);G.add(gate);}
  [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z],i)=>{const t=model('bTower',0.95,0.95);if(!t)return;t.position.set(x,0.02,z);t.rotation.y=i*Math.PI/2;G.add(t);});
  const props=['pCrates','pBarrels','pTyres','pJunk'].filter(k=>MODELS[k]);if(!props.length)return;
  const drop=(x,z,k,s)=>{const p=model(k,s,s);if(!p)return;p.position.set(x,0.02,z);p.rotation.y=hash(x*3.1,z*1.7)*6.28;G.add(p);};
@@ -3441,9 +3445,10 @@ function wasteWalls(lo,hi,c,Y){const G=HB.group;
  // and junk scattered round the outside of the yard
  const R=(hi-lo)/2+(Y||0)+1.1;for(let i=0;i<22;i++){const a=i/22*Math.PI*2+hash(i,5)*0.2,r=R+hash(i,9)*1.4;drop(c+Math.cos(a)*r,c+Math.sin(a)*r,props[Math.floor(hash(i,i*3)*props.length)],0.5+hash(i,2)*0.35);}}
 function castleWalls(lo,hi,c){const G=HB.group,WH=0.55,T=0.6;
- const seg=(x,z,alongX,gate)=>{const p=castlePiece(gate&&MODELS.wallGate?'wallGate':'wallN',T,WH,1);if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
+ const seg=(x,z,alongX)=>{const p=castlePiece('wallN',T,WH,1);if(alongX)p.rotation.y=Math.PI/2;p.position.set(x,0.02,z);G.add(p);};
  for(let k=lo;k<hi;k++){seg(k+0.5,lo-0.15,true);seg(lo-0.15,k+0.5,false);seg(hi+0.15,k+0.5,false);
-  const gate=Math.abs(k+0.5-c)<1;seg(k+0.5,hi+0.15,true,gate);}
+  if(Math.abs(k+0.5-c)>=1)seg(k+0.5,hi+0.15,true);}
+ if(MODELS.wallGate){const gate=castlePiece('wallGate',T,WH,2);gate.rotation.y=Math.PI/2;gate.position.set(c,0.02,hi+0.15);G.add(gate);}
  [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z],i)=>{const b=castlePiece('towerBase',0.95,0.85,0.95);b.position.set(x,0.02,z);G.add(b);
   let top=0.02+0.86;if(MODELS.towerMid){const m=castlePiece('towerMid',0.95,0.6,0.95);m.position.set(x,top,z);G.add(m);top+=0.6;}
   if(MODELS.towerTop){const t=castlePiece('towerTop',1.0,0.9,1.0);t.position.set(x,top,z);G.add(t);}
@@ -3464,11 +3469,16 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  if(WASTE){const t=DT.sand.clone();t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set((hi-lo)/4,(hi-lo)/4);t.needsUpdate=true;inner.material=new THREE.MeshLambertMaterial({color:0xb8b4a9,map:t});}
  const pts=[];for(let k=lo;k<=hi;k++){pts.push(V3(k,0.05,lo),V3(k,0.05,hi),V3(lo,0.05,k),V3(hi,0.05,k));}
  HB.group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xe8e0cc,transparent:true,opacity:0.12})));
+ // A surfaced approach makes the front entrance readable from inside and outside the base.
+ const gateRoadLen=Y+3.1,gateRoadZ=hi+(Y-0.1)/2;const gateRoad=add(new THREE.BoxGeometry(1.75,0.035,gateRoadLen),WASTE?0x4b4944:0xa9875e,(lo+hi)/2,0.055,gateRoadZ,null,{roughness:1},true);gateRoad.receiveShadow=true;
+ [-0.72,0.72].forEach(x=>add(new THREE.BoxGeometry(0.07,0.018,gateRoadLen),WASTE?0xd5a51d:0xe6d39a,(lo+hi)/2+x,0.08,gateRoadZ,null,{emissive:WASTE?0x5a4305:0x000000,emissiveIntensity:WASTE?.35:0},true));
  // walls with corner towers and a south gate
  const W=(x,z,w,d)=>add(new RoundedBoxGeometry(1,1,1,1,0.05),0x6f6a62,x,0.32,z).scale.set(w,0.6,d);
  const L=hi-lo,c=(lo+hi)/2;
  if(WASTE&&MODELS.bWall&&MODELS.bTower){wasteWalls(lo,hi,c,Y);}else if(NEWGFX&&MODELS.wallN&&MODELS.towerBase){castleWalls(lo,hi,c);}else{
  W(c,lo-0.15,L+0.3,0.3);W(lo-0.15,c,0.3,L+0.3);W(hi+0.15,c,0.3,L+0.3);W(lo+(L/2-1)/2-0.15,hi+0.15,L/2-1+0.3,0.3);W(hi-(L/2-1)/2+0.15,hi+0.15,L/2-1+0.3,0.3);
+ // Procedural fallback gate: two lit posts and an overhead lintel frame the same two-cell opening.
+ [-1,1].forEach(s=>{W(c+s,hi+0.15,0.32,0.55);add(new THREE.SphereGeometry(0.08,8,6),0xffc933,c+s,1.05,hi+0.15,null,{emissive:0xff9a18,emissiveIntensity:2},true);});const lintel=W(c,hi+0.15,2.25,0.35);lintel.position.y=1.05;lintel.scale.y=.22;
  [[lo,lo],[hi,lo],[lo,hi],[hi,hi]].forEach(([x,z])=>{add(new THREE.CylinderGeometry(0.4,0.45,1.2,12),0x5f5a53,x,0.6,z);add(new THREE.ConeGeometry(0.5,0.5,12),0x7a2a22,x,1.45,z);const fl=add(new THREE.SphereGeometry(0.08,8,6),0xffa040,x,1.0,z,null,{emissive:0xff7a1a,emissiveIntensity:2},true);});}
  // fog over everything beyond the walls
  if(NEWGFX){const puffs=[],ext=G/2+Y+3,inside=(x,z,m)=>Math.max(Math.abs(x-c),Math.abs(z-c))<L/2+Y+m;
@@ -3495,11 +3505,17 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const key=JSO
  P=P0;renderTutorial();}
 /* the tutorial bar steps aside while a full panel (politics, market, chat, briefing) is open */
 setInterval(()=>{const b=$('tutBar');if(b)b.style.visibility=(polEl.hidden&&sheet.hidden&&briefEl.hidden&&chatEl.hidden&&$('techEl').hidden&&$('allyEl').hidden&&$('placeBar').hidden)?'':'hidden';},400);
- let guideActing=null,guideTargetEl=null,guideTargetDim=true,guideBattleCoach=0,marketLesson=null,guideShields=[];
-function ensureGuideShields(){if(guideShields.length)return;for(let i=0;i<4;i++){const d=document.createElement('div');d.className='guide-shield';d.hidden=true;screen.appendChild(d);guideShields.push(d);}}
-function positionGuideSpotlight(){if(!guideTargetEl||guideTargetEl.hidden||!guideTargetEl.isConnected||!guideTargetDim){guideShields.forEach(d=>d.hidden=true);return;}ensureGuideShields();const sr=screen.getBoundingClientRect(),r=guideTargetEl.getBoundingClientRect(),pad=Math.max(5,sr.width*.008),x=Math.max(0,r.left-sr.left-pad),y=Math.max(0,r.top-sr.top-pad),right=Math.min(sr.width,r.right-sr.left+pad),bottom=Math.min(sr.height,r.bottom-sr.top+pad),w=Math.max(0,right-x),h=Math.max(0,bottom-y),set=(d,l,t,ww,hh)=>{d.hidden=false;d.style.left=l+'px';d.style.top=t+'px';d.style.width=Math.max(0,ww)+'px';d.style.height=Math.max(0,hh)+'px';};set(guideShields[0],0,0,sr.width,y);set(guideShields[1],0,y,x,h);set(guideShields[2],right,y,sr.width-right,h);set(guideShields[3],0,bottom,sr.width,sr.height-bottom);}
-function clearGuideTarget(){if(guideTargetEl){guideTargetEl.classList.remove('guide-target');guideTargetEl.removeAttribute('data-guide-label');guideTargetEl.removeAttribute('aria-current');guideTargetEl=null;}guideTargetDim=true;guideShields.forEach(d=>d.hidden=true);}
-function pointGuideAt(el,label,dim=true){clearGuideTarget();if(!el)return;guideTargetEl=el;guideTargetDim=dim;if(card.contains(el))el.scrollIntoView({block:'center',inline:'nearest'});el.classList.add('guide-target');el.setAttribute('aria-current','step');if(el.tagName==='BUTTON'&&label)el.dataset.guideLabel=label;if(dim)requestAnimationFrame(positionGuideSpotlight);}
+ let guideActing=null,guideTargetEl=null,guideTargetDim=true,guideBattleCoach=0,marketLesson=null,guideShields=[],guideCallout=null;
+function ensureGuideChrome(){if(!guideShields.length)for(let i=0;i<4;i++){const d=document.createElement('div');d.className='guide-shield';d.hidden=true;screen.appendChild(d);guideShields.push(d);}if(!guideCallout){guideCallout=document.createElement('div');guideCallout.className='guide-callout';guideCallout.hidden=true;guideCallout.setAttribute('role','status');screen.appendChild(guideCallout);}}
+function overlapArea(a,b){return Math.max(0,Math.min(a.right,b.right)-Math.max(a.left,b.left))*Math.max(0,Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top));}
+function positionGuideCallout(sr,r){if(!guideCallout||guideCallout.hidden)return;const gap=12,edge=8,cw=guideCallout.offsetWidth,ch=guideCallout.offsetHeight,tr={left:r.left-sr.left,top:r.top-sr.top,right:r.right-sr.left,bottom:r.bottom-sr.top};
+ const clamp=(n,min,max)=>Math.max(min,Math.min(n,max)),mk=(left,top)=>({left:clamp(left,edge,sr.width-cw-edge),top:clamp(top,edge,sr.height-ch-edge)});
+ const choices=[mk((tr.left+tr.right-cw)/2,tr.top-ch-gap),mk((tr.left+tr.right-cw)/2,tr.bottom+gap),mk(tr.right+gap,(tr.top+tr.bottom-ch)/2),mk(tr.left-cw-gap,(tr.top+tr.bottom-ch)/2)];
+ const blockers=[...screen.querySelectorAll('#tutBar,#placeBar,.card,.sheet,.techEl,.allyEl,.chat,.brief,.toast.show')].filter(e=>!e.hidden&&e!==guideTargetEl&&getComputedStyle(e).visibility!=='hidden').map(e=>{const q=e.getBoundingClientRect();return{left:q.left-sr.left,top:q.top-sr.top,right:q.right-sr.left,bottom:q.bottom-sr.top};});
+ let best=choices[0],bestScore=Infinity;choices.forEach(p=>{const box={left:p.left,top:p.top,right:p.left+cw,bottom:p.top+ch};const score=overlapArea(box,tr)*20+blockers.reduce((n,b)=>n+overlapArea(box,b),0);if(score<bestScore){bestScore=score;best=p;}});guideCallout.style.left=best.left+'px';guideCallout.style.top=best.top+'px';}
+function positionGuideSpotlight(){ensureGuideChrome();if(!guideTargetEl||guideTargetEl.hidden||!guideTargetEl.isConnected){guideShields.forEach(d=>d.hidden=true);if(guideCallout)guideCallout.hidden=true;return;}const sr=screen.getBoundingClientRect(),r=guideTargetEl.getBoundingClientRect();positionGuideCallout(sr,r);if(!guideTargetDim){guideShields.forEach(d=>d.hidden=true);return;}const pad=Math.max(5,sr.width*.008),x=Math.max(0,r.left-sr.left-pad),y=Math.max(0,r.top-sr.top-pad),right=Math.min(sr.width,r.right-sr.left+pad),bottom=Math.min(sr.height,r.bottom-sr.top+pad),w=Math.max(0,right-x),h=Math.max(0,bottom-y),set=(d,l,t,ww,hh)=>{d.hidden=false;d.style.left=l+'px';d.style.top=t+'px';d.style.width=Math.max(0,ww)+'px';d.style.height=Math.max(0,hh)+'px';};set(guideShields[0],0,0,sr.width,y);set(guideShields[1],0,y,x,h);set(guideShields[2],right,y,sr.width-right,h);set(guideShields[3],0,bottom,sr.width,sr.height-bottom);}
+function clearGuideTarget(){if(guideTargetEl){guideTargetEl.classList.remove('guide-target');guideTargetEl.removeAttribute('data-guide-label');guideTargetEl.removeAttribute('aria-current');guideTargetEl=null;}guideTargetDim=true;guideShields.forEach(d=>d.hidden=true);if(guideCallout)guideCallout.hidden=true;}
+function pointGuideAt(el,label,dim=true){clearGuideTarget();if(!el)return;guideTargetEl=el;guideTargetDim=dim;if(card.contains(el))el.scrollIntoView({block:'center',inline:'nearest'});el.classList.add('guide-target');el.setAttribute('aria-current','step');ensureGuideChrome();if(label){guideCallout.textContent=label;guideCallout.hidden=false;}requestAnimationFrame(positionGuideSpotlight);}
 function pointGuideButton(root,text,label){const b=[...root.querySelectorAll('button')].find(x=>x.textContent.trim().startsWith(text));pointGuideAt(b,label);return b;}
 window.addEventListener('resize',()=>requestAnimationFrame(positionGuideSpotlight));card.addEventListener('scroll',()=>requestAnimationFrame(positionGuideSpotlight),{passive:true});
 function beginGuideAction(g){guideActing=g.do;$('tutBar').hidden=true;clearGuideTarget();clearHomeTileMark();}
