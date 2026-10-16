@@ -278,11 +278,13 @@ def to_ground(fx, fy):
 if want('laststand-arena'):
     rng = random.Random(11)
     arena_camera()
-    DIRT = worn('dirt', (0.2, 0.16, 0.12), rough=0.95, wear=0.0, grime=0.7, scale=3, pitted=0.6)
-    ROAD = worn('road', (0.3, 0.25, 0.19), rough=0.95, wear=0.0, grime=0.6, scale=5, pitted=0.5)
+    # Echo the green home map instead of dropping the player into an unrelated dark-brown arena.
+    GRASS = worn('field_grass', (0.19, 0.38, 0.09), rough=1.0, wear=0.05, grime=0.35, scale=4, pitted=0.25)
+    DIRT = worn('field_dirt', (0.31, 0.24, 0.14), rough=0.95, wear=0.0, grime=0.45, scale=4, pitted=0.45)
+    ROAD = worn('road', (0.48, 0.34, 0.2), rough=0.95, wear=0.05, grime=0.4, scale=5, pitted=0.4)
     COURT = worn('court', (0.3, 0.31, 0.32), rough=0.85, wear=0.2, grime=0.5, scale=4, plates=True)
     PADMAT = worn('pad', (0.42, 0.42, 0.4), rough=0.8, wear=0.4, grime=0.4, scale=4, plates=True)
-    bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, 0)); bpy.context.active_object.data.materials.append(DIRT)
+    bpy.ops.mesh.primitive_plane_add(size=60, location=(0, 0, 0)); bpy.context.active_object.data.materials.append(GRASS)
     # the winding road: straight slabs that run past each bend so they overlap there, each a hair higher than the last
     pts = [to_ground(x, y) for x, y in LS_PATH]
     for k, (a_, b_) in enumerate(zip(pts, pts[1:])):
@@ -309,16 +311,25 @@ if want('laststand-arena'):
     for x in (-1.45, 1.45): box((0.35, 0.8, 1.5), (x, gate.y, 0.75), M.steel, bevel=0.04); cyl(0.12, 0.1, (x, gate.y - 0.1, 1.55), M.red, verts=12, bevel=0)
     cyl(1.25, 0.3, (tur.x, tur.y, 0.15), M.conc_dark, verts=40); torus(1.25, 0.05, (tur.x, tur.y, 0.31), HAZARD)
     for x in (-5, 5): box((2.6, 2.0, 1.6), (x, tur.y - 1.6, 0.8), M.armour, bevel=0.06)
-    # ruins and wrecks beyond the field's edges; scrub and tank traps only where they don't cover the road or pads
+    # Readable edge cover: natural low-poly rock outcrops plus a few unmistakably broken wall sections.
+    ROCK = worn('arena_rock', (0.56, 0.59, 0.56), rough=1, wear=0.1, grime=0.25, scale=6, pitted=0.35)
+    ROCK_DARK = worn('arena_rock_dark', (0.31, 0.34, 0.31), rough=1, wear=0.05, grime=0.4, scale=7, pitted=0.5)
     for side in (-1, 1):
         y = gate.y + 1.0
         while y < 14:
-            d = rng.uniform(1.2, 2.6); hgt = rng.uniform(0.6, 2.8); x = side * rng.uniform(4.6, 6.5)
-            wd = rng.uniform(1.2, 2.4); mat = rng.choice([M.concrete, M.brick, M.conc_dark])
-            box((wd, d, hgt), (x, y + d / 2, hgt / 2), mat, rot=(0, 0, rng.uniform(-0.1, 0.1)), bevel=0.04)
-            box((wd * 0.5, d * 0.6, rng.uniform(0.3, 0.9)), (x + rng.uniform(-0.3, 0.3), y + d / 2, hgt + 0.2), mat, rot=(rng.uniform(-0.3, 0.3), rng.uniform(-0.3, 0.3), 0), bevel=0.04)
-            y += d + rng.uniform(0.4, 1.4)
-    SCRUB = worn('scrub', (0.16, 0.18, 0.08), rough=1, wear=0, scale=14, pitted=0.5)
+            depth = rng.uniform(1.4, 2.6); x = side * rng.uniform(4.9, 6.8)
+            for j in range(rng.randint(3, 6)):
+                radius = rng.uniform(.35, .85); mat = ROCK if j % 3 else ROCK_DARK
+                ball(radius, (x + rng.uniform(-.65, .65), y + depth / 2 + rng.uniform(-.65, .65), radius * rng.uniform(.35, .65)), mat,
+                     scale=(rng.uniform(.8, 1.45), rng.uniform(.75, 1.35), rng.uniform(.55, .95)), segs=7)
+            if rng.random() < .5:
+                # Two short perpendicular fragments read as a collapsed defensive wall, not a mystery building.
+                box((1.35, .22, .75), (x, y + depth / 2, .36), M.brick, rot=(0, 0, rng.uniform(-.35, .35)), bevel=.03)
+                box((.22, .9, .48), (x + side * .55, y + depth / 2 + .18, .23), M.brick, rot=(0, 0, rng.uniform(-.25, .25)), bevel=.03)
+                for j in range(4):
+                    ball(rng.uniform(.12, .24), (x + rng.uniform(-.8, .8), y + depth / 2 + rng.uniform(-.5, .5), .08), ROCK_DARK, scale=(1.3, .8, .5), segs=6)
+            y += depth + rng.uniform(.55, 1.2)
+    SCRUB = worn('scrub', (0.12, 0.27, 0.06), rough=1, wear=0, scale=14, pitted=0.35)
 
     def clear_of_play(fx, fy):
         near_pad = any(math.hypot((fx - x) * .48, fy - y) < .07 for x, y in LS_PADS)
@@ -329,10 +340,11 @@ if want('laststand-arena'):
         fx, fy = rng.uniform(-.05, 1.05), rng.uniform(.0, .58)
         if not clear_of_play(fx, fy): continue
         g = to_ground(fx, fy); placed += 1
-        if placed % 5 == 0:
+        if placed % 7 == 0:
             for a2 in (0.0, math.pi / 2, math.pi / 4): box((0.06, 0.7, 0.06), (g.x, g.y, 0.3), M.steel, rot=(math.radians(55), 0, a2), bevel=0)
+        elif placed % 3 == 0: ball(rng.uniform(0.15, 0.32), (g.x, g.y, 0.1), ROCK_DARK, scale=(1.2, .9, .55), segs=7)
         else: ball(rng.uniform(0.15, 0.32), (g.x, g.y, 0.1), SCRUB, scale=(1, 1, 0.6), segs=10)
-    O.lights(key=0.7, tint=(0.35, 0.5, 1.0), world=(0.08, 0.07, 0.07), extra=[
+    O.lights(key=1.05, tint=(0.85, 0.9, 1.0), world=(0.16, 0.2, 0.14), extra=[
         ((tur.x, tur.y + 0.5, 3), (1.0, 0.7, 0.3), 500), ((-4, gate.y, 2.5), (1.0, 0.5, 0.2), 200), ((4, gate.y, 2.5), (1.0, 0.5, 0.2), 200),
         ((0, 9, 6), (1.0, 0.55, 0.3), 900), ((0, 2, 6), (0.9, 0.85, 0.8), 400)])
     O.render('laststand-arena', 1080, 1620, samples=64, transparent=False); O.clear()

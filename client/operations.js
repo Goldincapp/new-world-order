@@ -131,6 +131,28 @@
     function drawShot(b, X, h, kind) { const partnerShot = kind === 'partner', len = h * (partnerShot ? .055 : .07), wid = len / 2.6, ang = Math.atan2(b.vy * h, b.vx * (b.fw || 1)) + Math.PI / 2; ctx.save(); ctx.translate(X(b.x), b.y * h); ctx.rotate(ang); ctx.drawImage(partnerShot ? boltArt('#29dfff', '#3fe9ff', '#f0ffff') : boltArt('#ff8a1e', '#ffa22e', '#fff7d6'), -wid / 2, -len * .3, wid, len); ctx.restore(); }
     function drawOrb(x, y, r, color, trail) { const art2 = orbArt(color), size = r * 96 / 26; if (trail) [[.09, .22, .7], [.05, .45, .85]].forEach(([back, alpha, k]) => { ctx.globalAlpha = alpha; const ts = size * k; ctx.drawImage(art2, x - trail.vx * back - ts / 2, y - trail.vy * back - ts / 2, ts, ts); }); ctx.globalAlpha = 1; ctx.drawImage(art2, x - size / 2, y - size / 2, size, size); }
     function drawLumen(x, y, size) { const im = art.partner; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .55; ctx.drawImage(glowDot('#ffd27a', 48), x - size * .7, y - size * .55, size * 1.4, size * 1.4); ctx.restore(); if (im && im.naturalWidth) ctx.drawImage(im, x - size / 2, y - size / 2, size, size * im.naturalHeight / im.naturalWidth); }
+    function drawLastStandSoldier(x, y, size, angle, stride, recoil) {
+      ctx.save(); ctx.translate(x, y); ctx.fillStyle = '#0008'; ctx.beginPath(); ctx.ellipse(2, size * .15, size * .28, size * .16, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.rotate(angle || 0); ctx.scale(size, size);
+      const bob = Math.sin(stride || 0) * .015;
+      // Legs, boots and a readable human stance.
+      ctx.fillStyle = '#242b30'; ctx.fillRect(-.17, .08 + bob, .11, .30); ctx.fillRect(.06, .08 - bob, .11, .30);
+      ctx.fillStyle = '#11171b'; ctx.fillRect(-.19, .31 + bob, .15, .09); ctx.fillRect(.04, .31 - bob, .15, .09);
+      // Torso armour, shoulder pads and head.
+      ctx.fillStyle = '#4b555b'; ctx.beginPath(); ctx.moveTo(-.22, .11); ctx.lineTo(-.19, -.22); ctx.lineTo(0, -.32); ctx.lineTo(.19, -.22); ctx.lineTo(.22, .11); ctx.lineTo(0, .22); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#9b3530'; ctx.fillRect(-.14, -.19, .28, .23); ctx.fillStyle = '#d9b25f'; ctx.fillRect(-.04, -.17, .08, .18);
+      ctx.fillStyle = '#616d73'; ctx.beginPath(); ctx.arc(-.22, -.15, .09, 0, Math.PI * 2); ctx.arc(.22, -.15, .09, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#c59476'; ctx.beginPath(); ctx.arc(0, -.39, .12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#47545b'; ctx.beginPath(); ctx.arc(0, -.42, .16, Math.PI, Math.PI * 2); ctx.lineTo(.14, -.36); ctx.lineTo(-.14, -.36); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#161d21'; ctx.fillRect(-.13, -.4, .26, .055);
+      // Both hands visibly hold a rifle which points toward the current target.
+      const kick = (recoil || 0) * .08;
+      ctx.strokeStyle = '#c59476'; ctx.lineWidth = .08; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-.18, -.12); ctx.lineTo(-.05, -.31 - kick); ctx.moveTo(.18, -.12); ctx.lineTo(.05, -.25 - kick); ctx.stroke();
+      ctx.strokeStyle = '#182126'; ctx.lineWidth = .07; ctx.beginPath(); ctx.moveTo(.02, -.18); ctx.lineTo(.02, -.66 - kick); ctx.stroke();
+      ctx.fillStyle = '#39464d'; ctx.fillRect(-.055, -.54 - kick, .11, .18); ctx.fillStyle = '#9b3530'; ctx.fillRect(-.045, -.57 - kick, .09, .07);
+      if (recoil > 0) { ctx.fillStyle = '#fff2ad'; ctx.beginPath(); ctx.moveTo(0, -.72 - kick); ctx.lineTo(-.08, -.61 - kick); ctx.lineTo(.08, -.61 - kick); ctx.closePath(); ctx.fill(); }
+      ctx.restore();
+    }
     function drawFieldPopups(list, X, h) { ctx.save(); ctx.textAlign = 'center'; ctx.lineWidth = 3; ctx.strokeStyle = '#000b'; list.forEach(p => { const y = p.y * h - (1 - p.t / p.max) * 34; ctx.globalAlpha = Math.min(1, p.t * 2); ctx.font = '900 ' + (p.big ? 17 : 13) + 'px system-ui'; ctx.strokeText(p.text, X(p.x), y); ctx.fillStyle = p.color; ctx.fillText(p.text, X(p.x), y); }); ctx.restore(); }
     function drawSparks(list, X, geo) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineWidth = 3; list.forEach(p => { const x = X(p.x), y = p.y * geo.h; ctx.globalAlpha = Math.min(1, p.t * 2); ctx.strokeStyle = p.color; ctx.beginPath(); ctx.moveTo(x - (p.vx || 0) * geo.fw * .15, y - (p.vy || 0) * geo.h * .15); ctx.lineTo(x, y); ctx.stroke(); }); ctx.restore(); }
     function drawSpeech(line, w, geo) { if (!line) return; const partnerLine = line.who === 'LUMEN', y = 62; ctx.save(); ctx.globalAlpha = Math.min(1, line.t * 2); ctx.font = '700 12px system-ui'; const tw = Math.min(geo.fw * .92, ctx.measureText(line.text).width + 24); ctx.fillStyle = partnerLine ? '#1c1609e0' : '#1c0610e0'; ctx.fillRect(w / 2 - tw / 2, y, tw, 36); ctx.fillStyle = partnerLine ? '#ffd27a' : '#ff6a9a'; ctx.fillRect(w / 2 - tw / 2, y, 3, 36); ctx.font = '900 9px system-ui'; ctx.fillText(line.who, w / 2 - tw / 2 + 12, y + 13); ctx.fillStyle = '#f6eee0'; ctx.font = '700 12px system-ui'; ctx.fillText(line.text, w / 2 - tw / 2 + 12, y + 28, tw - 20); ctx.restore(); }
@@ -162,7 +184,7 @@
       const segs = []; let roadLength = 0; for (let i = 1; i < route.length; i++) { const [x0, y0] = route[i - 1], [x1, y1] = route[i], len = Math.hypot((x1 - x0) * FWH, y1 - y0); segs.push({ x0, y0, x1, y1, len, at: roadLength }); roadLength += len; }
       function along(d) { const sg = segs.find(q => d <= q.at + q.len) || segs[segs.length - 1], k = Math.max(0, Math.min(1, (d - sg.at) / sg.len)); const dx = (sg.x1 - sg.x0) * FWH, dy = sg.y1 - sg.y0, len = Math.hypot(dx, dy) || 1; return { x: sg.x0 + (sg.x1 - sg.x0) * k, y: sg.y0 + (sg.y1 - sg.y0) * k, angle: Math.atan2(-dx, dy), nx: -dy / len, ny: dx / len }; }
       const squadSize = Math.max(3, Math.min(8, Object.values(s.squad || {}).reduce((a, b) => a + b, 0) || 3));
-      const soldiers = Array.from({ length: squadSize }, (_, i) => ({ x: .5 + (i - (squadSize - 1) / 2) * Math.min(.06, .3 / squadSize), y: LINE + .012, hp: 4, cd: Math.random() }));
+      const soldiers = Array.from({ length: squadSize }, (_, i) => ({ x: .5 + (i - (squadSize - 1) / 2) * Math.min(.06, .3 / squadSize), y: LINE + .012, hp: 4, cd: Math.random(), aim: 0, recoil: 0, stride: Math.random() * 6 }));
       // raiders get 18% tougher per threat level; towers don't, so later levels need upgrades and good placement
       const tough = n => Math.max(1, Math.round(n * (1 + .18 * (L - 1))));
       const types = {
@@ -240,13 +262,15 @@
           for (let i = raiders.length - 1; i >= 0; i--) if (raiders[i].d >= roadLength - .005) { const r = raiders[i]; hitGate(types[r.type].dmg, r.x); burst(fx, r.x, GATE, '#ff8a3d', 20); raiders.splice(i, 1); if (focus === r) focus = null; }
           for (let i = shells.length - 1; i >= 0; i--) { const q = shells[i]; q.t += dt; if (q.t >= q.dur) { hitGate(q.dmg, q.tx, q.ty); burst(fx, q.tx, q.ty, '#ff8a3d', q.kind === 'mortar' ? 26 : 8); shells.splice(i, 1); } }
           // the squad fires from behind its sandbags
-          soldiers.forEach(q => { if (q.hp <= 0) return; q.cd -= dt; if (q.cd > 0) return; const r = furthest(inRangeOf(q, .2)); if (!r) return; q.cd = .9; rounds.push({ x: q.x, y: q.y - .02, target: r, kind: 'squad', vx: 0, vy: -1, dmg: 1 }); });
+          soldiers.forEach(q => { if (q.hp <= 0) return; q.cd -= dt; q.recoil = Math.max(0, q.recoil - dt * 7); q.stride += dt * 2; const r = furthest(inRangeOf(q, .2)); if (!r) return; const want = Math.atan2((r.y - q.y) * geo.h, (r.x - q.x) * geo.fw) + Math.PI / 2; q.aim += Math.atan2(Math.sin(want - q.aim), Math.cos(want - q.aim)) * Math.min(1, dt * 12); if (q.cd > 0) return; q.cd = .9; q.recoil = 1; rounds.push({ x: q.x + Math.sin(q.aim) * .026 / FWH, y: q.y - Math.cos(q.aim) * .026, target: r, kind: 'squad', vx: 0, vy: -1, dmg: 1 }); });
           // towers
-          towers.forEach((tw, i) => { if (!tw) return; const v = LS_TOWERS[tw.type], at = towerAt(i); tw.cd -= dt; if (tw.type === 'beacon' || tw.cd > 0) return;
-            const list = inRangeOf(at, v.range[tw.level]); if (!list.length) return; tw.cd = v.rate[tw.level];
-            if (tw.type === 'gun') rounds.push({ x: at.x, y: at.y - .03, target: furthest(list), kind: 'round', vx: 0, vy: -1, dmg: v.dmg[tw.level] });
-            if (tw.type === 'burner') { list.forEach(r => hit(this, r, v.dmg[tw.level], '#ff9a3d')); flames.push({ x: at.x, y: at.y, r: v.range[tw.level], t: .3 }); }
-            if (tw.type === 'rail') { const r = furthest(list); beams.push({ x0: at.x, y0: at.y - .04, x1: r.x, y1: r.y, t: .18 }); hit(this, r, v.dmg[tw.level], '#9ff6ff'); } });
+          towers.forEach((tw, i) => { if (!tw) return; const v = LS_TOWERS[tw.type], at = towerAt(i); tw.cd -= dt; const list = inRangeOf(at, v.range[tw.level]), tracked = furthest([...list]);
+            if (tracked) { const want = Math.atan2((tracked.y - at.y) * geo.h, (tracked.x - at.x) * geo.fw) + Math.PI / 2; tw.aim += Math.atan2(Math.sin(want - tw.aim), Math.cos(want - tw.aim)) * Math.min(1, dt * (tw.type === 'rail' ? 5 : 10)); }
+            else if (tw.type === 'beacon') tw.aim += dt * .45;
+            if (tw.type === 'beacon' || tw.cd > 0 || !tracked) return; tw.cd = v.rate[tw.level];
+            if (tw.type === 'gun') rounds.push({ x: at.x + Math.sin(tw.aim) * .025 / FWH, y: at.y - Math.cos(tw.aim) * .025, target: tracked, kind: 'round', vx: 0, vy: -1, dmg: v.dmg[tw.level] });
+            if (tw.type === 'burner') { list.forEach(r => hit(this, r, v.dmg[tw.level], '#ff9a3d')); flames.push({ x: at.x, y: at.y - .015, r: v.range[tw.level], angle: tw.aim, t: .34, seed: Math.random() * 20 }); }
+            if (tw.type === 'rail') { beams.push({ x0: at.x, y0: at.y - .04, x1: tracked.x, y1: tracked.y, t: .18 }); hit(this, tracked, v.dmg[tw.level], '#9ff6ff'); } });
           // the HQ turret reaches the lower road by itself; a focused raider is engaged at any distance
           const target = focus && raiders.includes(focus) ? focus : furthest(raiders.filter(r => dist(r, TURRET) < RANGE));
           if (target) { const want = Math.atan2((target.y - TURRET.y) * geo.h, (target.x - TURRET.x) * geo.fw) + Math.PI / 2; aim += Math.atan2(Math.sin(want - aim), Math.cos(want - aim)) * Math.min(1, dt * 14); }
@@ -278,12 +302,16 @@
             if (r.slow > 0) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .45; ctx.drawImage(glowDot('#ffd27a', 48), X(r.x) - size * .5, r.y * h - size * .5, size, size); ctx.restore(); }
             if (r.max > 1) bar(X(r.x) - geo.h * .025, r.y * h - len * .55 - 6, geo.h * .05, r.hp / r.max, r === focus ? '#7cf3ff' : tp.boss ? '#ff4b3e' : '#ff655d'); });
           if (focus && raiders.includes(focus)) { const size = types[focus.type].size * geo.fw * .62; ctx.save(); ctx.translate(X(focus.x), focus.y * h); ctx.rotate(t * 2); ctx.strokeStyle = '#7cf3ff'; ctx.lineWidth = 3; ctx.setLineDash([8, 6]); ctx.beginPath(); ctx.arc(0, 0, size, 0, Math.PI * 2); ctx.stroke(); ctx.restore(); }
-          soldiers.forEach(q => { if (q.hp <= 0) return; const size = geo.fw * .075; drawArt('leader', X(q.x), q.y * h, size); });
-          LS_PADS.forEach(([px, py], i) => { const tw = towers[i]; if (!tw) return; const v = LS_TOWERS[tw.type], size = geo.fw * (.15 + tw.level * .015); drawArt(v.art, X(px), py * h - size * .25, size); ctx.fillStyle = '#ffd27a'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('I'.repeat(tw.level + 1), X(px), py * h + size * .42); ctx.textAlign = 'left'; });
+          soldiers.forEach(q => { if (q.hp <= 0) return; const size = geo.fw * .07; drawLastStandSoldier(X(q.x), q.y * h, size, q.aim, q.stride, q.recoil); });
+          LS_PADS.forEach(([px, py], i) => { const tw = towers[i]; if (!tw) return; const v = LS_TOWERS[tw.type], size = geo.fw * (.15 + tw.level * .015); drawArt(v.art, X(px), py * h - size * .25, size, tw.aim || 0); ctx.fillStyle = '#ffd27a'; ctx.font = '900 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('I'.repeat(tw.level + 1), X(px), py * h + size * .42); ctx.textAlign = 'left'; });
           if (strike) strike.marks.forEach(r => { if (!raiders.includes(r)) return; const k = strike.t / .55, size = geo.h * (.03 + k * .05); ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(X(r.x), r.y * h, size, 0, Math.PI * 2); ctx.moveTo(X(r.x) - size * 1.3, r.y * h); ctx.lineTo(X(r.x) + size * 1.3, r.y * h); ctx.moveTo(X(r.x), r.y * h - size * 1.3); ctx.lineTo(X(r.x), r.y * h + size * 1.3); ctx.stroke(); });
           // light: flames, rail beams, muzzle flashes; then solid shots on top
           ctx.save(); ctx.globalCompositeOperation = 'lighter';
-          flames.forEach(q => { const rr = q.r * h * (1.1 - q.t), a = q.t / .3; ctx.globalAlpha = a; ctx.drawImage(glowDot('#ff7a1e', 96), X(q.x) - rr, q.y * h - rr * .7, rr * 2, rr * 1.4); }); ctx.globalAlpha = 1;
+          flames.forEach(q => { const life = Math.max(0, q.t / .34), reach = q.r * h * (.78 + .22 * (1 - life)), sx = X(q.x), sy = q.y * h, dx = Math.sin(q.angle), dy = -Math.cos(q.angle);
+            const grad = ctx.createLinearGradient(sx, sy, sx + dx * reach, sy + dy * reach); grad.addColorStop(0, 'rgba(255,245,170,' + (.95 * life) + ')'); grad.addColorStop(.28, 'rgba(255,154,42,' + (.9 * life) + ')'); grad.addColorStop(1, 'rgba(255,45,10,0)');
+            ctx.globalAlpha = life; ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(sx + dy * 5, sy - dx * 5); ctx.quadraticCurveTo(sx + dx * reach * .55 + dy * 13, sy + dy * reach * .55 - dx * 13, sx + dx * reach, sy + dy * reach); ctx.quadraticCurveTo(sx + dx * reach * .48 - dy * 13, sy + dy * reach * .48 + dx * 13, sx - dy * 5, sy + dx * 5); ctx.closePath(); ctx.fill();
+            for (let k = 0; k < 4; k++) { const f = .22 + k * .18, wob = Math.sin(t * 22 + q.seed + k * 2.1) * 7, rr = (8 - k) * life; ctx.drawImage(glowDot(k < 2 ? '#fff0a0' : '#ff5a16', 48), sx + dx * reach * f + dy * wob - rr, sy + dy * reach * f - dx * wob - rr, rr * 2, rr * 2); }
+          }); ctx.globalAlpha = 1;
           beams.forEach(q => { [[12, '#29dfff55'], [5, '#7cf3ffaa'], [2, '#ffffff']].forEach(([lw, c]) => { ctx.globalAlpha = q.t / .18; ctx.strokeStyle = c; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(X(q.x0), q.y0 * h); ctx.lineTo(X(q.x1), q.y1 * h); ctx.stroke(); }); }); ctx.globalAlpha = 1;
           if (muzzle > 0) { const size = h * .07; ctx.drawImage(glowDot('#ffc35a', 64), X(TURRET.x + Math.sin(aim) * .08 / FWH) - size / 2, (TURRET.y - Math.cos(aim) * .08) * h - size / 2, size, size); }
           if (overcharge > 0) { const size = h * .16; ctx.globalAlpha = .5 + .2 * Math.sin(t * 20); ctx.drawImage(glowDot('#ffb347', 96), X(TURRET.x) - size / 2, TURRET.y * h - size / 2, size, size); ctx.globalAlpha = 1; }
