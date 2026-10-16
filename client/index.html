@@ -451,7 +451,7 @@ html.waste .ucard{background:#24231e;border-color:var(--w-line)}
 
 /* ---------- Inspection cards: compact field dossiers with readable stats ---------- */
 .card{border:1px solid rgba(255,255,255,.15);box-shadow:0 1.2rem 2.8rem rgba(0,0,0,.42),inset 0 1px rgba(255,255,255,.22);overflow:hidden}
-.card.build-menu,.card.parcel-menu{overflow-y:auto}
+.card.build-menu,.card.parcel-menu,.card.barracks-menu,.card.defense-menu{overflow-y:auto;max-height:calc(100% - 24*var(--u));box-sizing:border-box}
 .card-head{display:grid;grid-template-columns:3.35em minmax(0,1fr);gap:.85em;align-items:center;margin:-.15em 2.7em 1em 0;padding:0 0 .9em;border-bottom:1px solid rgba(89,74,45,.2)}
 .card-emblem{display:grid;place-items:center;width:3.05em;height:3.05em;border-radius:.85em;background:linear-gradient(145deg,#f6d978,#d6a623);border:1px solid #fff0ae;color:#21190b;font-size:1.08em;box-shadow:inset 0 1px rgba(255,255,255,.55),0 .35em .8em rgba(73,49,4,.2)}
 .card-head h3{font-size:1.5em;line-height:1.08;letter-spacing:.005em;text-wrap:balance}
@@ -479,6 +479,9 @@ html.waste .ucard{background:#24231e;border-color:var(--w-line)}
 .card.build-menu .build-option small{margin-top:.34em;font-size:.87em;line-height:1.42;text-wrap:pretty;overflow-wrap:break-word}
 .card.build-menu .build-option button{grid-column:2;width:100%;min-width:0;margin-top:.04em}
 .card.build-menu .build-option button.guide-target{margin-top:2.65em}
+.card.barracks-menu .acts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:.55em}
+.card.barracks-menu .acts button{min-width:0;padding-left:.55em;padding-right:.55em}
+.card.barracks-menu .acts button:nth-child(5){grid-column:1/-1}
 .card .slots{padding:.5em;border:1px solid rgba(109,95,68,.16);border-radius:.7em;background:rgba(255,255,255,.28)}
 html.waste .card{border-color:#5d5747;box-shadow:0 1.3rem 3rem rgba(0,0,0,.62),inset 0 1px rgba(255,255,255,.06)}
 html.waste .card-head{border-bottom-color:#514a39}
@@ -1409,7 +1412,7 @@ function dossierIcon(label){const s=String(label||'').toLowerCase(),icons=[['res
 function cardHead(title,sub,icon){return '<div class="card-head"><span class="card-emblem ms" aria-hidden="true">'+(icon||dossierIcon(title))+'</span><div><h3>'+title+'</h3><p class="sub">'+sub+'</p></div></div>';}
 function buildOptionName(name){const parts=String(name).split(' · '),main=parts.shift();return '<strong class="build-name"><span>'+main+'</span>'+(parts.length?'<span class="build-meta">'+parts.join(' · ')+'</span>':'')+'</strong>';}
 function showCard(title,sub,rows,btns,slotsUsed){
- card.classList.remove('build-menu','parcel-menu');
+ card.classList.remove('build-menu','parcel-menu','barracks-menu','defense-menu');
  let h='<button class="x" aria-label="Close"><span class="ms">close</span></button>'+cardHead(title,sub);
  if(slotsUsed!==undefined){h+='<div class="slots" aria-label="Building slots">'+Array.from({length:9},(_,i)=>'<b class="'+(i<slotsUsed?'on':'')+'"></b>').join('')+'</div>';}
  h+=rows.map(r=>'<div class="row'+(String(r[1]||'').length>46?' long':'')+'"><span>'+r[0]+'</span><span>'+r[1]+'</span></div>').join('');
@@ -1419,7 +1422,7 @@ function showCard(title,sub,rows,btns,slotsUsed){
  card.querySelectorAll('[data-a]').forEach(b=>b.onclick=e=>act(b.dataset.a,e));}
 function showParcelCard(title,sub,rows,btns,slotsUsed){showCard(title,sub,rows,btns,slotsUsed);card.classList.add('parcel-menu');}
 function showBuildCard(title,sub,options){
- card.classList.remove('parcel-menu');card.classList.add('build-menu');
+ card.classList.remove('parcel-menu','barracks-menu','defense-menu');card.classList.add('build-menu');
  card.innerHTML='<button class="x" aria-label="Close"><span class="ms">close</span></button>'+cardHead(title,sub,'construction')+'<div class="build-list">'+options.map(o=>'<div class="build-option'+(o.locked?' locked':'')+'"><span class="build-option-icon ms" aria-hidden="true">'+dossierIcon(o.name)+'</span><span>'+buildOptionName(o.name)+'<small>'+o.detail+'</small></span><button class="'+(o.locked?'':'primary')+'" data-a="'+(o.action||'')+'" '+(o.locked?'disabled':'')+'>'+(o.locked?'Locked':o.button||'Build')+'</button></div>').join('')+'</div>';
  card.hidden=false;hint.hidden=true;card.scrollTop=0;card.querySelector('.x').onclick=back;card.querySelectorAll('[data-a]:not([disabled])').forEach(b=>b.onclick=e=>act(b.dataset.a,e));}
 let current=null;
@@ -3784,14 +3787,15 @@ function homePointer(ray){const h=NET.me.home;
  const objs=[...HB.meshes.values()];const hqG=pickHQ.find(o=>o.userData.info==='hq');if(hqG)objs.push(hqG);const hit=ray.intersectObjects(objs,true)[0];
  if(hit){let o=hit.object;while(o&&!o.userData.tile&&o.userData.info!=='hq')o=o.parent;if(o&&o.userData.info==='hq'){clearHomeTileMark();hqCard();return;}if(o&&o.userData.tile){clearHomeTileMark();tileCard(o.userData.tile);return;}}
  const g=ray.intersectObject(HB.ground,false)[0];if(g){const gx=g.point.x+h.grid/2,gy=g.point.z+h.grid/2;const Y=h.yard||0;if(gx<h.lo-Y||gy<h.lo-Y||gx>h.hi+Y||gy>h.hi+Y){expandCard();return;}homeBuildMenu(!(gx>=h.lo&&gy>=h.lo&&gx<=h.hi&&gy<=h.hi));}}
-function tileCard(t){const k=homeKindOf(t.type),rs=NET.me.research,visualLevel=t.level||NET.me.home.hqLevel;const rows=[['Does',k.blurb],['Makes',k.perHour?'+'+k.perHour+' '+k.res+'/h here':'Bonus to your base'],['Structure','Visual level '+visualLevel+' · advances with Headquarters upgrades']];
+function tileCard(t){const k=homeKindOf(t.type),rs=NET.me.research,visualLevel=t.level||NET.me.home.hqLevel;if(t.type==='barracks'){barracksCard(t,guideActing==='train');return;}const rows=[['Does',k.blurb],['Makes',k.perHour?'+'+k.perHour+' '+k.res+'/h here':'Bonus to your base'],['Structure','Visual level '+visualLevel+' · advances with Headquarters upgrades']];
  if(t.type==='research'&&rs)rows.push(['Researching',rs.current?rs.current.name+' · '+timeLeft(rs.current.endsAt):'Nothing. Pick a tech']);
- showCard(k.name,'Home base · '+k.w+'x'+k.h,rows,t.type==='research'?['Research','Move','Close']:t.type==='barracks'?['Defense','Move','Close']:['Move','Close']);HB.cardTile=t;if(t.type==='barracks'&&guideActing==='train')setTimeout(()=>{pointGuideButton(card,'Defense','Press Defense');toast('Press Defense to see and train your garrison.');},80);if(t.type==='research'&&researchGuideActive())setTimeout(()=>{pointGuideButton(card,'Research','Press Research');toast('Press Research to choose your first permanent upgrade.');},80);}
-function defenseCard(coaching=false){NET.conn.invoke('GetDefense').then(d=>{current=null;const doc=d.doctrines.find(x=>x.id===d.doctrine);
+ showCard(k.name,'Home base · '+k.w+'x'+k.h,rows,t.type==='research'?['Research','Move','Close']:['Move','Close']);HB.cardTile=t;if(t.type==='research'&&researchGuideActive())setTimeout(()=>{pointGuideButton(card,'Research','Press Research');toast('Press Research to choose your first permanent upgrade.');},80);}
+function barracksCard(t=HB.cardTile,coaching=false){NET.conn.invoke('GetDefense').then(d=>{current=null;NET.defense=d;if(t)HB.cardTile=t;
   const tr=Object.entries(d.trained).map(([k,v])=>v+' '+(UT[k]?UT[k].n.toLowerCase():k)+(v>1?'s':'')).join(', ')||'None yet';
-  showCard('Base defense','Raiders face your towers, your patrols and your reserve',[['Doctrine',doc.name+': '+doc.blurb],['Free garrison',d.free.patrol+' on patrol, '+d.free.reserve+' in reserve (grows with HQ and barracks)'],['Towers',fmt(d.free.towerHp)+' HP each · HQ '+fmt(d.free.hqHp)+' HP'],['Trained defenders',tr+' · '+d.used+'/'+d.capacity+' barracks space'],['Losses','Trained defenders killed in a raid are gone']],
-   d.doctrines.filter(x=>x.id!==d.doctrine).map(x=>'Doctrine: '+x.name).concat(['Train 5 gunners · '+fmt(d.costs.gunner*5),'Train 2 launchers · '+fmt(d.costs.launcher*2),'Train 1 tank · '+fmt(d.costs.tank),'Train 1 heli · '+fmt(d.costs.heli),'Close']));
-  NET.defense=d;if(coaching&&guideActing==='train')setTimeout(()=>{pointGuideButton(card,'Train 5 gunners','Press to train 5 gunners');toast('Gunners are inexpensive defenders. Train five now for the coming raid.');},80);}).catch(er=>toast(er.message));}
+  showCard('Barracks','Train soldiers who defend your base during raids',[['Your soldiers',tr],['Barracks space',d.used+' of '+d.capacity+' used'],['How training works','Spend cash to station defenders here. Soldiers defeated in a real player raid must be trained again.']],
+   ['Train 5 gunners · '+fmt(d.costs.gunner*5)+' cash','Train 2 launchers · '+fmt(d.costs.launcher*2)+' cash','Train 1 tank · '+fmt(d.costs.tank)+' cash','Train 1 heli · '+fmt(d.costs.heli)+' cash','Defense settings','Move','Close']);
+  card.classList.add('barracks-menu');if(coaching&&guideActing==='train')setTimeout(()=>{pointGuideButton(card,'Train 5 gunners','Press to train 5 gunners');toast('Training adds five gunners to defend your base in future raids.');},80);}).catch(er=>toast(er.message));}
+function defenseSettingsCard(){const show=d=>{NET.defense=d;const doc=d.doctrines.find(x=>x.id===d.doctrine)||d.doctrines[0],choices=['reserve','balanced','patrol'].map(id=>d.doctrines.find(x=>x.id===id)).filter(Boolean);showCard('Defense settings','Choose where your automatic guards wait when another player raids your base',[['Current plan',doc.name],['What changes','Deep reserve holds most guards back. Balanced splits them evenly. Heavy patrols puts most guards on the field immediately.']],choices.map(x=>x.name));card.classList.add('defense-menu');card.querySelectorAll('[data-a]').forEach(b=>{const selected=b.dataset.a===doc.name;b.classList.toggle('primary',selected);b.setAttribute('aria-pressed',String(selected));});};if(NET.defense)show(NET.defense);else NET.conn.invoke('GetDefense').then(show).catch(er=>toast(er.message));}
 /* ---------- Alliances ---------- */
 function openAlly(){card.hidden=true;$('allyEl').hidden=false;loadAlly();}
 function loadAlly(){NET.conn.invoke('GetAlliance').then(v=>{NET.ally=v;renderAlly();}).catch(er=>toast(er.message));}
@@ -3914,9 +3918,9 @@ function homeAct(a){if(a==='The Sentinel'){sentinelCard();return true;}
  if(a==='Outpost on alert'){toast('The outpost was attacked recently. Try again later');return true;}
  if(a.startsWith('Assault the outpost')&&NET.big){if(confirm('Attack the Caretaker? It will remember, whatever happens.')){card.hidden=true;netStartBattle({kind:'outpost',sector:NET.big.sector,title:'Caretaker outpost',enemy:'Caretaker outpost'},'county');}return true;}
  if(a==='Name this sector'&&NET.big){const n=prompt('Name Sector '+NET.big.sector+' (3 to 24 letters):',NET.big.name?NET.big.name.name:'');if(n){NET.conn.invoke('NameSector',NET.big.sector,n).then(r=>{if(!r.ok){toast(r.error);return;}card.hidden=true;toast('Sector named: '+n);watchHome();}).catch(er=>toast(er.message));}return true;}
- if(a==='Defense'){defenseCard(guideActing==='train');return true;}
- if(a.startsWith('Doctrine: ')&&NET.defense){const d=NET.defense.doctrines.find(x=>'Doctrine: '+x.name===a);if(d){NET.conn.invoke('SetDefense',d.id).then(r=>{if(!r.ok){toast(r.error);return;}toast('Doctrine set: '+d.name);defenseCard();});}return true;}
- {const m=a.match(/^Train (\d+) (gunner|launcher|tank|heli)s? · /);if(m){const guided=guideActing==='train';NET.conn.invoke('TrainDefenders',m[2],+m[1]).then(r=>{if(!r.ok){toast(r.error);return;}clearGuideTarget();applyMe(r.player);if(guided){card.hidden=true;celebrate('First squad trained',m[1]+' gunners now defend your base','shield');setTimeout(raidPrimerCard,4350);}else{toast('Defenders trained');defenseCard();}}).catch(er=>toast(er.message));return true;}}if(a==='Continue to food'&&populationGuideActive()){NET.conn.invoke('LearnPopulation').then(r=>{if(!r.ok){toast(r.error);return;}clearGuideTarget();guideActing=null;card.hidden=true;applyMe(r.player);celebrate('Settlers understood','Jobs create output; grain and power keep people growing','groups');setTimeout(renderTutorial,500);}).catch(er=>toast(er.message));return true;}if((a==='Raid · 40 fuel'||a==='Attack · 40 fuel')&&NET.raidTarget&&NET.big){card.hidden=true;netStartBattle({kind:'raidbase',sector:NET.big.sector,rivalKey:NET.raidTarget,title:'Raid',enemy:'Garrison'},'county');return true;}if(a==='Research'){openTech();return true;}
+ if(a==='Defense'||a==='Defense settings'){defenseSettingsCard();return true;}
+ if(NET.defense&&NET.defense.doctrines.some(x=>x.name===a)){const d=NET.defense.doctrines.find(x=>x.name===a);NET.conn.invoke('SetDefense',d.id).then(r=>{if(!r.ok){toast(r.error);return;}NET.defense.doctrine=d.id;toast('Defense plan set: '+d.name);defenseSettingsCard();});return true;}
+ {const m=a.match(/^Train (\d+) (gunner|launcher|tank|heli)s? · /);if(m){const guided=guideActing==='train';NET.conn.invoke('TrainDefenders',m[2],+m[1]).then(r=>{if(!r.ok){toast(r.error);return;}clearGuideTarget();applyMe(r.player);if(guided){card.hidden=true;celebrate('First squad trained',m[1]+' gunners now defend your base','shield');setTimeout(raidPrimerCard,4350);}else{toast('Soldiers trained');barracksCard();}}).catch(er=>toast(er.message));return true;}}if(a==='Continue to food'&&populationGuideActive()){NET.conn.invoke('LearnPopulation').then(r=>{if(!r.ok){toast(r.error);return;}clearGuideTarget();guideActing=null;card.hidden=true;applyMe(r.player);celebrate('Settlers understood','Jobs create output; grain and power keep people growing','groups');setTimeout(renderTutorial,500);}).catch(er=>toast(er.message));return true;}if((a==='Raid · 40 fuel'||a==='Attack · 40 fuel')&&NET.raidTarget&&NET.big){card.hidden=true;netStartBattle({kind:'raidbase',sector:NET.big.sector,rivalKey:NET.raidTarget,title:'Raid',enemy:'Garrison'},'county');return true;}if(a==='Research'){openTech();return true;}
  if(a==='The Ashlands'){region2Card();return true;}if(a==='War score'){warScoreCard();return true;}
  if(a==='Enter the Ashlands'){card.hidden=true;openSectorMap(101);return true;}
  if(a==='Leave the Ashlands'){card.hidden=true;openSectorMap(NET.me.homeSector);return true;}
