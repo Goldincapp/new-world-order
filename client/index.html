@@ -73,7 +73,7 @@ h1{font-family:'Baloo 2','Trebuchet MS',sans-serif;font-weight:800;font-size:cla
 .hint::after{content:"? Guide";display:inline-block;margin-left:.8em;color:var(--gold);font-weight:800;white-space:nowrap}
 .hint:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 
-.card{position:absolute;left:5cqw;top:calc(19.5*var(--u));width:min(40cqw,300px);background:#fbf7ee;color:#2a2a2a;border-radius:calc(3*var(--u));padding:calc(2.6*var(--u)) calc(3*var(--u));box-shadow:0 calc(1.4*var(--u)) 0 rgba(0,0,0,.18);font-family:'IBM Plex Sans',system-ui,sans-serif;font-weight:400;font-size:clamp(7px,calc(3.1*var(--u)),13px);line-height:1.45}
+.card{position:absolute;left:5cqw;top:calc(19.5*var(--u));width:min(42cqw,360px);background:#fbf7ee;color:#2a2a2a;border-radius:calc(3*var(--u));padding:calc(2.6*var(--u)) calc(3*var(--u));box-shadow:0 calc(1.4*var(--u)) 0 rgba(0,0,0,.18);font-family:'IBM Plex Sans',system-ui,sans-serif;font-weight:400;font-size:clamp(8px,calc(3.05*var(--u)),14px);line-height:1.4}
 .card.build-menu{top:calc(9*var(--u));bottom:calc(13*var(--u));max-height:none;overflow-y:auto;overscroll-behavior:contain}
 .card.build-menu .build-list{display:grid;gap:.65em;margin-top:.9em}
 .card.build-menu .build-option{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.8em;border-top:1px dashed #d9d1bf;padding:.7em 0 0}
@@ -449,11 +449,13 @@ html.waste .ucard{background:#24231e;border-color:var(--w-line)}
 .card.build-menu,.card.parcel-menu{overflow-y:auto}
 .card-head{display:grid;grid-template-columns:3.35em minmax(0,1fr);gap:.85em;align-items:center;margin:-.15em 2.7em 1em 0;padding:0 0 .9em;border-bottom:1px solid rgba(89,74,45,.2)}
 .card-emblem{display:grid;place-items:center;width:3.05em;height:3.05em;border-radius:.85em;background:linear-gradient(145deg,#f6d978,#d6a623);border:1px solid #fff0ae;color:#21190b;font-size:1.08em;box-shadow:inset 0 1px rgba(255,255,255,.55),0 .35em .8em rgba(73,49,4,.2)}
-.card-head h3{font-size:1.5em;letter-spacing:.01em}
-.card-head .sub{margin:.18em 0 0;line-height:1.3}
+.card-head h3{font-size:1.5em;line-height:1.08;letter-spacing:.005em;text-wrap:balance}
+.card-head .sub{margin:.2em 0 0;font-size:.9em;line-height:1.38;text-wrap:pretty;overflow-wrap:break-word}
 .card .row{display:grid;grid-template-columns:minmax(6.5em,.72fr) minmax(0,1.28fr);align-items:start;gap:.9em;margin:.42em 0;padding:.58em .68em;border:1px solid rgba(109,95,68,.16);border-radius:.7em;background:rgba(255,255,255,.38)}
 .card .row span:first-child{font-size:.83em;font-weight:750;letter-spacing:.055em;text-transform:uppercase}
-.card .row span:last-child{font-weight:650;text-align:right;overflow-wrap:anywhere}
+.card .row span:last-child{font-weight:600;line-height:1.38;text-align:right;overflow-wrap:break-word;text-wrap:pretty}
+.card .row.long{grid-template-columns:1fr;gap:.22em;padding:.68em .78em}
+.card .row.long span:last-child{text-align:left;font-weight:500}
 .card .acts{padding-top:.25em;border-top:1px solid rgba(109,95,68,.16)}
 .card .acts button{min-height:2.55em;border:1px solid rgba(80,68,45,.14);box-shadow:inset 0 1px rgba(255,255,255,.5),0 .22em .4em rgba(43,34,18,.12);transition:transform .14s ease,filter .14s ease,box-shadow .14s ease}
 .card .acts button:hover{transform:translateY(-1px);filter:brightness(1.04)}
@@ -461,12 +463,17 @@ html.waste .ucard{background:#24231e;border-color:var(--w-line)}
 .card .acts button.primary{background:linear-gradient(180deg,#f3ce55,#d4a01a);border-color:#ffe895}
 .card .x{display:grid;place-items:center;width:2.2em;height:2.2em;border:1px solid rgba(90,75,48,.14);border-radius:50%;background:rgba(255,255,255,.38)}
 .card.build-menu .build-list{gap:.62em}
-.card.build-menu .build-option{grid-template-columns:2.75em minmax(0,1fr) auto;gap:.75em;border:1px solid rgba(109,95,68,.18);border-radius:.8em;padding:.68em;background:rgba(255,255,255,.38);transition:transform .14s ease,border-color .14s ease,background .14s ease}
+.card.build-menu .build-option{grid-template-columns:2.75em minmax(0,1fr);align-items:start;gap:.6em .75em;border:1px solid rgba(109,95,68,.18);border-radius:.8em;padding:.68em;background:rgba(255,255,255,.38);transition:transform .14s ease,border-color .14s ease,background .14s ease}
 .card.build-menu .build-option:hover{transform:translateX(.12em);border-color:#caa231;background:rgba(255,249,226,.78)}
 .build-option-icon{display:grid;place-items:center;width:2.55em;height:2.55em;border-radius:.68em;background:#2f3337;color:#ffd65a;border:1px solid #555b60;font-size:1.05em;box-shadow:inset 0 1px rgba(255,255,255,.1)}
+.card.build-menu .build-option>span:nth-child(2){min-width:0}
 .card.build-menu .build-option strong{font-size:1.13em;color:#29251d}
-.card.build-menu .build-option small{margin-top:.28em}
-.card.build-menu .build-option button{min-width:7.3em}
+.build-name{display:flex!important;align-items:baseline;gap:.42em;flex-wrap:wrap;font-weight:800}
+.build-name>span:first-child{line-height:1.08}
+.build-meta{display:inline-flex;align-items:center;border-radius:99px;padding:.13em .48em;background:rgba(74,65,46,.1);color:#716854;font:750 .72em/1.25 'IBM Plex Sans',system-ui,sans-serif;letter-spacing:.025em;white-space:nowrap}
+.card.build-menu .build-option small{margin-top:.34em;font-size:.87em;line-height:1.42;text-wrap:pretty;overflow-wrap:break-word}
+.card.build-menu .build-option button{grid-column:2;width:100%;min-width:0;margin-top:.04em}
+.card.build-menu .build-option button.guide-target{margin-top:2.65em}
 .card .slots{padding:.5em;border:1px solid rgba(109,95,68,.16);border-radius:.7em;background:rgba(255,255,255,.28)}
 html.waste .card{border-color:#5d5747;box-shadow:0 1.3rem 3rem rgba(0,0,0,.62),inset 0 1px rgba(255,255,255,.06)}
 html.waste .card-head{border-bottom-color:#514a39}
@@ -481,9 +488,10 @@ html.waste .card .x{background:#1b1a16;border-color:#514a3a;color:#c9c0ae}
 html.waste .card.build-menu .build-option{border-color:#484235;background:linear-gradient(110deg,#302e27,#292720)}
 html.waste .card.build-menu .build-option:hover{border-color:#b98c17;background:linear-gradient(110deg,#383429,#302b20)}
 html.waste .card.build-menu .build-option strong{color:#f0e8d8}
+html.waste .build-meta{background:#1d1c18;color:#c6bda9;border:1px solid #494335}
 html.waste .build-option-icon{background:#191a19;border-color:#504b3e;color:#efbd31}
 html.waste .card .slots{border-color:#464034;background:#1d1c18}
-@media (orientation:portrait){html.app .card-head{grid-template-columns:3em minmax(0,1fr)}html.app .card .row{grid-template-columns:minmax(5.6em,.68fr) minmax(0,1.32fr)}html.app .card.build-menu .build-option{grid-template-columns:2.65em minmax(0,1fr)}html.app .card.build-menu .build-option button{grid-column:2;width:100%;min-width:0}}
+@media (orientation:portrait){html.app .card-head{grid-template-columns:3em minmax(0,1fr)}html.app .card .row{grid-template-columns:minmax(5.6em,.68fr) minmax(0,1.32fr)}html.app .card.build-menu .build-option{grid-template-columns:2.65em minmax(0,1fr)}}
 </style>
 
 <div id="turn"><span class="ms">screen_rotation</span><div>Turn your phone sideways</div><div style="letter-spacing:.1em;text-transform:none;color:#8a8272;font-weight:400">New World Order plays in landscape</div></div>
@@ -1394,11 +1402,12 @@ motor:['Motor pool','Level 4',[['Tanker trucks','2 (1 on route)'],['Shipment slo
 empty:['Empty lot','Build slot',[['Options','Factory, hospital, embassy'],['','Bank or power plant'],['More lots','at HQ level 13']],['Build']]};
 function dossierIcon(label){const s=String(label||'').toLowerCase(),icons=[['research','science'],['headquarters','account_balance'],['home base','account_balance'],['barracks','shield'],['defen','shield'],['warehouse','inventory_2'],['storage','inventory_2'],['crop','agriculture'],['farm','agriculture'],['grain','grass'],['oil','oil_barrel'],['solar','solar_power'],['power','bolt'],['generator','electric_bolt'],['fuel','local_gas_station'],['workshop','precision_manufacturing'],['factory','factory'],['mine','landscape'],['sawmill','forest'],['housing','apartment'],['market','storefront'],['trade','storefront'],['contract','local_shipping'],['motor','local_shipping'],['parcel','map'],['sector','map'],['alliance','groups'],['nation','flag'],['battle','swords'],['attack','swords'],['raid','swords'],['sentinel','smart_toy'],['operation','military_tech'],['population','groups'],['people','groups'],['record','fact_check'],['guide','menu_book']];const hit=icons.find(x=>s.includes(x[0]));return hit?hit[1]:'info';}
 function cardHead(title,sub,icon){return '<div class="card-head"><span class="card-emblem ms" aria-hidden="true">'+(icon||dossierIcon(title))+'</span><div><h3>'+title+'</h3><p class="sub">'+sub+'</p></div></div>';}
+function buildOptionName(name){const parts=String(name).split(' · '),main=parts.shift();return '<strong class="build-name"><span>'+main+'</span>'+(parts.length?'<span class="build-meta">'+parts.join(' · ')+'</span>':'')+'</strong>';}
 function showCard(title,sub,rows,btns,slotsUsed){
  card.classList.remove('build-menu','parcel-menu');
  let h='<button class="x" aria-label="Close"><span class="ms">close</span></button>'+cardHead(title,sub);
  if(slotsUsed!==undefined){h+='<div class="slots" aria-label="Building slots">'+Array.from({length:9},(_,i)=>'<b class="'+(i<slotsUsed?'on':'')+'"></b>').join('')+'</div>';}
- h+=rows.map(r=>'<div class="row"><span>'+r[0]+'</span><span>'+r[1]+'</span></div>').join('');
+ h+=rows.map(r=>'<div class="row'+(String(r[1]||'').length>46?' long':'')+'"><span>'+r[0]+'</span><span>'+r[1]+'</span></div>').join('');
  h+='<div class="acts">'+btns.map((b,i)=>'<button class="'+(i===0?'primary':'')+'" data-a="'+b+'">'+b+'</button>').join('')+'</div>';
  card.innerHTML=h;card.hidden=false;hint.hidden=true;
  card.querySelector('.x').onclick=back;
@@ -1406,7 +1415,7 @@ function showCard(title,sub,rows,btns,slotsUsed){
 function showParcelCard(title,sub,rows,btns,slotsUsed){showCard(title,sub,rows,btns,slotsUsed);card.classList.add('parcel-menu');}
 function showBuildCard(title,sub,options){
  card.classList.remove('parcel-menu');card.classList.add('build-menu');
- card.innerHTML='<button class="x" aria-label="Close"><span class="ms">close</span></button>'+cardHead(title,sub,'construction')+'<div class="build-list">'+options.map(o=>'<div class="build-option'+(o.locked?' locked':'')+'"><span class="build-option-icon ms" aria-hidden="true">'+dossierIcon(o.name)+'</span><span><strong>'+o.name+'</strong><small>'+o.detail+'</small></span><button class="'+(o.locked?'':'primary')+'" data-a="'+(o.action||'')+'" '+(o.locked?'disabled':'')+'>'+(o.locked?'Locked':o.button||'Build')+'</button></div>').join('')+'</div>';
+ card.innerHTML='<button class="x" aria-label="Close"><span class="ms">close</span></button>'+cardHead(title,sub,'construction')+'<div class="build-list">'+options.map(o=>'<div class="build-option'+(o.locked?' locked':'')+'"><span class="build-option-icon ms" aria-hidden="true">'+dossierIcon(o.name)+'</span><span>'+buildOptionName(o.name)+'<small>'+o.detail+'</small></span><button class="'+(o.locked?'':'primary')+'" data-a="'+(o.action||'')+'" '+(o.locked?'disabled':'')+'>'+(o.locked?'Locked':o.button||'Build')+'</button></div>').join('')+'</div>';
  card.hidden=false;hint.hidden=true;card.scrollTop=0;card.querySelector('.x').onclick=back;card.querySelectorAll('[data-a]:not([disabled])').forEach(b=>b.onclick=e=>act(b.dataset.a,e));}
 let current=null;
 function collectProduction(x,y){return api('/collect',{}).then(r=>{applyMe(r.player);const c2=r.collected,got=['cash','oil','grain','fuel','power'].filter(k=>Math.round(c2[k]||0)>0).map(k=>fmtN(c2[k])+' '+k);floatText(got.length?'+'+got[0]:'Production banked',x-10,y-30);toast(got.length?'Collected '+got.join(', '):'Nothing ready yet — production grows over time');}).catch(er=>toast(er.message));}
