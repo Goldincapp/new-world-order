@@ -2,9 +2,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
 const modelPaths = {
-  rover: 'models/car/truck-flat.glb',
-  patrol: 'models/units/technical.glb',
-  bike: 'models/units/raider-bike.glb',
   boss: 'models/units/caretaker-mech.glb',
   leader: 'models/units/strike-leader.glb',
   partner: 'models/units/partner-drone.glb'
@@ -13,26 +10,6 @@ const lowPower = matchMedia('(pointer:coarse)').matches || (navigator.hardwareCo
 
 function material(color, emissive = 0) {
   return new THREE.MeshStandardMaterial({ color, roughness: .42, metalness: .55, emissive, emissiveIntensity: emissive ? 1.8 : 0 });
-}
-
-function bikeModel() {
-  const g = new THREE.Group(), dark = material(0x171a1d), steel = material(0x59616b), red = material(0x8d241f), glow = material(0xff542f, 0xff210d);
-  const wheel = new THREE.CylinderGeometry(.22, .22, .09, 18);
-  [-.38, .38].forEach(z => { const m = new THREE.Mesh(wheel, dark); m.name = 'wheel'; m.rotation.z = Math.PI / 2; m.position.set(0, .22, z); g.add(m); });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(.26, .2, .62), red); body.position.y = .34; g.add(body);
-  const fork = new THREE.Mesh(new THREE.BoxGeometry(.08, .42, .08), steel); fork.position.set(0, .42, -.32); fork.rotation.x = -.28; g.add(fork);
-  const rider = new THREE.Mesh(new THREE.CapsuleGeometry(.11, .3, 4, 8), dark); rider.position.set(0, .62, .08); rider.rotation.x = -.32; g.add(rider);
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(.07, 10, 8), glow); lamp.position.set(0, .42, -.43); g.add(lamp);
-  return g;
-}
-
-function bunkerModel() {
-  const g = new THREE.Group(), concrete = material(0x77736a), metal = material(0x292f34), gold = material(0xb68a31, 0x5b3400);
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(.78, .95, .42, 12), concrete); base.position.y = .21; g.add(base);
-  const turret = new THREE.Mesh(new THREE.CylinderGeometry(.38, .52, .3, 12), metal); turret.position.y = .53; g.add(turret);
-  const gun = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .85), metal); gun.position.set(0, .63, -.38); g.add(gun);
-  const light = new THREE.Mesh(new THREE.SphereGeometry(.08, 10, 8), gold); light.position.set(0, .62, -.83); g.add(light);
-  return g;
 }
 
 function bossModel() {
@@ -76,14 +53,14 @@ function create(canvas) {
   scene.add(new THREE.HemisphereLight(0xb9dfff, 0x332417, 1.45));
   const sun = new THREE.DirectionalLight(0xffe5bd, 3.2); sun.position.set(-4, 10, 5); sun.castShadow = !lowPower; sun.shadow.mapSize.set(lowPower ? 256 : 512, lowPower ? 256 : 512); scene.add(sun);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 24), new THREE.ShadowMaterial({ opacity: .38 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -.03; floor.receiveShadow = true; scene.add(floor);
-  const actors = new Map(), templates = new Map(), sources = { bike: bikeModel(), hq: bunkerModel(), boss: bossModel(), bolt: energyModel('bolt'), orb: energyModel('orb'), shard: energyModel('shard'), missile: energyModel('missile'), disc: energyModel('disc') }; let ready = false, width = 0, height = 0, mode = '';
+  const actors = new Map(), templates = new Map(), sources = { boss: bossModel(), bolt: energyModel('bolt'), orb: energyModel('orb'), shard: energyModel('shard'), missile: energyModel('missile'), disc: energyModel('disc') }; let ready = false, width = 0, height = 0, mode = '';
   Object.values(sources).forEach(g => g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }));
   Promise.all(Object.entries(modelPaths).map(async ([key, path]) => { try { const loaded = await new GLTFLoader().loadAsync(path); loaded.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); sources[key] = normalise(loaded.scene, 1); } catch (e) { console.warn('Operation 3D model failed', key, e); } })).then(() => { ready = true; });
 
   function resize(w, h) { if (w === width && h === height) return; width = w; height = h; renderer.setSize(w, h, false); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); }
   const screenPoint = new THREE.Vector3(), screenRay = new THREE.Vector3(), floorPoint = new THREE.Vector3();
   function screenFloor(x, y) { screenPoint.set(x * 2 - 1, 1 - y * 2, .25).unproject(camera); screenRay.copy(screenPoint).sub(camera.position).normalize(); return floorPoint.copy(camera.position).addScaledVector(screenRay, -camera.position.y / screenRay.y); }
-  function actorTemplate(type) { const source = sources[type], cached = templates.get(type); if (cached && cached.source === source) return cached.group; const energy = ['bolt', 'orb', 'shard', 'missile', 'disc'].includes(type), group = normalise(source, type === 'boss' ? 2.5 : type === 'hq' ? 1.35 : energy ? .42 : 1); templates.set(type, { source, group }); return group; }
+  function actorTemplate(type) { const source = sources[type], cached = templates.get(type); if (cached && cached.source === source) return cached.group; const energy = ['bolt', 'orb', 'shard', 'missile', 'disc'].includes(type), group = normalise(source, type === 'boss' ? 2.5 : energy ? .42 : 1); templates.set(type, { source, group }); return group; }
   function getActor(a) {
     let entry = actors.get(a.id); if (entry && entry.type === a.type) return entry;
     if (entry) { scene.remove(entry.group); actors.delete(a.id); }

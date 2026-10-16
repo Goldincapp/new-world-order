@@ -20,7 +20,7 @@ Tone: grounded, a little bleak, dry. The Caretaker speaks in short, cold lines (
 | Part | Tech |
 |---|---|
 | Server | C# / ASP.NET Core 8 minimal APIs, SignalR hub at `/hub`, EF Core with SQLite, EF migrations applied on start |
-| Client | A single-file web app `client/index.html` (about 3,100 very long lines). three.js r160 from jsDelivr via an import map, SignalR browser client, no build step |
+| Client | A single-file web app `client/index.html` (about 4,000 very long lines), plus the operations in `client/operations.js` (2D) and `client/operations-3d.js` (optional 3D). three.js r160 from jsDelivr via an import map, SignalR browser client, no build step |
 | 3D assets | `client/models/`: Kenney CC0 kits (industrial, commercial, suburban, nature, car, castle) plus unit models from poly.pizza. Credits are in `client/models/CREDITS.txt`; the soldier model is CC-BY |
 | Hosting | Railway service `game-server`, built from the `Dockerfile`. The SQLite database lives on a Railway volume (`NWO_DB`) |
 
@@ -29,13 +29,20 @@ client/                 The game players use (served by the server too)
   index.html            Everything: UI, 3D views, networking
   config.js             window.NWO_API (empty = same origin)
   models/               glTF model packs
+  operations.js         The three operations (2D canvas) and their menu, briefings and results
+  operations-3d.js      Optional 3D view for Leviathan Assault
+  assets/operations/    Operation sprites and arena backdrops (rendered by tools/blender)
 server/NWO.Server/
   Program.cs            Startup, REST endpoints, admin endpoints, DTOs
   Data/GameDb.cs        EF Core model (all entities)
   Data/Migrations/      EF migrations (never edit applied ones)
   Game/*.cs             One file per game system (see section 5)
 prototype/              The original single-file demo, kept for reference
-docs/                   This file
+docs/                   This file; PLAYTEST_AUDIT.md (the playtest tools); EARLY_GAME_PROGRESSION.md (onboarding design)
+tools/
+  check-client.mjs      Syntax check for the client (must pass before finishing)
+  blender/              Scripts that build and render the Wasteland and operation art
+  playtest/             Read-only playtest audit and the Playtest Lab (see section 9)
 Dockerfile              Railway build
 ```
 
@@ -58,7 +65,7 @@ Core server patterns:
 1. **Sign up.** Pick a name (3 to 16 letters, numbers, `._-`). No email or password: the device keeps a secret token, and a year-long cookie backs it up. The player gets a home plot in the least-crowded open Region 1 sector.
 2. **Survival chapter (8 focused objectives).** The opening uses a problem → action → visible reward rhythm: build a Barracks, train five gunners, defend the base in Last Stand, reinforce the walls the raiders reached, meet the settlers, add food and power, then collect the base's first production. Only the controls and resource counters needed for the current objective are shown; the wider interface unfolds after the chapter. Every objective names its reward before the player acts.
 3. **Field Guide (13 objectives grouped into chapters).** Claim land → build on it → Extraction Run → upgrade HQ → research → market → delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
-4. **Chaptered Field Guide.** Expansion, Growth, Trade, Defence, World Threats and the Caretaker each introduce one new system through a concrete action. Community and Leadership are explicitly optional so an empty server cannot block a solo tester. Each prompt defines the new term, gives one direct call to action and highlights the relevant control. Three mobile action games break up that strategy path. Last Stand now appears during Survival, immediately after the Barracks, so the building has an understandable purpose and an instant payoff. Extraction Run and Leviathan Assault arrive later as tests of expansion and world-threat readiness. Completed Operations remain replayable without repeat tutorial payouts.
+4. **Chaptered Field Guide.** Expansion, Growth, Trade, Defence, World Threats and the Caretaker each introduce one new system through a concrete action. Community and Leadership are explicitly optional so an empty server cannot block a solo tester. Each prompt defines the new term, gives one direct call to action and points at the relevant control: a gold callout with a bouncing arrow sits beside the button, or beside a building in the 3D view, and places itself so it doesn't cover the target or the tutorial card. The rest of the screen is no longer darkened. Three mobile action games break up that strategy path. Last Stand now appears during Survival, immediately after the Barracks, so the building has an understandable purpose and an instant payoff. Extraction Run and Leviathan Assault arrive later as tests of expansion and world-threat readiness. Completed Operations remain replayable without repeat tutorial payouts.
 
 **Every session after that (the core loop, 5 to 15 minutes)**
 
@@ -211,6 +218,8 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   | Solar panel | 350 | 1×1, field | 5 power/h |
   | Generator | 700 | 1×1, field | 4 fuel/h |
 
+- **Visual levels.** The HQ and every home building gain visible detail with each HQ level, and major tiers change their silhouette, so an upgraded base reads as bigger from a distance. A building's card shows its visual level. (If buildings get their own levels later, a building's level replaces the HQ level here.)
+- **The entrance.** The front wall has one full-width gate with a paved approach, labelled with the wall level. Its look follows the wall level through five stages: a scrap gate with amber beacons, then side buttresses and armour bands, a powered arch with status lamps, watch posts with close-range guns, and finally a second armoured gate forming a lit airlock.
 - **Placement UI.** A ghost model appears at the nearest free spot by the HQ. Drag it or use the arrows, Rotate, then confirm. Green means it fits, red means blocked.
 - **Defence:**
   - **Free garrison** sized by HQ level and barracks. Tower and HQ health also grow 10% per wall level.
@@ -481,6 +490,8 @@ A 90-second boss fight against a Caretaker war-mech, unlocked by the Field Guide
 
 Before sign-in (or in the offline demo), the old prototype county appears. It's labelled Sector 12 with a pre-built base and isn't the player's real state.
 
+**Cards.** Building and information cards (the panel that opens when you press something) sit at the left of the screen with a header and a gold emblem, show stats as labelled rows, and scale their text with the screen. Long values move onto their own line and wrap instead of being cut off.
+
 **Graphics:**
 - **"Graphics: New"** (the default), toggled from the welcome card, applies to Sector, Province, Home and battles. It's a diorama look:
   - Sky gradient with light haze, no tone mapping, warm sun with soft shadows.
@@ -610,6 +621,7 @@ Open http://localhost:5080. The .NET SDK is installed per-user at `%LOCALAPPDATA
 - **Database edits.** Set up scenarios with `node:sqlite` directly on the local database.
 - **Headless screenshots.** Chrome with `--headless=new --use-angle=swiftshader`, using a temporary `client/_login.html` that stores a token from the URL hash (it's git-ignored; delete it after use) and `dbg2=1`.
 - **Balance.** Use the admin simulators.
+- **Playtest audit.** `node tools/playtest/audit.mjs` is read-only: it checks client syntax, that every operation artwork file exists, the operation balance and economy tables, and the tutorial's affordability, then writes an HTML and JSON report to `tools/playtest/output/` (git-ignored). `node tools/playtest/serve.mjs` runs the Playtest Lab on port 5090 (PC and phone): the report, a live onboarding storyboard, a phone performance benchmark and a feedback form. See `docs/PLAYTEST_AUDIT.md`.
 
 **Deploy.** Railway CLI, run from the `server` folder:
 
