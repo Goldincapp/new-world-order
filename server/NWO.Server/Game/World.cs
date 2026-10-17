@@ -202,7 +202,9 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
             var db = scope.ServiceProvider.GetRequiredService<GameDb>();
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var error = apply(db, me);
-            if (error is not null) return new Result(false, error);
+            // Return authoritative player data with rejected actions too. The client can then
+            // correct a stale balance immediately instead of continuing to show unusable cash.
+            if (error is not null) return new Result(false, error, Player: Dto.Me(me));
             await db.SaveChangesAsync();
             return new Result(true, Player: Dto.Me(me));
         }
