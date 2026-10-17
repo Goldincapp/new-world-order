@@ -176,12 +176,15 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
     public Task<Result> UpgradeHq(Guid playerId) => ChangePlayer(playerId, (db, me) =>
     {
         if (me.HqLevel >= 10) return "Your HQ is at the maximum level for this season.";
-        var cost = Economy.HqUpgradeCost(me);
-        var power = me.HqLevel >= 2 ? me.HqLevel * 15 : 0;
+        // The guide must never dead-end because the player spent early cash while learning other systems.
+        // The Caretaker sponsors this one upgrade; every later HQ level uses the normal economy.
+        var sponsored = Guide.Current(me, "hq");
+        var cost = sponsored ? 0 : Economy.HqUpgradeCost(me);
+        var power = sponsored ? 0 : me.HqLevel >= 2 ? me.HqLevel * 15 : 0;
         if (me.Cash < cost) return $"Upgrading to level {me.HqLevel + 1} costs {cost:N0} cash.";
         if (me.Power < power) return $"Upgrading to level {me.HqLevel + 1} also needs {power:N0} power. Build solar panels.";
         if (power > 0) Ledger.Add(db, me, "power", -power, $"Power for HQ level {me.HqLevel + 1}");
-        Ledger.Add(db, me, "cash", -cost, $"Upgraded HQ to level {me.HqLevel + 1}");
+        if (cost > 0) Ledger.Add(db, me, "cash", -cost, $"Upgraded HQ to level {me.HqLevel + 1}");
         me.HqLevel++;
         Guide.Advance(db, me, "hq");
         return null;

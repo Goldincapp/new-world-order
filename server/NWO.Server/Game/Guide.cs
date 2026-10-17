@@ -33,6 +33,9 @@ public static class Guide
     /// <summary>The guide starts once the home base tutorial is done.</summary>
     public static bool Active(Player p) => p.TutorialStep >= HomeBase.Tutorial.Length && p.GuideStep < Steps.Length;
 
+    /// <summary>Whether this is the action currently required by the guided path.</summary>
+    public static bool Current(Player p, string action) => Active(p) && Steps[p.GuideStep].Do == action;
+
     /// <summary>Called wherever a player does something: completes the current chapter if it matches, and pays it.</summary>
     public static void Advance(GameDb db, Player p, string did)
     {

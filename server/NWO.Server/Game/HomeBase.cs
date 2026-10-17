@@ -194,10 +194,11 @@ public static class HomeBase
     {
         var (lo, hi) = Bounds(p);
         var next = p.HomeLevel + 1 < Sizes.Length ? p.HomeLevel + 1 : -1;
+        var sponsoredHqUpgrade = Guide.Current(p, "hq");
         return new
         {
             grid = GridMax, lo, hi, yard = Yard, hq = new { x = HqAt.x, y = HqAt.y, size = HqSize }, hqLevel = p.HqLevel,
-            maxBuildings = MaxBuildings(p), upgradeCost = Economy.HqUpgradeCost(p),
+            maxBuildings = MaxBuildings(p), upgradeCost = sponsoredHqUpgrade ? 0 : Economy.HqUpgradeCost(p), upgradeNormalCost = Economy.HqUpgradeCost(p), upgradeSponsored = sponsoredHqUpgrade,
             tiles = tiles.Select(t => new { t.Id, t.Type, t.X, t.Y, rotated = t.Rotated }),
             kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field }),
             expand = next < 0 ? null : new { size = Sizes[next], cash = ExpandCash[next], power = ExpandPower[next], needHq = next + 1 },
