@@ -1398,7 +1398,7 @@ function landCard(){const ps=(NET.me&&NET.me.parcels)||[];const by={};ps.forEach
  const rows=Object.keys(by).sort((a,b)=>by[b].length-by[a].length).map(k=>{const l=by[k],kinds={};l.forEach(p=>{const r=p.home?'home':(p.resource||'none');kinds[r]=(kinds[r]||0)+1;});
   return ['Sector '+k,l.length+' parcel'+(l.length===1?'':'s')+' · '+Object.entries(kinds).map(([r,c])=>c+' '+(r==='home'?'home':(RESNAME[r]||r).toLowerCase())).join(', ')];});
  showCard('Your land',ps.length+' parcel'+(ps.length===1?'':'s')+' in '+Object.keys(by).length+' sector'+(Object.keys(by).length===1?'':'s'),rows.length?rows:[['None yet','Claim parcels in your sector to grow your land']],['Close']);}
-function renderRes(bump){if(res.power===undefined)res.power=0;['cash','oil','fuel','grain','gold','power'].forEach(k=>{$('v'+k[0].toUpperCase()+k.slice(1)).textContent=fmt(res[k]);});
+function renderRes(bump){if(window.NET&&NET.me&&!NET.offline)Object.assign(res,NET.me.resources);if(res.power===undefined)res.power=0;['cash','oil','fuel','grain','gold','power'].forEach(k=>{$('v'+k[0].toUpperCase()+k.slice(1)).textContent=fmt(res[k]);});
  (bump||[]).forEach(k=>{const el=$('p'+k[0].toUpperCase()+k.slice(1));el.classList.add('bump');setTimeout(()=>el.classList.remove('bump'),160);});
  $('mHold').textContent=fmt(res.oil)+' oil';}
 let tt;function toast(msg){toastEl.textContent=msg;toastEl.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>toastEl.classList.remove('show'),1800);}
