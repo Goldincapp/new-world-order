@@ -30,7 +30,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         new("housing", "people", 1, "Housing blocks", "Unlocks Housing on your parcels", 1500, 0, 10, "housing"),
         new("irrigation", "people", 2, "Irrigation", "+25% grain from every farm and crop plot", 5000, 0, 60),
         new("planning", "people", 3, "Town planning", "Housing earns 40% more, and your HQ runs 2 more buildings", 15000, 30, 240),
-        new("drill", "war", 1, "Drill sergeants", "25% more troops in every battle and siege", 1500, 0, 10),
+        new("drill", "war", 1, "Mobilization", "Deploy with 25% more troops in every battle and Sentinel siege", 1500, 0, 10),
         new("air", "war", 2, "Air support", "An extra artillery strike and helicopter in every battle", 5000, 0, 60),
         new("engineers", "war", 3, "Siege engineers", "+20% damage to the Sentinel, and enemy garrisons start 20% smaller", 15000, 30, 240),
         new("mining", "industry", 1, "Mining", "Unlocks Mines on your parcels", 1500, 0, 10, "mine"),
@@ -65,7 +65,9 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         var owned = Owned(p);
         return Techs.FirstOrDefault(t =>
         {
-            if (owned.Contains(t.Id) || p.HqLevel < t.Tier) return false;
+            // A guided recommendation must be startable now. Previously this could highlight
+            // a Tier 2 technology while every Research lab was still level 1.
+            if (owned.Contains(t.Id) || p.HqLevel < t.Tier || LabLevel(p) < t.Tier) return false;
             var prev = Techs.FirstOrDefault(x => x.Branch == t.Branch && x.Tier == t.Tier - 1);
             return prev is null || owned.Contains(prev.Id);
         });
@@ -107,6 +109,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         return new
         {
             labs = Labs(p),
+            labCount = p.HomeTiles.Count(t => t.Type == "research"),
             labLevel = LabLevel(p),
             current = p.ResearchId is null ? null : new { id = p.ResearchId, name = Find(p.ResearchId)?.Name, endsAt = p.ResearchEndsAt },
             recommended = recommended is null ? null : new { recommended.Id, recommended.Name, recommended.Effect },
