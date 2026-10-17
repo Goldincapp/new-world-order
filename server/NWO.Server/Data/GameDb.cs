@@ -129,6 +129,8 @@ public class HomeTile
     public int X { get; set; }
     public int Y { get; set; }
     public bool Rotated { get; set; }
+    /// <summary>Each home building advances independently; level 1 is the newly built state.</summary>
+    public int Level { get; set; } = 1;
 }
 
 public class ChatMessage

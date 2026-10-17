@@ -72,8 +72,8 @@ public static class Economy
     public static TimeSpan Storage(Player p)
     {
         var warehouses = p.Parcels.Sum(x => BuildingsOn(x).Count(b => b == "warehouse"))
-            + p.HomeTiles.Count(t => t.Type == "warehouse");
-        return BaseStorage + TimeSpan.FromHours(Math.Min(8, warehouses * 2));
+            + p.HomeTiles.Where(t => t.Type == "warehouse").Sum(HomeBase.Level);
+        return BaseStorage + TimeSpan.FromHours(Math.Min(20, warehouses * 2));
     }
 
     public static Dictionary<string, double> RatesPerHour(Player p)
@@ -103,7 +103,7 @@ public static class Economy
         if (Research.Has(p, "drilling")) r["oil"] *= 1.25;
         if (Research.Has(p, "grid")) r["power"] *= 1.25;
         if (Research.Has(p, "refining")) r["fuel"] *= 1.5;
-        var labs = Math.Min(2, p.HomeTiles.Count(t => t.Type == "research"));
+        var labs = Math.Min(5, p.HomeTiles.Where(t => t.Type == "research").Sum(HomeBase.Level));
         if (labs > 0) foreach (var k in r.Keys.ToList()) r[k] *= 1 + 0.05 * labs;
         // Buildings need workers, and the people living in the base eat grain and use power
         var staffed = Society.Staffing(p);

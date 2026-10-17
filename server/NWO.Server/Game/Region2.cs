@@ -55,7 +55,7 @@ public static class Region2
     /// <summary>The garrison defending a player's Ashlands parcel: bigger for owners with barracks and built-up land.</summary>
     public static BattleSim.Rival Garrison(Player owner, Parcel parcel, double shrink = 1)
     {
-        var barracks = owner.HomeTiles.Count(t => t.Type == "barracks");
+        var barracks = owner.HomeTiles.Where(t => t.Type == "barracks").Sum(HomeBase.Level);
         var built = Economy.BuildingsOn(parcel).Count();
         var g = new Dictionary<string, int>
         {

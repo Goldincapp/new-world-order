@@ -20,7 +20,10 @@ public static class Defense
     public static readonly Dictionary<string, double> TrainCost = new() { ["militia"] = 15, ["gunner"] = 40, ["launcher"] = 90, ["tank"] = 300, ["heli"] = 400 };
 
     static int Barracks(Player p) => p.HomeTiles.Count(t => t.Type == "barracks");
-    public static int Capacity(Player p) => 10 + 15 * Barracks(p);
+    static int BarracksPower(Player p) => p.HomeTiles.Where(t => t.Type == "barracks").Sum(HomeBase.Level);
+    public static int BarracksLevel(Player p) => p.HomeTiles.Where(t => t.Type == "barracks").Select(HomeBase.Level).DefaultIfEmpty(0).Max();
+    public static int Capacity(Player p) => 10 + 15 * BarracksPower(p);
+    public static int RequiredLevel(string type) => type switch { "gunner" => 1, "launcher" => 2, "tank" => 3, "heli" => 4, _ => int.MaxValue };
 
     public static Dictionary<string, int> Trained(Player p) =>
         (p.Defenders ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split(':'))
@@ -33,10 +36,13 @@ public static class Defense
     /// <summary>The base's free garrison and building strength, split by its doctrine.</summary>
     public static ArenaSim.Defense For(Player p, double shrink = 1)
     {
-        var b = Barracks(p);
+        var b = BarracksPower(p);
         var size = (int)Math.Round((6 + 4 * b + 2 * p.HqLevel) * shrink);
-        var mix = new Dictionary<string, double> { ["gunner"] = 0.45, ["launcher"] = 0.2, ["tank"] = 0.12, ["militia"] = 0.23 };
-        if (b >= 2) { mix["heli"] = 0.08; mix["militia"] = 0.15; }
+        var level = BarracksLevel(p);
+        var mix = new Dictionary<string, double> { ["gunner"] = 0.7, ["militia"] = 0.3 };
+        if (level >= 2) { mix["launcher"] = 0.2; mix["gunner"] = 0.55; mix["militia"] = 0.25; }
+        if (level >= 3) { mix["tank"] = 0.12; mix["gunner"] = 0.48; mix["militia"] = 0.2; }
+        if (level >= 4) { mix["heli"] = 0.08; mix["gunner"] = 0.44; mix["militia"] = 0.16; }
         var total = mix.ToDictionary(kv => kv.Key, kv => (int)Math.Round(size * kv.Value));
         var share = Doctrines.TryGetValue(p.DefenseDoctrine ?? "balanced", out var d) ? d.patrol : 0.5;
         var patrol = total.ToDictionary(kv => kv.Key, kv => (int)Math.Round(kv.Value * share));
@@ -71,6 +77,7 @@ public static class Defense
             free = new { patrol = free.Patrol.Values.Sum(), reserve = free.Garrison.Values.Sum(), towerHp = Math.Round(free.TowerHp), hqHp = Math.Round(free.HqHp) },
             walls = p.WallLevel,
             barracks = Barracks(p),
+            barracksLevel = BarracksLevel(p),
         };
     }
 
@@ -78,6 +85,8 @@ public static class Defense
     {
         if (Barracks(p) == 0) return "Build a Barracks to train defenders.";
         if (!TrainCost.TryGetValue(type, out var cost)) return "Unknown unit.";
+        var need = RequiredLevel(type);
+        if (BarracksLevel(p) < need) return $"Upgrade a Barracks to level {need} to train {type}s.";
         if (count is < 1 or > 100) return "Train between 1 and 100 at a time.";
         var trained = Trained(p);
         if (trained.Values.Sum() + count > Capacity(p)) return $"Your barracks house {Capacity(p)} defenders. Build another Barracks for more.";

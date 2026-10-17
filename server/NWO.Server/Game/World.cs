@@ -170,6 +170,9 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
     public Task<Result> MoveHome(Guid playerId, long id, int x, int y, bool rotate) =>
         ChangePlayer(playerId, (db, me) => HomeBase.Move(db, me, me.HomeTiles, id, x, y, rotate));
 
+    public Task<Result> UpgradeHome(Guid playerId, long id) =>
+        ChangePlayer(playerId, (db, me) => HomeBase.Upgrade(db, me, me.HomeTiles, id));
+
     public Task<Result> ExpandHome(Guid playerId) => ChangePlayer(playerId, (db, me) => HomeBase.Expand(db, me));
     public Task<Result> ReinforceWalls(Guid playerId) => ChangePlayer(playerId, (db, me) => HomeBase.ReinforceWalls(db, me));
 

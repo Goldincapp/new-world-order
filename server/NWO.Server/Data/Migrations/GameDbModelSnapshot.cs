@@ -385,6 +385,9 @@ namespace NWO.Server.Data.Migrations
                     b.Property<Guid>("PlayerId")
                         .HasColumnType("TEXT");
 
+                      b.Property<int>("Level")
+                          .HasColumnType("INTEGER");
+
                     b.Property<bool>("Rotated")
                         .HasColumnType("INTEGER");
 

@@ -22,6 +22,7 @@ public static class HomeBase
     public static readonly double[] WallCash = [0, 0, 400, 2000, 6000, 15000];
     public static readonly double[] WallPower = [0, 0, 0, 0, 40, 120];
     public const int HqSize = 3;
+    public const int MaxBuildingLevel = 5;
     /// <summary>A strip of open land around the walls where fields, pumps and panels can go. Beyond it is fog.</summary>
     public const int Yard = 3;
     /// <summary>The tutorial's buildings cost this much together; new settlers get enough to build them all.</summary>
@@ -40,6 +41,30 @@ public static class HomeBase
         ["workshop"] = new("Workshop", 500, 2, 2, "cash", 25, "Odd jobs and repairs for cash"),
         ["generator"] = new("Generator", 700, 1, 1, "fuel", 4, "Turns scrap into fuel", Field: true),
     };
+
+    /// <summary>What each upgrade visibly unlocks. Production buildings improve output at every level.</summary>
+    public static readonly Dictionary<string, string[]> LevelUnlocks = new()
+    {
+        ["barracks"] = ["Gunners", "Rocket launchers", "Tanks", "Helicopters", "Command school"],
+        ["warehouse"] = ["Organised storage", "Secured bays", "Forklifts", "Climate storage", "Logistics hub"],
+        ["research"] = ["Tier 1 research", "Tier 2 research", "Tier 3 research", "Prototype wing", "Innovation centre"],
+        ["crops"] = ["Hand planting", "Irrigation lines", "Greenhouse rows", "Seed vault", "Hydroponics"],
+        ["oilpump"] = ["Shallow pump", "Motor pump", "Oil separator", "Deep bore", "Automated field"],
+        ["solar"] = ["Basic array", "Battery bank", "Tracking mounts", "Grid controller", "High-efficiency cells"],
+        ["workshop"] = ["Repair bench", "Machine tools", "Fabrication bay", "Assembly line", "Advanced works"],
+        ["generator"] = ["Scrap burner", "Refined intake", "Turbine", "Smart grid", "High-output core"],
+    };
+
+    static readonly double[] OutputMultipliers = [1, 1.35, 1.75, 2.25, 3];
+
+    public static int Level(HomeTile tile) => Math.Clamp(tile.Level, 1, MaxBuildingLevel);
+    public static double OutputMultiplier(HomeTile tile) => OutputMultipliers[Level(tile) - 1];
+    public static string Unlock(string type, int level) => LevelUnlocks[type][Math.Clamp(level, 1, MaxBuildingLevel) - 1];
+    public static double UpgradeCost(Kind kind, int currentLevel)
+    {
+        var multipliers = new[] { 0d, 1d, 2d, 4d, 7d };
+        return Math.Ceiling(kind.Cost * multipliers[Math.Clamp(currentLevel, 1, MaxBuildingLevel - 1)] / 50) * 50;
+    }
 
     /// <summary>The first chapter: one visible need, one action and one reward at a time.</summary>
     public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
@@ -108,7 +133,7 @@ public static class HomeBase
         if (p.Cash < k.Cost) return $"Not enough cash to build a {k.Name.ToLower()}.";
         Economy.Settle(db, p, DateTime.UtcNow);
         Ledger.Add(db, p, "cash", -k.Cost, $"Built a {k.Name} at home");
-        var tile = new HomeTile { PlayerId = p.Id, Type = type, X = x, Y = y, Rotated = rotate };
+        var tile = new HomeTile { PlayerId = p.Id, Type = type, X = x, Y = y, Rotated = rotate, Level = 1 };
         db.HomeTiles.Add(tile);
         tiles.Add(tile);
         Advance(db, p, type);
@@ -136,6 +161,22 @@ public static class HomeBase
         tiles.Add(t);
         if (error is not null) return error;
         t.X = x; t.Y = y; t.Rotated = rotate;
+        return null;
+    }
+
+    public static string? Upgrade(GameDb db, Player p, List<HomeTile> tiles, long id)
+    {
+        var tile = tiles.FirstOrDefault(t => t.Id == id);
+        if (tile is null || !Kinds.TryGetValue(tile.Type, out var kind)) return "That building isn't yours.";
+        var level = Level(tile);
+        if (level >= MaxBuildingLevel) return $"Your {kind.Name.ToLower()} is fully upgraded.";
+        if (level >= p.HqLevel) return $"Upgrade your Headquarters to level {level + 1} before raising this building again.";
+        var cost = UpgradeCost(kind, level);
+        if (p.Cash < cost) return $"Upgrading this {kind.Name.ToLower()} to level {level + 1} costs {cost:N0} cash.";
+        // Bank the old rate first so an upgrade cannot retroactively improve uncollected production.
+        Economy.Settle(db, p, DateTime.UtcNow);
+        Ledger.Add(db, p, "cash", -cost, $"Upgraded {kind.Name} to level {level + 1}");
+        tile.Level = level + 1;
         return null;
     }
 
@@ -186,7 +227,7 @@ public static class HomeBase
         foreach (var t in tiles)
         {
             var k = Kinds[t.Type];
-            if (k.PerHour > 0) r[k.Res] = r.GetValueOrDefault(k.Res) + k.PerHour * Suit(p, k);
+            if (k.PerHour > 0) r[k.Res] = r.GetValueOrDefault(k.Res) + k.PerHour * Suit(p, k) * OutputMultiplier(t);
         }
     }
 
@@ -199,7 +240,23 @@ public static class HomeBase
         {
             grid = GridMax, lo, hi, yard = Yard, hq = new { x = HqAt.x, y = HqAt.y, size = HqSize }, hqLevel = p.HqLevel,
             maxBuildings = MaxBuildings(p), upgradeCost = sponsoredHqUpgrade ? 0 : Economy.HqUpgradeCost(p), upgradeNormalCost = Economy.HqUpgradeCost(p), upgradeSponsored = sponsoredHqUpgrade,
-            tiles = tiles.Select(t => new { t.Id, t.Type, t.X, t.Y, rotated = t.Rotated }),
+            tiles = tiles.Select(t =>
+            {
+                var k = Kinds[t.Type];
+                var level = Level(t);
+                var canUpgrade = level < MaxBuildingLevel;
+                return new
+                {
+                    t.Id, t.Type, t.X, t.Y, rotated = t.Rotated, level,
+                    visualLevel = 1 + (level - 1) * 2,
+                    maxLevel = MaxBuildingLevel,
+                    currentUnlock = Unlock(t.Type, level),
+                    nextUnlock = canUpgrade ? Unlock(t.Type, level + 1) : null,
+                    upgradeCost = canUpgrade ? UpgradeCost(k, level) : 0,
+                    needsHq = canUpgrade ? level + 1 : 0,
+                    outputPerHour = Math.Round(k.PerHour * Suit(p, k) * OutputMultiplier(t), 1),
+                };
+            }),
             kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field }),
             expand = next < 0 ? null : new { size = Sizes[next], cash = ExpandCash[next], power = ExpandPower[next], needHq = next + 1 },
             walls = new { level = p.WallLevel, max = MaxWallLevel, next = p.WallLevel < MaxWallLevel ? new { cash = WallCash[p.WallLevel + 1], power = WallPower[p.WallLevel + 1] } : null },

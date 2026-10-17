@@ -51,7 +51,8 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
     /// <summary>The tech a parcel building needs, if any.</summary>
     public static Tech? Unlocking(string building) => Techs.FirstOrDefault(t => t.Unlocks == building);
 
-    static int Labs(Player p) => p.HomeTiles.Count(t => t.Type == "research");
+    static int Labs(Player p) => p.HomeTiles.Where(t => t.Type == "research").Sum(HomeBase.Level);
+    static int LabLevel(Player p) => p.HomeTiles.Where(t => t.Type == "research").Select(HomeBase.Level).DefaultIfEmpty(0).Max();
 
     /// <summary>
     /// The guided opening promises a real choice, so it must never strand a new player behind
@@ -88,6 +89,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         var owned = Owned(p);
         if (owned.Contains(t.Id)) return "Already researched.";
         if (Labs(p) == 0) return "Build a Research lab in your base first.";
+        if (LabLevel(p) < t.Tier) return $"Upgrade a Research lab to level {t.Tier} for Tier {t.Tier} research.";
         if (p.ResearchId is not null) return $"Your lab is busy with {Find(p.ResearchId)?.Name}.";
         var prev = Techs.FirstOrDefault(x => x.Branch == t.Branch && x.Tier == t.Tier - 1);
         if (prev is not null && !owned.Contains(prev.Id)) return $"Research {prev.Name} first.";
@@ -105,6 +107,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         return new
         {
             labs = Labs(p),
+            labLevel = LabLevel(p),
             current = p.ResearchId is null ? null : new { id = p.ResearchId, name = Find(p.ResearchId)?.Name, endsAt = p.ResearchEndsAt },
             recommended = recommended is null ? null : new { recommended.Id, recommended.Name, recommended.Effect },
             branches = Branches.Select(b => new
