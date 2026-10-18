@@ -70,14 +70,13 @@ public static class HomeBase
     public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
     public static readonly Step[] Tutorial =
     [
-        new("barracks", "Build your first building", "The Headquarters coordinates construction, sets your home-building limit, and anchors the walls. A Barracks adds a free garrison and unlocks defender training.", Cash: 300),
-        new("train", "Train your first defenders", "Your Barracks provides a small free garrison. Trained defenders make real base raids harder, but any trained defenders killed in those raids must be replaced.", Cash: 200),
-        new("laststand", "Raiders at the perimeter", "Raider bikes are racing toward your unfinished base. Build towers on the glowing pads with scrap earned during the fight. Press a raider to make the Headquarters turret focus on it, and stop at least 12 raiders before time runs out. This mission is a drill, so your trained gunners cannot be lost.", Cash: 600, Fuel: 80),
+        new("barracks", "Build your first building", "The Headquarters is the center of your base. Upgrading it creates room for more buildings and unlocks stronger upgrades later.", Cash: 300),
+        new("train", "Train your first defenders", "Your new Barracks houses troops who protect this base. Select it and train five gunners so raiders cannot reach an undefended gate.", Cash: 200),
+        new("laststand", "Raiders at the perimeter", "Raider bikes are racing toward your unfinished base. Build towers on the glowing pads with scrap earned during the fight. Press a raider to make the Headquarters turret focus on it, and stop at least 12 raiders before time runs out.", Cash: 600, Fuel: 80),
         new("walls", "Reinforce the gate", "Walls determine how much damage your gate can take in Last Stand. They also strengthen your towers and Headquarters during real base raids.", Cash: 200),
-        new("people", "Meet your settlers", "People fill jobs that help your buildings produce at full output. Every settler also needs housing and consumes grain and power each hour.", Cash: 150),
-        new("crops", "Feed your settlers", "Your settlers consume grain each hour. Stored grain covers a shortage for a while, but population falls if it runs out. Crop plots produce a steady local supply.", Cash: 250),
+        new("people", "Meet your settlers", "More people means higher building and resource output. People consume food and power and also need housing. Your Headquarters provides enough housing for the first settlers.", Cash: 150),
+        new("crops", "Grow a food supply", "Your settlers consume food each hour. A Crop plot is the small food building used inside your home base; larger Farms can be built on fertile parcels later.", Cash: 250),
         new("solar", "Make power", "Your settlers consume power each hour. A power shortage eventually reduces population and leaves jobs unfilled. Solar panels produce power without consuming another resource.", Cash: 250, Power: 20),
-        new("collect", "Collect stored production", "Your land and production buildings keep working while you are away, up to their storage limit. Collection moves everything ready into the resource totals at the top of the screen.", Cash: 300),
     ];
 
     public static (int lo, int hi) Bounds(Player p)
@@ -117,6 +116,7 @@ public static class HomeBase
 
     public static string? Place(GameDb db, Player p, List<HomeTile> tiles, string type, int x, int y, bool rotate)
     {
+        var guided = p.TutorialStep < Tutorial.Length;
         if (!Kinds.TryGetValue(type, out var k)) return "Unknown building.";
         int w = rotate ? k.H : k.W, h = rotate ? k.W : k.H;
         if (OutOfBounds(p, k, x, y, w, h) is { } oob) return oob;
@@ -137,6 +137,7 @@ public static class HomeBase
         db.HomeTiles.Add(tile);
         tiles.Add(tile);
         Advance(db, p, type);
+        if (!guided) Progression.Add(db, p, 25, $"built {k.Name}");
         return null;
     }
 
@@ -178,6 +179,7 @@ public static class HomeBase
         Ledger.Add(db, p, "cash", -cost, $"Upgraded {kind.Name} to level {level + 1}");
         tile.Level = level + 1;
         if (tile.Type == "barracks" && tile.Level >= 2) Guide.Advance(db, p, "upgrade");
+        Progression.Add(db, p, 30, $"upgraded {kind.Name}");
         return null;
     }
 
@@ -302,6 +304,7 @@ public static class HomeBase
         foreach (var r in Ledger.Resources)
             Ledger.Add(db, p, r, Ledger.Get(start, r) - Ledger.Get(p, r), "Started over");
         p.HqLevel = 1; p.HomeLevel = 0; p.WallLevel = 1; p.TutorialStep = 0; p.GuideStep = 0;
+        p.OperationLevels = null; p.OperationPaidDay = null; p.OperationPaidWins = 0; p.Xp = 0;
         p.LastCollectAt = DateTime.UtcNow;
     }
 }

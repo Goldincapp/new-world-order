@@ -233,17 +233,18 @@ const onboardingSteps = [...tutorialSteps, ...guideSteps];
 const gameSources = readdirSync(paths.game).filter(file => file.endsWith('.cs')).map(file => ({ file, text: readFileSync(resolve(paths.game, file), 'utf8') }));
 gameSources.push({ file: 'Program.cs', text: readFileSync(resolve(root, 'server/NWO.Server/Program.cs'), 'utf8') });
 const onboardingRoutes = {
-  barracks: 'Home → Headquarters → Build → Barracks → place', train: 'Home → Barracks → Train five gunners', laststand: 'Operations → Last Stand', walls: 'Home → Headquarters → Reinforce walls', people: 'Population counter', crops: 'Home → Headquarters → Build → Crop plot → place', solar: 'Home → Headquarters → Build → Solar panel → place', collect: 'Collect resources',
-  claim: 'Sector → available parcel → Claim', build: 'Sector → owned parcel → Build', extraction: 'Operations → Extraction Run', hq: 'Home → Headquarters → Upgrade HQ', research: 'Home → Research lab → recommended research', upgrade: 'Home → Barracks → Upgrade building', order: 'Market → Grain → Buy', ship: 'Contracts → affordable delivery', battle: 'Sector → militia camp → Gunner → lane', leviathan: 'Operations → Leviathan Assault', alliance: 'Alliance → join, found, or skip', vote: 'Politics → available vote or skip', record: 'Record', sentinel: 'Home → Headquarters → The Sentinel',
+  barracks: 'Home → Build → Barracks → place', train: 'Home → Barracks → Train five gunners', laststand: 'Operations → Last Stand', walls: 'Home → Entry gate → Reinforce walls', people: 'Population counter', crops: 'Home → Build → Crop plot → place', solar: 'Home → Build → Solar panel → place', collect: 'Collect ready-production icon', readiness: 'Collect production, build or upgrade, or replay Last Stand',
+  claim: 'Sector → available parcel → Claim', build: 'Sector → owned parcel → Build', extraction: 'Operations → Extraction Run', hq: 'Home → Headquarters → Upgrade HQ', research: 'Home → Build → Research lab → place → Research → recommended upgrade', upgrade: 'Home → Barracks → Upgrade building', order: 'Market → Food → Buy', ship: 'Contracts → affordable delivery', battle: 'Sector → militia camp → Gunner → lane', leviathan: 'Operations → Leviathan Assault', alliance: 'Alliance → join, found, or skip', vote: 'Politics → available vote or skip', record: 'Record', sentinel: 'Home → Headquarters → The Sentinel',
 };
 const progressionMeta = {
   barracks: { minutes: 2, screen: 'Home base', introduces: ['Headquarters', 'Cash', 'Buildings'], unlocks: ['Barracks', 'Base defence'] },
   train: { minutes: 2, screen: 'Barracks', introduces: ['Gunners', 'Training cost'], unlocks: ['Trained defenders'] },
   laststand: { minutes: 3, screen: 'Operations · Last Stand', introduces: ['Operations', 'Scrap', 'Towers', 'Fuel'], unlocks: ['Threat progression'] },
-  walls: { minutes: 1, screen: 'Headquarters', introduces: ['Wall integrity'], unlocks: ['Stronger gate and raid defence'] },
+  walls: { minutes: 1, screen: 'Entry gate', introduces: ['Wall integrity'], unlocks: ['Stronger gate and raid defence'] },
   people: { minutes: 1, screen: 'Population', introduces: ['Population', 'Housing', 'Upkeep'], unlocks: ['Population details'] },
-  crops: { minutes: 2, screen: 'Home base placement', introduces: ['Grain', 'Hourly production'], unlocks: ['Crop production'] },
+  crops: { minutes: 2, screen: 'Home base placement', introduces: ['Food', 'Hourly production'], unlocks: ['Food production'] },
   solar: { minutes: 2, screen: 'Home base placement', introduces: ['Power', 'Building demand'], unlocks: ['Power production'] },
+  readiness: { minutes: 3, screen: 'Home · Stabilising', introduces: ['XP', 'Account level'], unlocks: ['Expansion chapter'] },
   collect: { minutes: 1, screen: 'Resource collection', introduces: ['Stored production'], unlocks: ['Expansion Field Guide'] },
   claim: { minutes: 3, screen: 'Sector map · available parcel', introduces: ['Parcels', 'Land types'], unlocks: ['First expansion parcel'] },
   build: { minutes: 3, screen: 'Owned parcel', introduces: ['Resource suitability'], unlocks: ['Parcel production'] },

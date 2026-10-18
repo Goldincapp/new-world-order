@@ -118,6 +118,7 @@ public static class Operations
             else reward = $"No reward: you've had today's {PaidWinsPerDay} paid wins. Your threat level still rises.";
             var level = Math.Min(MaxLevel, run.Level + 1);
             SetLevel(p, operation, level);
+            Progression.Add(db, p, 50, $"completed {rule.Name}");
             return new EndResult(true,
                 Summary: level > run.Level ? $"{rule.Name} threat {run.Level} beaten. Threat {level} is next." : $"{rule.Name} threat {run.Level} beaten.",
                 Player: Dto.Me(p), Rewarded: homeReward || guideReward, Reward: reward, Level: level);

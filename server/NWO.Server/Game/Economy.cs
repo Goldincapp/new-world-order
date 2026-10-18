@@ -105,11 +105,16 @@ public static class Economy
         if (Research.Has(p, "refining")) r["fuel"] *= 1.5;
         var labs = Math.Min(5, p.HomeTiles.Where(t => t.Type == "research").Sum(HomeBase.Level));
         if (labs > 0) foreach (var k in r.Keys.ToList()) r[k] *= 1 + 0.05 * labs;
-        // Buildings need workers, and the people living in the base eat grain and use power
+        // Buildings need workers. Upkeep starts only after the opening has taught the
+        // player how to create both supplies, so the first food lesson never starts red.
         var staffed = Society.Staffing(p);
         foreach (var k in r.Keys.ToList()) r[k] *= staffed;
-        r["grain"] -= Society.Pop(p) * Society.FoodPerPerson;
-        r["power"] -= Society.Pop(p) * Society.PowerPerPerson;
+        var upkeepBeginsAt = Array.FindIndex(HomeBase.Tutorial, x => x.Do == "solar") + 1;
+        if (p.TutorialStep >= upkeepBeginsAt)
+        {
+            r["grain"] -= Society.Pop(p) * Society.FoodPerPerson;
+            r["power"] -= Society.Pop(p) * Society.PowerPerPerson;
+        }
         return r;
     }
 
@@ -128,6 +133,8 @@ public static class Economy
         foreach (var (res, amount) in got) Ledger.Add(db, p, res, amount, reason);
         Society.Advance(p, now);
         p.LastCollectAt = now;
+        if (reason != "Production banked before a change" && got.Values.Any(x => x >= 1))
+            Progression.Add(db, p, 25, "collected production");
         return got;
     }
 

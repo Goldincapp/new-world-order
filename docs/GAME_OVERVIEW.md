@@ -63,8 +63,8 @@ Core server patterns:
 **First session (about 15 minutes)**
 
 1. **Sign up.** Pick a name (3 to 16 letters, numbers, `._-`). No email or password: the device keeps a secret token, and a year-long cookie backs it up. The player gets a home plot in the least-crowded open Region 1 sector.
-2. **Survival chapter (8 focused objectives).** The opening uses a problem → action → visible reward rhythm: build a Barracks, train five gunners, defend the base in Last Stand, reinforce the walls the raiders reached, meet the settlers, add food and power, then collect the base's first production. Only the controls and resource counters needed for the current objective are shown; the wider interface unfolds after the chapter. Every objective names its reward before the player acts.
-3. **Field Guide (14 objectives grouped into chapters).** Claim land → build a terrain-matched structure → Extraction Run → upgrade HQ → research → upgrade the Barracks → market → legal delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
+2. **Survival chapter (7 focused objectives).** The opening uses a problem → action → visible reward rhythm: build a Barracks, train five gunners, defend the base in Last Stand, reinforce the entry gate, meet the settlers, then add food and power. The Caretaker can read each prompt aloud. Its copy explains why; an arrow points at the real control the player must press, without a shortcut button that opens it automatically. Only the controls and resource counters needed for the current objective are shown. Every objective names its reward before the player acts.
+3. **Field Guide (15 visible objectives grouped into chapters, plus one hidden legacy compatibility step).** A short Stabilising checkpoint first asks the player to earn 100 XP through collection, construction/upgrades or replaying Last Stand. Then: claim land → build a terrain-matched structure → Extraction Run → upgrade HQ → research → upgrade the Barracks → market → legal delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
 4. **Chaptered Field Guide.** Expansion, Growth, Trade, Defence, World Threats and the Caretaker each introduce one new system through a concrete action. Community and Leadership are explicitly optional so an empty server cannot block a solo tester. Each prompt defines the new term, gives one direct call to action and points at the relevant control: a gold callout with a bouncing arrow sits beside the button, or beside a building in the 3D view, and places itself so it doesn't cover the target or the tutorial card. The rest of the screen is no longer darkened. Three mobile action games break up that strategy path. Last Stand now appears during Survival, immediately after the Barracks, so the building has an understandable purpose and an instant payoff. Extraction Run and Leviathan Assault arrive later as tests of expansion and world-threat readiness. Completed Operations remain replayable without repeat tutorial payouts.
 
 **Every session after that (the core loop, 5 to 15 minutes)**
@@ -140,11 +140,11 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 - **Remembered sign-in.** The token is kept in `localStorage` and in an HttpOnly year-long cookie `nwo_t`. If the page loses its copy, `/me` authenticates by cookie and hands the token back.
 - **Recovery codes.** `POST /api/me/recovery` issues a 12-character code like `ABCD-EFGH-JKLM` (no look-alike letters). `POST /api/auth/recover {code}` signs in on another device and adds that device to `ExtraTokens` (keeps the last 6), so other devices stay signed in.
 - **Returning players.** The client retries `/me` through bad connections (a "Reconnecting…" toast, then a Try again card). It only shows sign-up on a real 401. Devices that have played skip the intro.
-- **Start over.** `POST /me/restart` resets base, land, money and tutorial; name, nation and record stay.
+- **Start over.** `POST /me/restart` resets base, land, money, tutorial, XP, operation threat levels and daily operation wins; name, nation and record stay.
 
 ### 5.2 Resources and economy (`Economy.cs`, `Ledger.cs`)
 
-- **Resources:** cash, oil, grain, fuel, gold, power. There's also a land counter (parcels owned), shown as a chip in the HUD.
+- **Resources:** cash, oil, grain, fuel, gold, power. The HUD calls grain **Food** while the server/market retain the `grain` identifier. There's also a land counter (parcels owned), shown as a chip in the HUD.
 - **Starting supplies:** defaults are 6,000 cash, 120 fuel and 50 gold. The live test server sets `NWO_START_CASH=100000`, `NWO_START_FUEL=1000` and `NWO_START_GOLD=500`.
 - **Base income:** 40 cash an hour.
 - **Land yield per parcel per hour**, by resource under it:
@@ -178,7 +178,7 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 
 - **Suitability.** Anything can be built anywhere, but land decides output. A rig on oil sands runs at 1.0, on barren ground 0.06. A farm gets 1.5 on fertile land. Solar gets 1.25 on barren land.
 - **HQ upgrade** costs 2,000 × level² cash, and from level 2 also 15 × level power. The Field Guide's HQ step is free: the Caretaker sponsors that one upgrade so the guide can't dead-end.
-- **Caretaker ration crate:** every 20 hours, 20 to 110 grain and 0 to 25 fuel depending on standing tier.
+- **Daily supplies (Caretaker ration crate):** every 20 hours, 20 to 110 food/grain and 0 to 25 fuel depending on standing tier. This has its own Claim daily supplies button and is not bundled into production collection.
 - **Caretaker tithe:** up to 15% of everything made in a sector it still holds (see 5.6).
 
 ### 5.2a The nested economy: people, food, energy, work (`Society.cs`)
@@ -186,7 +186,7 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 Every home base runs a small economy, and the same ledger adds up to the sector and the nation.
 - **People.** Each base has a population, tracked on timestamps like production (`Player.Population`, `PopulationAt`). New players start with 4; players from before this existed start full.
 - **Housing** caps it: 6 + 4 × HQ level, +4 per Barracks, +12 per Housing building on your land.
-- **Needs.** Each person eats 0.4 grain and uses 0.25 power an hour, taken out of production, so rates can go negative. Consumption only ever takes what is in store, so balances never go below zero.
+- **Needs.** Each person eats 0.4 grain and uses 0.25 power an hour, taken out of production, so rates can go negative. Upkeep waits until the Survival food-and-power lessons are finished, preventing a new player's first food screen from starting negative. Consumption only ever takes what is in store, so balances never go below zero.
 - **HQ generator.** The HQ makes (6 + 4 × HQ level) × 0.25 power an hour, enough for the people the HQ itself houses. Growing past that needs solar or wind.
 - **Growth.** While food and power hold (this hour's balance is positive, or there is some left in store) the population closes most of the gap to its housing in about 6 hours. If either runs out it shrinks 4% an hour, down to 2.
 - **Work.** Buildings need workers: workshop 3, research lab 2, warehouse 1, crop plot, oil pump and generator 1 each; farm, rig, sawmill and mine 3, land warehouse 2, solar farm and wind turbine 1. Output runs from 80% with nobody to 100% fully staffed.
@@ -204,7 +204,7 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   - **Fog:** beyond the yard is fog. It's drawn as white low-poly clouds in the new graphics.
 - **HQ.** 3×3 in the centre.
 - **Building limit:** 4 + 3 × HQ level buildings, +2 with Town planning research.
-- **Walls** (`HomeBase.ReinforceWalls`, Reinforce walls on the HQ card). Wall strength, separate from the base's size, goes from level 1 to 5. Reaching level 2 costs 400 cash, then 2,000, then 6,000 and 40 power, then 15,000 and 120 power. Each level adds 25 to Last Stand's gate integrity (100 at level 1) and 10% to the base's tower and HQ health when it's raided. The tutorial's fourth step, right after Last Stand, has the player reinforce once (reward 200 cash).
+- **Walls** (`HomeBase.ReinforceWalls`, selected from the visible entry gate). Wall strength, separate from the base's size, goes from level 1 to 5. Reaching level 2 costs 400 cash, then 2,000, then 6,000 and 40 power, then 15,000 and 120 power. Each level adds 25 to Last Stand's gate integrity (100 at level 1) and 10% to the base's tower and HQ health when it's raided. The tutorial's fourth step points to the gate, has the player reinforce once (reward 200 cash), then closes the gate card automatically.
 - **Home buildings:**
 
   | Building | Cost (cash) | Size | Effect |
@@ -417,7 +417,8 @@ Hold 10% of a sector's claimable land (about 98 parcels) to name it. Anyone who 
 
 Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Leviathan Assault** (Field Guide). They share one look: Blender-rendered arenas fitted to the screen's height, solid outlined projectiles with glow, damage numbers, red screen edges when hurt, and **Lumen**, a friendly AI drone that flies with the player in every operation and talks them through it.
 
-- **Threat levels.** Each operation has its own threat level (`Player.OperationLevels`), starting at 1. Every win raises it by one, up to 30; losing keeps it. The level sets the enemies and the target. Player damage doesn't grow with it.
+- **Threat levels.** Each operation has its own threat level (`Player.OperationLevels`), starting at 1. Every win raises it by one, up to 30; losing keeps it. The level sets the enemies and the target. Player damage doesn't grow with it. Starting the character over clears every operation back to threat 1.
+- **Account XP.** After Survival, a successful operation gives 50 XP, collecting at least one unit of ready production gives 25 XP, construction gives 25 XP and a building upgrade gives 30 XP. Level is `1 + XP / 100`. Expansion stays gated behind the first 100-XP Stabilising checkpoint.
 - **Rewards.** The guided run (the tutorial or Field Guide step) pays that step's reward, as before. Every other win pays a reward that grows 20% per level (up to five times the base at level 21), for the first **5 wins each UTC day** across all operations (`OperationPaidDay`, `OperationPaidWins`). Wins after that still raise the level.
 
   | Operation | Length | Target at level 1 | Target per level | Base win reward |
@@ -433,7 +434,7 @@ Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Le
 
 A tower defence with a hands-on turret. Raiders follow a winding road to the base's gate over 2 minutes: a 7-second build window, four waves with short lulls, and a War Rig (a boss truck) in the last 16 seconds. Vehicles are drawn from overhead and turned to follow the road, which the game rounds off at the bends; each keeps its own lane, eases off into turns, bounces and kicks up dust.
 
-- **Scrap and towers.** Every raider stopped earns scrap (bike 2, technical 5, mortar 6, truck 8, War Rig 20; +10 at the start of each wave after the first; 35 to start). Tap one of the six pads to build, tap a tower to upgrade it (three levels):
+- **Scrap and towers.** Every raider stopped earns scrap (bike 2, technical 5, mortar 6, truck 8, War Rig 20; +10 at the start of each wave after the first; 35 to start). Press one of the six pads to build, then press a tower to upgrade it (three levels):
 
   | Tower | Cost (I / II / III) | Does |
   |---|---|---|
@@ -442,7 +443,7 @@ A tower defence with a hands-on turret. Raiders follow a winding road to the bas
   | Rail gun | 35 / 35 / 45 | Long range, slow, heavy hits: for trucks and the War Rig |
   | Lumen beacon | 25 / 25 / 30 | Slows raiders in range (35 to 55%) and marks them to take 25 to 50% more damage |
 
-- **The squad.** The defenders the player has trained (the tutorial trains five gunners; 3 to 8 shown) hold a sandbag line just before the gate. Raiders that reach it stop and fight them; trucks and the War Rig smash through. It's a drill: losses here don't count.
+- **The squad.** The defenders the player has trained (the tutorial trains five gunners; 3 to 8 shown) hold a sandbag line just before the gate. Raiders that reach it stop and fight them; trucks and the War Rig smash through.
 - **The HQ turret** fires by itself at raiders on the lower road; pressing a raider focuses it at any range and fires faster. Abilities: Overcharge (14 s: fire rate x2.5 for 4 s) and Lumen: Airstrike (10 s: 4 damage to the three raiders furthest along).
 - **Raiders.** Bikes (6 gate damage); technicals that also shoot at the gate (level 2+); armoured trucks (level 3+, 20 gate damage); mortar teams that park mid-road and shell the turret platform, with a red warning ring before each shell (level 4+); the War Rig (40 gate damage). Raiders get 18% tougher per level and come faster; towers don't, so later levels need upgrades and good placement. At level 1 a gun nest is already built.
 - **Losing.** Gate integrity starts at 100, plus 25 per wall level above 1 (reinforcement plates show on the gate); at 0 the run ends. The road and pad positions are shared by `client/operations.js` and `tools/blender/operations_art.py` (keep them in step).

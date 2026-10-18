@@ -36,6 +36,8 @@ public class Player
     public int TutorialStep { get; set; }
     /// <summary>Progress through the Field Guide that follows the home tutorial.</summary>
     public int GuideStep { get; set; }
+    /// <summary>Account progression earned by production, construction and combat after Survival.</summary>
+    public int Xp { get; set; }
     /// <summary>Threat level reached in each operation, as "operation:level" pairs, comma-separated. Missing means level 1.</summary>
     public string? OperationLevels { get; set; }
     /// <summary>The UTC day the paid-win count below belongs to, so the daily cap resets at midnight UTC.</summary>
