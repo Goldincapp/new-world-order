@@ -56,9 +56,25 @@ public static class Defense
             GarrisonRate: 0.55 + 0.12 * b);
     }
 
-    /// <summary>Bots pick a doctrine and keep a few trained defenders, so no two bot bases fight the same.</summary>
+    /// <summary>The troops a player takes into battle: militia and strikes always, then what their strongest Barracks unlocks.
+    /// AI settlers attack with the same rule, so a raider is only as dangerous as its own base.</summary>
+    public static Dictionary<string, int> Troops(Player p)
+    {
+        var level = BarracksLevel(p);
+        var all = BattleSim.StartingTroops;
+        var troops = new Dictionary<string, int> { ["militia"] = all["militia"], ["strike"] = all["strike"] };
+        if (level >= 1) troops["gunner"] = all["gunner"];
+        if (level >= 2) troops["launcher"] = all["launcher"];
+        if (level >= 3) troops["tank"] = all["tank"];
+        if (level >= 4) troops["heli"] = all["heli"];
+        return troops;
+    }
+
+    /// <summary>Bots pick a doctrine and keep a few trained defenders, so no two bot bases fight the same. They never
+    /// upgrade buildings themselves, so their buildings are kept at their HQ level, like a player who keeps up.</summary>
     public static void ForBot(Player bot, Random rng)
     {
+        foreach (var t in bot.HomeTiles) t.Level = Math.Max(t.Level, Math.Min(HomeBase.MaxBuildingLevel, bot.HqLevel));
         bot.DefenseDoctrine ??= Doctrines.Keys.ElementAt(rng.Next(Doctrines.Count));
         if (string.IsNullOrEmpty(bot.Defenders))
             SetTrained(bot, new() { ["gunner"] = rng.Next(4, 10), ["launcher"] = rng.Next(0, 4), ["tank"] = rng.Next(0, 2) });

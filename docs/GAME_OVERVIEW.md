@@ -69,7 +69,7 @@ Core server patterns:
 
 **Every session after that (the core loop, 5 to 15 minutes)**
 
-1. **Come back.** Opening the game auto-collects everything made while away (if away 60 seconds or more), up to storage limits: 8 hours base, plus 2 hours per warehouse. The welcome card says what was made.
+1. **Come back.** Opening the game auto-collects everything made while away (if away 60 seconds or more), up to storage limits: 8 hours base, plus 2 hours for each warehouse on your land and each level of each home Warehouse, up to 20 extra hours. The welcome card says what was made.
 2. **Spend.** Claim parcels (2,500 cash), build on them, place or expand home buildings, start research, upgrade the HQ.
 3. **Trade and ship.** Sell surplus oil, grain or fuel on the market. Take a delivery contract by the legal road (taxed, safe) or the back road (untaxed, risk of checkpoints and drones). Inspect other players' trucks for profit.
 4. **Fight.** Clear militia camps, ambush patrols, raid rival garrisons, attack AI or neighbour bases (3 stars conquers a parcel), and chip at the Caretaker's outpost with your sector.
@@ -177,7 +177,7 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
   | Wind turbine | 1,400 | 2 | 20 power | Wind power |
 
 - **Suitability.** Anything can be built anywhere, but land decides output. A rig on oil sands runs at 1.0, on barren ground 0.06. A farm gets 1.5 on fertile land. Solar gets 1.25 on barren land.
-- **HQ upgrade** costs 2,000 × level².
+- **HQ upgrade** costs 2,000 × level² cash, and from level 2 also 15 × level power. The Field Guide's HQ step is free: the Caretaker sponsors that one upgrade so the guide can't dead-end.
 - **Caretaker ration crate:** every 20 hours, 20 to 110 grain and 0 to 25 fuel depending on standing tier.
 - **Caretaker tithe:** up to 15% of everything made in a sector it still holds (see 5.6).
 
@@ -211,7 +211,7 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   |---|---|---|---|
   | Barracks | 600 | 2×2 | Trains and houses troops |
   | Warehouse | 500 | 2×2 | +2 h storage |
-  | Research lab | 800 | 2×2 | +5% to all land output; hosts the tech tree |
+  | Research lab | 800 | 2×2 | +5% to all land output per lab level (up to +25% in all); hosts the tech tree, and its level sets the highest research tier |
   | Workshop | 500 | 2×2 | 25 cash/h |
   | Crop plot | 150 | 1×1, field | 5 grain/h |
   | Oil pump | 400 | 1×1, field | 6 oil/h, best on oil sands, at least 0.5× |
@@ -219,18 +219,20 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   | Generator | 700 | 1×1, field | 4 fuel/h |
 
 - **Building levels.** Every home building has its own level from 1 to 5 and cannot rise above the HQ level. Its model gains visible detail and a stronger silhouette with each level. Production buildings improve output; Warehouses add storage time; Research labs open higher research tiers; Barracks add defender capacity and unlock Gunners at level 1, Launchers at level 2, Tanks at level 3 and Helicopters at level 4.
+  - **Costs and effects.** Upgrading costs the building's price × 1, 2, 4 and 7 for levels 2 to 5 (rounded up to 50). Production buildings make ×1.35, ×1.75, ×2.25 and ×3 at levels 2 to 5. Production made before an upgrade is banked at the old rate.
 - **The entrance.** The front wall has one full-width gate with a paved approach, labelled with the wall level. Its look follows the wall level through five stages: a scrap gate with amber beacons, then side buttresses and armour bands, a powered arch with status lamps, watch posts with close-range guns, and finally a second armoured gate forming a lit airlock.
 - **Placement UI.** A ghost model appears at the nearest free spot by the HQ. Drag it or use the arrows, Rotate, then confirm. Green means it fits, red means blocked.
 - **Defence:**
-  - **Free garrison** sized by HQ level and barracks. Tower and HQ health also grow 10% per wall level.
+  - **Free garrison** of 6 + 4 × (all Barracks levels added up) + 2 × HQ level troops. Its mix depends on the best Barracks level: gunners and militia at level 1, then launchers, tanks and helicopters as levels 2, 3 and 4 unlock them. Tower and HQ health also grow 10% per wall level.
+  - **Capacity** for trained defenders is 10 + 15 × (all Barracks levels added up).
   - **Doctrine** sets how much of the garrison patrols from the start: Heavy patrols 70%, Balanced 50%, Deep reserve 25%.
-  - **Trained defenders** cost militia 15, gunner 40, launcher 90, tank 300, heli 400. Trained defenders killed in a raid are gone.
+  - **Trained defenders** cost militia 15, gunner 40, launcher 90, tank 300, heli 400, and each kind needs the Barracks level that unlocks it. Trained defenders killed in a raid are gone. The tutorial's training step finishes once the player has five gunners.
 
 ### 5.4 Research (`Research.cs`)
 
 - **Shape.** 5 branches × 3 tiers. Players choose their path.
 - **Off-path cost.** Every tech owned outside a branch adds 15% to the next tech's cost there.
-- **Tier costs and times:** tier 1 is 1,500 cash and 10 min, tier 2 is 5,000 cash and 60 min, tier 3 is 15,000 cash + 30 gold and 240 min.
+- **Tier costs and times:** tier 1 is 1,500 cash and 10 min, tier 2 is 5,000 cash and 60 min, tier 3 is 15,000 cash + 30 gold and 240 min. A tier also needs a Research lab of that level.
 - **Help and test speed.** Alliance members can help: each help cuts 5% of what's left, up to 10 helps. `NWO_RESEARCH_SPEED` compresses time for tests.
 
 | Branch | Tier 1 | Tier 2 | Tier 3 |
@@ -342,7 +344,8 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 ### 5.10 AI neighbours (`Bots.cs`)
 
 - **Numbers.** `NWO_BOTS_PER_SECTOR` (default 3) × 43 open sectors gives about 129 AI settlers.
-- **What they have.** Each has a home base, land, research and usually a membership in one of three AI alliances (Iron Wolves, Salt Road Traders, Ashen Vanguard). They don't chat.
+- **What they have.** Each has a home base (HQ level 1 to 3), land, research and usually a membership in one of three AI alliances (Iron Wolves, Salt Road Traders, Ashen Vanguard). They don't chat. They never upgrade buildings themselves, so their buildings are kept at their HQ level.
+- **Their troops.** When they raid a player or join an outpost siege, AI settlers fight with the same rule as players: the troops their best Barracks unlocks. A raider at HQ 1 brings gunners and militia; at HQ 3 it also brings launchers and tanks.
 - **Natures:** each sector gets one of each where possible.
   - **Ally:** joins a siege on its sector's outpost once a real player has started one (every 4 h at most), and accepts alliance invites 90% of the time, leaving its AI alliance.
   - **Raider:** attacks real neighbours' bases in its sector at most once per player per 12 h, every 8 h at most per raider. The fight is played on the server with `ArenaSim.AutoPlay`. Loot is 6/10/15% by stars (capped at 2,500 cash and 200 oil/grain); raiders take no land. Raiders respect newcomer and post-raid shields and never join player alliances.

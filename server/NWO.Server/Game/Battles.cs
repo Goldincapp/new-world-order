@@ -11,7 +11,8 @@ namespace NWO.Server.Game;
 /// </summary>
 public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker) : BackgroundService
 {
-    record Live(long Id, Guid PlayerId, string Kind, int Sector, string? RivalKey, IBattle Sim);
+    /// <summary>GuideLesson: this camp battle is the Field Guide's first-battle step, finished by deploying a Gunner.</summary>
+    record Live(long Id, Guid PlayerId, string Kind, int Sector, string? RivalKey, IBattle Sim, bool GuideLesson = false);
 
     static readonly ConcurrentDictionary<Guid, Live> Active = new();
     static long nextId;
@@ -51,11 +52,13 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         (int i, int j, Guid owner)? target = null;
         Guid? raidTarget = null;
         double[]? outpostStart = null;
+        var guideLesson = false;
         var r = await world.Locked(async db =>
         {
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var now = DateTime.UtcNow;
-            var troops = PlayerTroops(me);
+            var troops = Defense.Troops(me);
+            guideLesson = kind == "camp" && Guide.Current(me, "battle");
             var unlocked = troops.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToHashSet();
             if (Research.Has(me, "air")) unlocked.Add("heli");
             deck = (deck ?? unlocked.ToArray()).Where(unlocked.Contains).Distinct().Take(5).ToArray();
@@ -139,7 +142,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         });
         if (!r.Ok || (sim is null && arena is null)) return r;
         IBattle battle = (IBattle?)sim ?? arena!;
-        var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, battle);
+        var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, battle, guideLesson);
         if (target is { } t0) SeizeTargets[live.Id] = t0;
         if (raidTarget is { } rt) RaidTargets[live.Id] = rt;
         if (outpostStart is { } os) OutpostStarts[live.Id] = os;
@@ -147,29 +150,21 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         return r with { Battle = new { id = live.Id, title = battle.Title, enemy = battle.Enemy, deck = battle.Deck, rival = sim?.Opponent?.Name, arena = arena is not null, state = battle.State() } };
     }
 
-    /// <summary>Real battles use the troop types unlocked by the player's strongest Barracks.</summary>
-    static Dictionary<string, int> PlayerTroops(Player p)
-    {
-        var level = Defense.BarracksLevel(p);
-        var troops = new Dictionary<string, int> { ["militia"] = BattleSim.StartingTroops["militia"], ["strike"] = BattleSim.StartingTroops["strike"] };
-        if (level >= 1) troops["gunner"] = BattleSim.StartingTroops["gunner"];
-        if (level >= 2) troops["launcher"] = BattleSim.StartingTroops["launcher"];
-        if (level >= 3) troops["tank"] = BattleSim.StartingTroops["tank"];
-        if (level >= 4) troops["heli"] = BattleSim.StartingTroops["heli"];
-        return troops;
-    }
-
     public async Task<string?> Deploy(Guid playerId, string type, int lane)
     {
         if (!Active.TryGetValue(playerId, out var b)) return "You're not in a battle.";
         var error = type == "strike" ? "Press the field to aim a strike." : b.Sim is BattleSim bs ? Lock(b, () => bs.Deploy(type, lane)) : "Press where to deploy.";
-        if (error is null && type == "gunner" && b.Kind == "camp")
+        // Only the Field Guide's lesson battle needs the database here, and only for its first Gunner.
+        if (error is null && type == "gunner" && b.GuideLesson)
+        {
+            Active[playerId] = b with { GuideLesson = false };
             await world.Locked(async db =>
             {
                 var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == playerId);
                 Guide.Advance(db, p, "battle");
                 return true;
             });
+        }
         return error;
     }
 

@@ -87,6 +87,7 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
                 HomeBase.Place(db, p, p.HomeTiles, type, lo + rng.Next(hi - lo - 1), lo + rng.Next(hi - lo - 1), false);
             }
             p.TutorialStep = HomeBase.Tutorial.Length;
+            Defense.ForBot(p, rng);
             // A few parcels near home, built on according to what the land is good for
             var home = p.Parcels.First(x => x.IsHome);
             var claims = 1 + rng.Next(4);
@@ -157,6 +158,7 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
                     {
                     var now = DateTime.UtcNow;
                     b.LastSeenAt = now;
+                    Defense.ForBot(b, rng);
                     Economy.Collect(db, b, now, "Collected production");
                     if (b.Cash < 3000) Ledger.Add(db, b, "cash", 2500, "Salvage");
                     var roll = rng.NextDouble();
@@ -214,11 +216,12 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
             humans = humans.Where(h => h.HomeTiles.Count > 0 && LastHitByAi.GetValueOrDefault(h.Id) + AiHitGap < now).ToList();
             if (humans.Count == 0) return true;
             var v = humans[rng.Next(humans.Count)];
-            var raiders = await db.Players.Where(p => p.IsBot && p.HomeSector == v.HomeSector).ToListAsync();
+            var raiders = await db.Players.Include(p => p.HomeTiles).Where(p => p.IsBot && p.HomeSector == v.HomeSector).ToListAsync();
             var r = raiders.Where(b => Style(b.Id) == "raider" && NextMove.GetValueOrDefault(b.Id) < now && (b.AllianceId is null || b.AllianceId != v.AllianceId)).OrderBy(_ => rng.Next()).FirstOrDefault();
             if (r is null) return true;
             NextMove[r.Id] = now + RaiderRest; LastHitByAi[v.Id] = now;
-            a = new ArenaSim($"{r.Name} attacks {v.Name}'s base", $"{v.Name}'s base", Defense.For(v), Defense.Trained(v), BattleSim.StartingTroops, null, rng.Next());
+            Defense.ForBot(r, rng);
+            a = new ArenaSim($"{r.Name} attacks {v.Name}'s base", $"{v.Name}'s base", Defense.For(v), Defense.Trained(v), Defense.Troops(r), null, rng.Next());
             a.CaretakerSides(r.Standing, v.Standing, false);
             raiderId = r.Id; victimId = v.Id;
             return true;
@@ -276,11 +279,12 @@ public class Bots(World world, IHubContext<GameHub> hub) : BackgroundService
             sieges = sieges.Where(x => Presence.Contribs(x).Keys.Any(humans.Contains)).ToList();
             if (sieges.Count == 0) return true;
             var sp = sieges[rng.Next(sieges.Count)];
-            var allies = await db.Players.Where(p => p.IsBot && p.HomeSector == sp.Sector).ToListAsync();
+            var allies = await db.Players.Include(p => p.HomeTiles).Where(p => p.IsBot && p.HomeSector == sp.Sector).ToListAsync();
             var al = allies.Where(b => Style(b.Id) == "ally" && NextMove.GetValueOrDefault(b.Id) < now).OrderBy(_ => rng.Next()).FirstOrDefault();
             if (al is null) return true;
             NextMove[al.Id] = now + AllyRest;
-            a = new ArenaSim($"{al.Name} assaults the Caretaker outpost", "Caretaker outpost", Presence.Outpost(sp.Presence, Presence.Settlers(sp.Sector)), new(), BattleSim.StartingTroops, null, rng.Next());
+            Defense.ForBot(al, rng);
+            a = new ArenaSim($"{al.Name} assaults the Caretaker outpost", "Caretaker outpost", Presence.Outpost(sp.Presence, Presence.Settlers(sp.Sector)), new(), Defense.Troops(al), null, rng.Next());
             start = [sp.OutpostT1, sp.OutpostT2, Math.Max(0.02, sp.OutpostHq)];
             for (var q = 0; q < 3; q++) a.Structures[q].Hp = a.Structures[q].Max * start[q];
             allyId = al.Id; sector = sp.Sector;
