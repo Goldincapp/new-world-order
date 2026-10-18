@@ -27,7 +27,7 @@ public static class Progression
             nextLevelXp = Level(p) * 100,
             stage = p.TutorialStep < HomeBase.Tutorial.Length ? "Survival" : stabilising ? "Stabilising" : "Expansion",
             expansionGoal = ExpansionXp,
-            expansionReady = !stabilising
+            expansionReady = p.TutorialStep >= HomeBase.Tutorial.Length && !stabilising
         };
     }
 }
