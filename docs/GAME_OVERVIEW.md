@@ -64,7 +64,7 @@ Core server patterns:
 
 1. **Sign up.** Pick a name (3 to 16 letters, numbers, `._-`). No email or password: the device keeps a secret token, and a year-long cookie backs it up. The player gets a home plot in the least-crowded open Region 1 sector.
 2. **Survival chapter (8 focused objectives).** The opening uses a problem → action → visible reward rhythm: build a Barracks, train five gunners, defend the base in Last Stand, reinforce the walls the raiders reached, meet the settlers, add food and power, then collect the base's first production. Only the controls and resource counters needed for the current objective are shown; the wider interface unfolds after the chapter. Every objective names its reward before the player acts.
-3. **Field Guide (13 objectives grouped into chapters).** Claim land → build on it → Extraction Run → upgrade HQ → research → market → delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
+3. **Field Guide (14 objectives grouped into chapters).** Claim land → build a terrain-matched structure → Extraction Run → upgrade HQ → research → upgrade the Barracks → market → legal delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
 4. **Chaptered Field Guide.** Expansion, Growth, Trade, Defence, World Threats and the Caretaker each introduce one new system through a concrete action. Community and Leadership are explicitly optional so an empty server cannot block a solo tester. Each prompt defines the new term, gives one direct call to action and points at the relevant control: a gold callout with a bouncing arrow sits beside the button, or beside a building in the 3D view, and places itself so it doesn't cover the target or the tutorial card. The rest of the screen is no longer darkened. Three mobile action games break up that strategy path. Last Stand now appears during Survival, immediately after the Barracks, so the building has an understandable purpose and an instant payoff. Extraction Run and Leviathan Assault arrive later as tests of expansion and world-threat readiness. Completed Operations remain replayable without repeat tutorial payouts.
 
 **Every session after that (the core loop, 5 to 15 minutes)**
@@ -218,7 +218,7 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   | Solar panel | 350 | 1×1, field | 5 power/h |
   | Generator | 700 | 1×1, field | 4 fuel/h |
 
-- **Visual levels.** The HQ and every home building gain visible detail with each HQ level, and major tiers change their silhouette, so an upgraded base reads as bigger from a distance. A building's card shows its visual level. (If buildings get their own levels later, a building's level replaces the HQ level here.)
+- **Building levels.** Every home building has its own level from 1 to 5 and cannot rise above the HQ level. Its model gains visible detail and a stronger silhouette with each level. Production buildings improve output; Warehouses add storage time; Research labs open higher research tiers; Barracks add defender capacity and unlock Gunners at level 1, Launchers at level 2, Tanks at level 3 and Helicopters at level 4.
 - **The entrance.** The front wall has one full-width gate with a paved approach, labelled with the wall level. Its look follows the wall level through five stages: a scrap gate with amber beacons, then side buttresses and armour bands, a powered arch with status lamps, watch posts with close-range guns, and finally a second armoured gate forming a lit airlock.
 - **Placement UI.** A ghost model appears at the nearest free spot by the HQ. Drag it or use the arrows, Rotate, then confirm. Green means it fits, red means blocked.
 - **Defence:**
@@ -323,7 +323,7 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 
   - **Enemy-only units:** raider, technical and mortar team.
   - **Counters:** tank ← launcher, heli ← gunner, gunner ← tank, launcher ← gunner.
-  - **Starting troops:** 24 gunners, 10 launchers, 6 tanks, 3 helis, 30 militia, 3 strikes.
+  - **Starting troop stock:** up to 24 gunners, 10 launchers, 6 tanks, 3 helis, 30 militia and 3 strikes. Militia and strikes are available by default; a Barracks unlocks Gunners at level 1, Launchers at level 2, Tanks at level 3 and Helicopters at level 4. Air support research can add a Helicopter even before the Barracks unlock.
   - **Used for:** militia camps, ambushes (90 s against a patrol) and raids on rival garrisons (Blue Party sectors 18/44, with counter-play doctrine).
 - **Base assault arena (`ArenaSim`, Clash Royale-like):**
   - **Layout:** deploy anywhere in your half against two guard towers and an HQ.

@@ -19,20 +19,15 @@ Only the resource counters needed in the current lesson are prominent during thi
 
 1. **Home versus Sector** — Home is the private base; Sector is the surrounding parcel map.
 2. **Claiming land** — Highlight Sector and require the player to navigate there. Then open a nearby unclaimed parcel and explain ownership borders, claim cost, and the parcel's natural resource.
-3. **Parcel buildings** — Explain the nine-slot limit and land suitability:
-   - Housing: population capacity and tax income.
-   - Farm: Grain; strongest on fertile land.
-   - Oil rig: Oil; strongest on oil sands.
-   - Sawmill and Mine: resource-matched Cash industry.
-   - Warehouse: longer collection/storage window.
-   - Solar farm and Wind turbine: Power, unlocked through Research.
+3. **First parcel building** — Explain the nine-slot limit, then show only the strongest currently available match for that parcel. Locked structures are introduced later when their research finishes rather than listed up front.
 4. **Extraction Run** — Tie the short mission to supplies revealed by the newly claimed land.
 
 ## 3. Growth: Headquarters and Research
 
 1. **HQ upgrade** — More building capacity; later upgrades consume stored Power.
-2. **Home building catalogue** — Explain Barracks, Crop plot, Oil pump, Solar panel, Warehouse, Research lab, Workshop, and Generator.
-3. **Research** — Explain the Energy, People, War, Industry, and Trade branches; prerequisites, timers, specialization cost, HQ requirements, and late-tier Gold costs.
+2. **Research lab** — Build it, select it, and start one free Tier 1 upgrade as separate highlighted actions. Explain only the chosen effect and timer here.
+3. **First building upgrade** — Upgrade the Barracks to level 2. Explain that building levels change appearance and benefits, cannot exceed HQ level, and that this upgrade unlocks Launchers.
+4. **Advanced research later** — Introduce branches, specialization cost, higher lab/HQ requirements and Gold only when those choices become reachable.
 
 ## 4. Trade: Market, Contracts, and Province
 
