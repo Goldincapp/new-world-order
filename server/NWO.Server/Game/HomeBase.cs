@@ -177,6 +177,7 @@ public static class HomeBase
         Economy.Settle(db, p, DateTime.UtcNow);
         Ledger.Add(db, p, "cash", -cost, $"Upgraded {kind.Name} to level {level + 1}");
         tile.Level = level + 1;
+        if (tile.Type == "barracks" && tile.Level >= 2) Guide.Advance(db, p, "upgrade");
         return null;
     }
 

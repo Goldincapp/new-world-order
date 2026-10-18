@@ -69,7 +69,7 @@ public class BattleSim : IBattle
     public double TimeLeft = 120, Cp = 5, You = 1600, YouMax = 1600, En, EnMax, Wave = 3, Ecp = 4;
     public int WaveN, NextId;
     public readonly List<Unit> Units = new();
-    public readonly Dictionary<string, int> Troops = new(StartingTroops), Lost = new(), ELost = new();
+    public readonly Dictionary<string, int> Troops, Lost = new(), ELost = new();
     public readonly Dictionary<string, int> EnemyGarrison = new();
     public string[] Deck;
     public string? LastPlayer;
@@ -79,10 +79,11 @@ public class BattleSim : IBattle
     public readonly List<double[]> Shots = new();
     readonly Random rng;
 
-    public BattleSim(string title, string enemy, Rival? rival, string[]? deck, int seed)
+    public BattleSim(string title, string enemy, Rival? rival, string[]? deck, int seed, Dictionary<string, int>? troops = null)
     {
         Title = title; Enemy = enemy; Opponent = rival; rng = new Random(seed);
-        Deck = deck ?? ["gunner", "launcher", "tank", "heli", "militia", "strike"];
+        Troops = new(troops ?? StartingTroops);
+        Deck = deck ?? Troops.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToArray();
         if (rival is not null)
         {
             foreach (var (k, v) in rival.Garrison) EnemyGarrison[k] = v;

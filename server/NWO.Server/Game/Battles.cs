@@ -46,12 +46,6 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         var cdKey = $"{playerId}:{kind}:{sector}";
         if (Cooldowns.TryGetValue(cdKey, out var until) && until > DateTime.UtcNow)
             return new(false, $"Your troops are regrouping. Try again in {(int)Math.Ceiling((until - DateTime.UtcNow).TotalMinutes)} min.");
-        if (deck is not null)
-        {
-            deck = deck.Where(t => t == "strike" || BattleSim.Types.ContainsKey(t)).Distinct().Take(5).ToArray();
-            if (!deck.Contains("strike")) deck = deck.Append("strike").ToArray();
-        }
-
         BattleSim? sim = null;
         ArenaSim? arena = null;
         (int i, int j, Guid owner)? target = null;
@@ -61,6 +55,11 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         {
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var now = DateTime.UtcNow;
+            var troops = PlayerTroops(me);
+            var unlocked = troops.Where(kv => kv.Value > 0).Select(kv => kv.Key).ToHashSet();
+            if (Research.Has(me, "air")) unlocked.Add("heli");
+            deck = (deck ?? unlocked.ToArray()).Where(unlocked.Contains).Distinct().Take(5).ToArray();
+            if (unlocked.Contains("strike") && !deck.Contains("strike")) deck = deck.Append("strike").ToArray();
             double fuel;
             switch (kind)
             {
@@ -69,16 +68,16 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     if (camp is null) return new Result(false, "There's no militia camp here.");
                     if (camp.ClearedUntil > now) return new Result(false, $"{camp.ClearedBy} already cleared this camp. The militia will be back later.");
                     fuel = CampFuel;
-                    sim = new BattleSim($"Assault on the militia camp: Sector {sector}", "Militia camp", null, null, Random.Shared.Next());
+                    sim = new BattleSim($"Assault on the militia camp: Sector {sector}", "Militia camp", null, deck, Random.Shared.Next(), troops);
                     break;
                 case "raid":
                     if (rivalKey is null || !Rivals.TryGetValue(rivalKey, out var rv) || rv.sector != sector) return new Result(false, "There's no garrison to raid here.");
                     fuel = RaidFuel;
-                    sim = new BattleSim($"Raid on the {rv.rival.Name} · Sector {sector}", rv.rival.Name, rv.rival, deck, Random.Shared.Next());
+                    sim = new BattleSim($"Raid on the {rv.rival.Name} · Sector {sector}", rv.rival.Name, rv.rival, deck, Random.Shared.Next(), troops);
                     break;
                 case "ambush":
                     fuel = AmbushFuel;
-                    sim = new BattleSim($"Ambush on a patrol · Sector {sector}", "Patrol", null, null, Random.Shared.Next()) { En = 1400, EnMax = 1400, TimeLeft = 90 };
+                    sim = new BattleSim($"Ambush on a patrol · Sector {sector}", "Patrol", null, deck, Random.Shared.Next(), troops) { En = 1400, EnMax = 1400, TimeLeft = 90 };
                     break;
                 case "seize":
                     if (!Region2.Contains(sector)) return new Result(false, "Only Ashlands land can be seized.");
@@ -93,7 +92,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     if (Region2.Protected(parcel, now)) return new Result(false, $"{parcel.Owner.Name} only just took this land. It's protected for {(int)Math.Ceiling(((parcel.ClaimedAt ?? now) + Region2.Protection - now).TotalMinutes)} more minutes.");
                     fuel = atWar ? Region2.SeizeFuel / 2 : Region2.SeizeFuel;
                     var g = Region2.Garrison(parcel.Owner, parcel, Research.Has(me, "engineers") ? 0.8 : 1);
-                    sim = new BattleSim($"Seizing {parcel.Owner.Name}'s land · Sector {sector}", g.Name, g, deck, Random.Shared.Next());
+                    sim = new BattleSim($"Seizing {parcel.Owner.Name}'s land · Sector {sector}", g.Name, g, deck, Random.Shared.Next(), troops);
                     target = (pi, pj, parcel.Owner.Id);
                     break;
                 case "outpost":
@@ -101,7 +100,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     var sp = await db.SectorPresence.FindAsync(sector);
                     if (sp is null || sp.Presence <= 0.5) return new Result(false, "The Caretaker has already left this sector.");
                     fuel = Presence.AssaultFuel;
-                    arena = new ArenaSim($"Assault on the Caretaker outpost · Sector {sector}", "Caretaker outpost", Presence.Outpost(sp.Presence, Presence.Settlers(sector)), new(), BattleSim.StartingTroops, deck, Random.Shared.Next());
+                    arena = new ArenaSim($"Assault on the Caretaker outpost · Sector {sector}", "Caretaker outpost", Presence.Outpost(sp.Presence, Presence.Settlers(sector)), new(), troops, deck, Random.Shared.Next());
                     // the outpost carries the damage earlier assaults did
                     var fr = new[] { sp.OutpostT1, sp.OutpostT2, Math.Max(0.02, sp.OutpostHq) };
                     for (var q = 0; q < 3; q++) arena.Structures[q].Hp = arena.Structures[q].Max * fr[q];
@@ -124,7 +123,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     if (victim.IsBot) Defense.ForBot(victim, Random.Shared);
                     var defense = Defense.For(victim, Research.Has(me, "engineers") ? 0.8 : 1);
                     arena = new ArenaSim($"Assault on {victim.Name}'s base · Sector {victim.HomeSector}", $"{victim.Name}'s base", defense, Defense.Trained(victim),
-                        BattleSim.StartingTroops, deck, Random.Shared.Next());
+                        troops, deck, Random.Shared.Next());
                     arena.CaretakerSides(me.Standing, victim.Standing, victim.IsBot);
                     raidTarget = victim.Id;
                     break;
@@ -146,6 +145,18 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         if (outpostStart is { } os) OutpostStarts[live.Id] = os;
         Active[playerId] = live;
         return r with { Battle = new { id = live.Id, title = battle.Title, enemy = battle.Enemy, deck = battle.Deck, rival = sim?.Opponent?.Name, arena = arena is not null, state = battle.State() } };
+    }
+
+    /// <summary>Real battles use the troop types unlocked by the player's strongest Barracks.</summary>
+    static Dictionary<string, int> PlayerTroops(Player p)
+    {
+        var level = Defense.BarracksLevel(p);
+        var troops = new Dictionary<string, int> { ["militia"] = BattleSim.StartingTroops["militia"], ["strike"] = BattleSim.StartingTroops["strike"] };
+        if (level >= 1) troops["gunner"] = BattleSim.StartingTroops["gunner"];
+        if (level >= 2) troops["launcher"] = BattleSim.StartingTroops["launcher"];
+        if (level >= 3) troops["tank"] = BattleSim.StartingTroops["tank"];
+        if (level >= 4) troops["heli"] = BattleSim.StartingTroops["heli"];
+        return troops;
     }
 
     public async Task<string?> Deploy(Guid playerId, string type, int lane)
