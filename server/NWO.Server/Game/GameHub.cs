@@ -129,7 +129,7 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<Battles.Result> StartBattle(string kind, int sector, string? rival, string[]? deck) => battles.Start(Me.Id, kind, sector, rival, deck);
 
-    public string? Deploy(string type, int lane) => battles.Deploy(Me.Id, type, lane);
+    public Task<string?> Deploy(string type, int lane) => battles.Deploy(Me.Id, type, lane);
     public string? DeployAt(string type, double x, double z) => battles.DeployAt(Me.Id, type, x, z);
 
     // ---------- Home defence

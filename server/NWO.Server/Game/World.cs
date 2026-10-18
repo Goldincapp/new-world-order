@@ -137,6 +137,20 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (!Economy.Buildings.TryGetValue(type, out var t)) return "Unknown building.";
         if (parcel is null || parcel.OwnerId != me.Id) return "You can only build on your own parcels.";
         if (Research.Unlocking(type) is { } tech && !Research.Has(me, tech.Id)) return $"Research {tech.Name} in your Research lab to build a {t.Name.ToLower()}.";
+        if (Guide.Current(me, "build"))
+        {
+            var land = SectorTemplate.Code(parcel.Sector, parcel.I, parcel.J);
+            var available = Economy.Buildings.Keys
+                .Where(b => Research.Unlocking(b) is not { } needed || Research.Has(me, needed.Id))
+                .ToArray();
+            var best = available.Max(b => Economy.Suit(b, land));
+            var matches = available.Where(b => Math.Abs(Economy.Suit(b, land) - best) < 0.001).ToArray();
+            if (!matches.Contains(type))
+            {
+                var names = string.Join(" or ", matches.Select(b => Economy.Buildings[b].Name));
+                return $"For this first land lesson, build {names}. It is the strongest match for this parcel.";
+            }
+        }
         if (Economy.SlotsUsed(parcel) + t.Slots > Economy.SlotsPerParcel) return "Not enough free slots on this parcel.";
         if (me.Cash < t.Cost) return $"Not enough cash to build a {t.Name.ToLower()}.";
         Economy.Settle(db, me, now);

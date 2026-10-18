@@ -141,7 +141,6 @@ public class Politics(World world, IHubContext<GameHub> hub)
         Ledger.Add(db, me, "cash", -CandidacyDeposit, $"Election deposit for {n.Name}");
         n.Treasury += CandidacyDeposit;
         db.Candidates.Add(new Candidate { NationId = n.Id, ElectionNo = n.ElectionNo, PlayerId = me.Id, Name = me.Name, Speech = speech });
-        Guide.Advance(db, me, "vote");
         return (new Result(true, Player: Dto.Me(me), Summary: "You're on the ballot. Win votes before the polls close."), $"{me.Name} is running for President: \"{speech}\"");
     });
 

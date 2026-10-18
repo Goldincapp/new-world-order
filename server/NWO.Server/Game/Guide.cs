@@ -19,7 +19,7 @@ public static class Guide
         new("build", "Build on your land", "A gold border marks a parcel you own. Press one, press Build, and choose a structure suited to its land type. A strong match produces more each hour.", "sector", "Expansion", "Find my parcel", Cash: 1000),
         new("extraction", "Recover expansion supplies", "An operation is a short replayable mission. In this one, recover at least three cargo points from the abandoned supply yard. During the final 12 seconds, reach the beacon or press Extract to escape with them.", "operation", "Expansion", "Open Operations", Cash: 400, Fuel: 120),
         new("hq", "Upgrade your Headquarters", "The Headquarters, or HQ, controls how many home-base buildings you can use. Find it inside your walls and press Upgrade HQ once.", "hq", "Growth", "Find my Headquarters", Cash: 1000),
-        new("research", "Start one permanent upgrade", "Research unlocks buildings or gives your settlement a permanent bonus. The highlighted Caretaker recommendation costs nothing for this guided step, but it still takes time to finish. Later research costs resources.", "research", "Growth", "Find the Research lab", Cash: 800),
+        new("research", "Build your Research lab", "A Research lab unlocks permanent settlement improvements. Build the highlighted lab inside your walls first; the Caretaker will then guide you to one free starter upgrade.", "research", "Growth", "Build the Research lab", Cash: 800),
         new("order", "Trade for grain", "The Market lets players buy and sell resources. Follow the highlights to choose Grain, learn how the prices work, and buy your first 100 grain.", "market", "Trade", "Open Market", Cash: 500),
         new("ship", "Complete one delivery job", "Contracts exchange resources you already own for a cash reward. Choose a job you can fill. The goods leave when the truck departs; use the safer main road for this first delivery.", "contracts", "Trade", "Open Contracts", Cash: 800),
         new("battle", "Deploy your first unit", "Command points are battle energy. They refill during the fight, and every deployed unit costs some. At the militia camp, press the highlighted Gunner and then press a tan lane.", "battle", "Defence", "Find a militia camp", Fuel: 150),
@@ -60,7 +60,18 @@ public static class Guide
     {
         if (!Active(p)) return null;
         var s = Steps[p.GuideStep];
+        // The old first entry remains addressable for saves that stopped there, but
+        // players who already completed Last Stand see the real 1-of-13 sequence.
+        var visible = p.GuideStep == 0 ? Steps : Steps.Skip(1).ToArray();
+        var visibleStep = p.GuideStep == 0 ? 1 : p.GuideStep;
+        if (s.Do == "research" && p.HomeTiles.Any(t => t.Type == "research"))
+            s = s with
+            {
+                Title = "Start your first research",
+                Text = "Select your Research lab, press Research, then start the highlighted free Tier 1 upgrade. Its permanent bonus continues researching while you are away.",
+                Cta = "Select the Research lab"
+            };
         var reward = string.Join(", ", new[] { s.Cash > 0 ? $"+{s.Cash:N0} cash" : null, s.Fuel > 0 ? $"+{s.Fuel:N0} fuel" : null, s.Gold > 0 ? $"+{s.Gold:N0} gold" : null }.Where(x => x is not null));
-        return new { step = p.GuideStep + 1, of = Steps.Length, s.Do, s.Title, s.Text, s.Show, s.Chapter, s.Cta, s.Optional, reward, titles = Steps.Select(x => x.Title) };
+        return new { step = visibleStep, of = visible.Length, s.Do, s.Title, s.Text, s.Show, s.Chapter, s.Cta, s.Optional, reward, titles = visible.Select(x => x.Title) };
     }
 }

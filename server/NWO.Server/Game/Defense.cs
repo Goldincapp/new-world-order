@@ -95,7 +95,10 @@ public static class Defense
         Ledger.Add(db, p, "cash", -total, $"Trained {count} defenders ({type})");
         trained[type] = trained.GetValueOrDefault(type) + count;
         SetTrained(p, trained);
-        HomeBase.Advance(db, p, "train");
+        // The opening lesson promises a five-Gunner squad. Do not let a single
+        // accidental recruit dismiss the lesson before that squad exists.
+        if (type == "gunner" && trained.GetValueOrDefault("gunner") >= 5)
+            HomeBase.Advance(db, p, "train");
         return null;
     }
 }

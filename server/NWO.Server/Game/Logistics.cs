@@ -106,7 +106,9 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
             db.Shipments.Add(s);
             await db.SaveChangesAsync();
             view = View(s);
-            Guide.Advance(db, me, "ship");
+            // The first delivery is specifically the safe-route lesson. Back-road
+            // smuggling stays available, but it cannot silently satisfy that lesson.
+            if (legal) Guide.Advance(db, me, "ship");
             var dest = c.Sector == me.HomeSector ? $"across Sector {c.Sector} to the hall" : $"to Sector {c.Sector}";
             return new Result(true, Player: Dto.Me(me), Summary: legal
                 ? $"Truck sent on the main road {dest}. Tax and the Caretaker fee are paid on delivery."
