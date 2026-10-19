@@ -62,6 +62,10 @@ public class Player
     public DateTime LastSeenAt { get; set; } = DateTime.UtcNow;
     /// <summary>When the Caretaker last delivered this settler's ration crate.</summary>
     public DateTime LastRationAt { get; set; } = DateTime.MinValue;
+    /// <summary>The most recently claimed day in the repeating 30-day login calendar.</summary>
+    public int DailyRewardDay { get; set; }
+    /// <summary>UTC time of the last calendar claim. Missing a UTC day resets the calendar to day one.</summary>
+    public DateTime? LastDailyRewardAt { get; set; }
 
     // Inspector record: wrong searches in a row get more expensive, and fade over time.
     public int InspectStreak { get; set; }

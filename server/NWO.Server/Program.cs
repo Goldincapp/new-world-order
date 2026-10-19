@@ -149,6 +149,18 @@ api.MapPost("/collect", async (HttpContext ctx, GameDb db, World world) =>
     }));
 });
 
+api.MapPost("/daily-reward/claim", async (HttpContext ctx, GameDb db, World world) =>
+{
+    var who = await Auth.PlayerFrom(ctx, db);
+    if (who is null) return Results.Unauthorized();
+    return Results.Ok(await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+        var claim = DailyRewards.Claim(gdb, p, DateTime.UtcNow);
+        return new { ok = claim.Error is null, error = claim.Error, reward = claim.Reward, day = claim.Day, player = Dto.Me(p) };
+    }));
+});
+
 api.MapPost("/me/recovery", async (HttpContext ctx, GameDb db) =>
 {
     var p = await Auth.PlayerFrom(ctx, db);
@@ -505,6 +517,7 @@ static class Dto
             research = Research.View(p),
             suitability = Economy.Suitability,
             ration = new { ready = now - p.LastRationAt >= Economy.RationEvery, nextAt = p.LastRationAt + Economy.RationEvery, crate = Economy.Ration(p) },
+            dailyRewards = DailyRewards.View(p, now),
         };
     }
 }

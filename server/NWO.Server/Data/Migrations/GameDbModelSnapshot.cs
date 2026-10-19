@@ -695,6 +695,9 @@ namespace NWO.Server.Data.Migrations
                     b.Property<string>("DefenseDoctrine")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("DailyRewardDay")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("DroneHuntAt")
                         .HasColumnType("TEXT");
 
@@ -759,6 +762,9 @@ namespace NWO.Server.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("LastCollectAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastDailyRewardAt")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("LastRaidedAt")
