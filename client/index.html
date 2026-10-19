@@ -3662,13 +3662,15 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const wallLev
  const Y=h.yard||0,ylo=lo-Y,yhi=hi+Y;const gr=add(new THREE.BoxGeometry(G+2*Y+6,0.5,G+2*Y+6),NEWGFX?(WASTE?0x6c6960:0x6aa83c):0x2e2a22,0,-0.25,0,null,null,true);gr.receiveShadow=true;HB.ground=gr;
  // the yard: open land just outside the walls for fields, pumps and panels
  const yd=add(new THREE.BoxGeometry(yhi-ylo,0.03,yhi-ylo),NEWGFX?(WASTE?0x857a66:0xc2a070):0x5a5236,(ylo+yhi)/2,0.015,(ylo+yhi)/2,null,null,true);yd.receiveShadow=true;
+ {const t=(WASTE?DT.sand:DT.dirt).clone();t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set((yhi-ylo)/3,(yhi-ylo)/3);t.needsUpdate=true;yd.material=new THREE.MeshLambertMaterial({color:WASTE?0xb0aa9c:0xc2a070,map:t});}
  const ypts=[];for(let k=ylo;k<=yhi;k++){ypts.push(V3(k,0.035,ylo),V3(k,0.035,yhi),V3(ylo,0.035,k),V3(yhi,0.035,k));}
  const yardGrid=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(ypts),new THREE.LineBasicMaterial({color:0xffe78a,transparent:true,opacity:0.18,depthWrite:false}));yardGrid.visible=!!HB.placing;yardGrid.position.y=.025;HB.group.add(yardGrid);HB.placementGrids.push(yardGrid);
  [[ylo,ylo],[yhi,ylo],[ylo,yhi],[yhi,yhi]].forEach(([x,z])=>add(new THREE.CylinderGeometry(0.05,0.05,0.5,6),0x8a7a5a,x,0.25,z));
- const inner=add(new THREE.BoxGeometry(hi-lo,0.04,hi-lo),NEWGFX?(WASTE?0x8e8a80:0x5f963b):0x4a6832,(lo+hi)/2,0.02,(lo+hi)/2,null,null,true);inner.receiveShadow=true;
- {const t=(WASTE?DT.sand:DT.grass).clone();t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set((hi-lo)/3,(hi-lo)/3);t.needsUpdate=true;inner.material=new THREE.MeshLambertMaterial({color:WASTE?0xb8b4a9:0x83ad62,map:t});}
- // A few soft, irregular worn patches stop the enclosed yard reading as a game board.
- if(!WASTE){for(let i=0;i<10;i++){const x=lo+.8+hash(i,31)*(hi-lo-1.6),z=lo+.8+hash(i,47)*(hi-lo-1.6),s=.28+hash(i,59)*.45;const patch=add(new THREE.CircleGeometry(s,14),0x6f8d4c,x,.045,z,null,{transparent:true,opacity:.2,depthWrite:false},true);patch.rotation.x=-Math.PI/2;patch.rotation.z=hash(i,71)*Math.PI;}}
+ const inner=add(new THREE.BoxGeometry(hi-lo,0.04,hi-lo),NEWGFX?(WASTE?0x8e8a80:0xb99769):0x5a5236,(lo+hi)/2,0.02,(lo+hi)/2,null,null,true);inner.receiveShadow=true;
+ {const t=(WASTE?DT.sand:DT.dirt).clone();t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set((hi-lo)/3,(hi-lo)/3);t.needsUpdate=true;inner.material=new THREE.MeshLambertMaterial({color:WASTE?0xb8b4a9:0xb99769,map:t});}
+ // Worn earth and a sparse line of stones tie the enclosed yard to the terrain beyond the wall.
+ if(!WASTE){for(let i=0;i<10;i++){const x=lo+.8+hash(i,31)*(hi-lo-1.6),z=lo+.8+hash(i,47)*(hi-lo-1.6),s=.28+hash(i,59)*.45;const patch=add(new THREE.CircleGeometry(s,14),0x876b4d,x,.045,z,null,{transparent:true,opacity:.16,depthWrite:false},true);patch.rotation.x=-Math.PI/2;patch.rotation.z=hash(i,71)*Math.PI;}
+  const stoneMat=new THREE.MeshStandardMaterial({color:0x8a8175,roughness:.96});for(let i=0;i<18;i++){const side=i%4,t=.08+hash(i,83)*.84,L=hi-lo-.7;let x=lo+.35+t*L,z=lo+.35;if(side===1){x=hi-.35;z=lo+.35+t*L;}else if(side===2){z=hi-.35;}else if(side===3){x=lo+.35;z=lo+.35+t*L;}const s=.055+hash(i,97)*.07,stone=new THREE.Mesh(new THREE.DodecahedronGeometry(s,0),stoneMat);stone.position.set(x,.07,z);stone.scale.y=.45+hash(i,101)*.25;stone.rotation.set(hash(i,103),hash(i,107)*Math.PI,hash(i,109));stone.castShadow=true;stone.receiveShadow=true;HB.group.add(stone);}}
  const pts=[];for(let k=lo;k<=hi;k++){pts.push(V3(k,0.05,lo),V3(k,0.05,hi),V3(lo,0.05,k),V3(hi,0.05,k));}
  const buildGrid=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xffef9d,transparent:true,opacity:0.3,depthWrite:false}));buildGrid.visible=!!HB.placing;HB.group.add(buildGrid);HB.placementGrids.push(buildGrid);
  // A surfaced approach makes the front entrance readable from inside and outside the base.
