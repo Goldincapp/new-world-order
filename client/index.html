@@ -3562,7 +3562,21 @@ function decorateHomeBuilding(g,type,level,w,h){const lv=Math.max(1,Math.min(10,
 function addHomeBuildingMotion(g,type,w,h,roof,level){const metal=new THREE.MeshStandardMaterial({color:WASTE?0x343a40:0x5e6870,roughness:.52,metalness:.35}),hot=new THREE.MeshStandardMaterial({color:0xffc84a,emissive:0xff8a18,emissiveIntensity:1.4,roughness:.35}),blue=new THREE.MeshStandardMaterial({color:0x73dcff,emissive:0x1e8fb4,emissiveIntensity:1.2,roughness:.3});
  const box=(x,y,z,px,py,pz,mat=metal)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(x,y,z),mat);m.position.set(px,py,pz);m.castShadow=true;g.add(m);return m;};
  const pivot=new THREE.Group();pivot.position.set(0,Math.max(.55,roof+.2),0);g.add(pivot);
- if(type==='hq'||type==='research'||type==='barracks'){box(.035,.34,.035,0,pivot.position.y-.15,0);const arm=new THREE.Mesh(new THREE.BoxGeometry(Math.min(.7,w*.35),.035,.04),metal);pivot.add(arm);const lamp=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),type==='research'?blue:hot);lamp.position.x=Math.min(.35,w*.175);pivot.add(lamp);pivot.userData.homeAnim={kind:'spinY',speed:type==='research'?1.15:.55};lamp.userData.homeAnim={kind:'pulse',base:type==='research'?1.2:1.4,phase:level*.7};}
+ if(type==='hq'){
+  // A proper rooftop tracking dish: fixed mast, rotating deck, tilted reflector and receiver feed.
+  const mast=new THREE.Mesh(new THREE.CylinderGeometry(.055,.085,.42,10),metal);mast.position.y=-.2;mast.castShadow=true;pivot.add(mast);
+  const deck=new THREE.Mesh(new THREE.CylinderGeometry(.2,.23,.1,14),metal);deck.position.y=.03;deck.castShadow=true;pivot.add(deck);
+  const yoke=new THREE.Group();yoke.position.y=.16;yoke.rotation.x=-.52;pivot.add(yoke);
+  [-1,1].forEach(s=>{const support=new THREE.Mesh(new THREE.BoxGeometry(.045,.24,.055),metal);support.position.set(s*.2,-.04,0);support.castShadow=true;yoke.add(support);});
+  const dishMat=new THREE.MeshStandardMaterial({color:WASTE?0x8e969b:0xaeb9bd,roughness:.34,metalness:.48,side:THREE.DoubleSide});
+  const profile=[new THREE.Vector2(.015,0),new THREE.Vector2(.13,.012),new THREE.Vector2(.27,.055),new THREE.Vector2(.4,.15)];
+  const dish=new THREE.Mesh(new THREE.LatheGeometry(profile,28),dishMat);dish.position.y=.06;dish.castShadow=true;yoke.add(dish);
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(.4,.018,7,30),metal);rim.position.y=.21;rim.rotation.x=Math.PI/2;yoke.add(rim);
+  const feedArm=new THREE.Mesh(new THREE.CylinderGeometry(.012,.016,.43,7),metal);feedArm.position.y=.27;yoke.add(feedArm);
+  const receiver=new THREE.Mesh(new THREE.SphereGeometry(.055,10,7),blue);receiver.position.y=.5;receiver.castShadow=true;receiver.userData.homeAnim={kind:'pulse',base:.75,phase:level*.7};yoke.add(receiver);
+  pivot.userData.homeAnim={kind:'spinY',speed:.28};
+ }
+ else if(type==='research'||type==='barracks'){box(.035,.34,.035,0,pivot.position.y-.15,0);const arm=new THREE.Mesh(new THREE.BoxGeometry(Math.min(.7,w*.35),.035,.04),metal);pivot.add(arm);const lamp=new THREE.Mesh(new THREE.SphereGeometry(.045,8,6),type==='research'?blue:hot);lamp.position.x=Math.min(.35,w*.175);pivot.add(lamp);pivot.userData.homeAnim={kind:'spinY',speed:type==='research'?1.15:.55};lamp.userData.homeAnim={kind:'pulse',base:type==='research'?1.2:1.4,phase:level*.7};}
  else if(type==='warehouse'||type==='workshop'||type==='generator'){pivot.position.set(0,Math.min(.72,Math.max(.42,roof*.55)),h*.47);const hub=new THREE.Mesh(new THREE.CylinderGeometry(.055,.055,.08,10),metal);hub.rotation.x=Math.PI/2;pivot.add(hub);for(let i=0;i<4;i++){const blade=new THREE.Mesh(new THREE.BoxGeometry(.035,.26,.025),i%2?hot:metal);blade.position.y=.12;blade.rotation.z=i*Math.PI/2;pivot.add(blade);}pivot.userData.homeAnim={kind:'spinZ',speed:type==='generator'?3.3:1.7};}
  else if(type==='oilpump'){pivot.position.set(-w*.12,.62,0);const beam=new THREE.Mesh(new THREE.BoxGeometry(Math.min(.78,w*.7),.075,.09),metal);beam.position.x=.15;pivot.add(beam);const head=new THREE.Mesh(new THREE.BoxGeometry(.16,.2,.13),hot);head.position.x=Math.min(.5,w*.34);pivot.add(head);pivot.userData.homeAnim={kind:'rock',speed:1.8,phase:level};}
  else if(type==='crops'){pivot.position.set(0,.32,0);const arm=new THREE.Mesh(new THREE.BoxGeometry(Math.min(.8,w*.75),.035,.035),metal);pivot.add(arm);[-1,1].forEach(s=>{const nozzle=new THREE.Mesh(new THREE.SphereGeometry(.035,7,5),blue);nozzle.position.x=s*Math.min(.38,w*.35);pivot.add(nozzle);});pivot.userData.homeAnim={kind:'spinY',speed:.65};}
