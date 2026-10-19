@@ -3456,7 +3456,7 @@ $('siegeBar').onclick=()=>{current=null;showCard(NET.practice?'Practice siege':'
 
 
 /* ---------- The home base, from the server: button-led placement, expandable walls, fog beyond them, tutorial ---------- */
-const HB={built:false,key:'',group:null,meshes:new Map(),collectors:[],animations:[],people:[],obstacles:[],placing:null,ghost:null,ground:null,hqVisual:null,gatePick:null};
+const HB={built:false,key:'',group:null,meshes:new Map(),collectors:[],animations:[],people:[],obstacles:[],placing:null,ghost:null,ground:null,placementGrids:[],hqVisual:null,gatePick:null};
 const HCOL={barracks:0x7a2a22,warehouse:0x8a8f98,research:0x8fd3ff,crops:0x6b8e3a,oilpump:0xc98a2a,solar:0x2a5aa8,workshop:0x3a3d44,generator:0x4a5058};
 const HG=(x,y)=>{const h=NET.me.home;return [x-h.grid/2,y-h.grid/2];};
 function homeKindOf(t){return NET.me.home.kinds.find(k=>k.type===t);}
@@ -3643,18 +3643,20 @@ function buildHomeBase(){const h=NET.me.home;if(!h||!h.grid)return;const wallLev
  if(!HB.built){hq.children.forEach(o=>{if(!pickHQ.includes(o)||o.userData.info!=='hq')o.visible=false;});hqLabels.forEach(l=>l.visible=false);
   HB.group=new THREE.Group();hq.add(HB.group);HB.built=true;}
  if(key===HB.key){renderTutorial();return;}HB.key=key;
- HB.group.clear();HB.meshes.clear();HB.collectors=[];HB.animations=[];HB.people=[];HB.obstacles=[];HB.hqVisual=null;HB.gatePick=null;const P0=P;P=HB.group;const G=h.grid,half=G/2,lo=h.lo-half,hi=h.hi-half;
- // ground: the whole grid, the unlocked square brighter and gridded
+ HB.group.clear();HB.meshes.clear();HB.collectors=[];HB.animations=[];HB.people=[];HB.obstacles=[];HB.placementGrids=[];HB.hqVisual=null;HB.gatePick=null;const P0=P;P=HB.group;const G=h.grid,half=G/2,lo=h.lo-half,hi=h.hi-half;
+ // Finished terrain is shown during normal play. Construction lines only appear while placing a building.
  const Y=h.yard||0,ylo=lo-Y,yhi=hi+Y;const gr=add(new THREE.BoxGeometry(G+2*Y+6,0.5,G+2*Y+6),NEWGFX?(WASTE?0x6c6960:0x6aa83c):0x2e2a22,0,-0.25,0,null,null,true);gr.receiveShadow=true;HB.ground=gr;
  // the yard: open land just outside the walls for fields, pumps and panels
  const yd=add(new THREE.BoxGeometry(yhi-ylo,0.03,yhi-ylo),NEWGFX?(WASTE?0x857a66:0xc2a070):0x5a5236,(ylo+yhi)/2,0.015,(ylo+yhi)/2,null,null,true);yd.receiveShadow=true;
  const ypts=[];for(let k=ylo;k<=yhi;k++){ypts.push(V3(k,0.035,ylo),V3(k,0.035,yhi),V3(ylo,0.035,k),V3(yhi,0.035,k));}
- HB.group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(ypts),new THREE.LineBasicMaterial({color:0xe8e0cc,transparent:true,opacity:0.06})));
+ const yardGrid=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(ypts),new THREE.LineBasicMaterial({color:0xffe78a,transparent:true,opacity:0.18,depthWrite:false}));yardGrid.visible=!!HB.placing;yardGrid.position.y=.025;HB.group.add(yardGrid);HB.placementGrids.push(yardGrid);
  [[ylo,ylo],[yhi,ylo],[ylo,yhi],[yhi,yhi]].forEach(([x,z])=>add(new THREE.CylinderGeometry(0.05,0.05,0.5,6),0x8a7a5a,x,0.25,z));
- const inner=add(new THREE.BoxGeometry(hi-lo,0.04,hi-lo),NEWGFX?(WASTE?0x8e8a80:0x7cbf45):0x4a6832,(lo+hi)/2,0.02,(lo+hi)/2,null,null,true);inner.receiveShadow=true;
- if(WASTE){const t=DT.sand.clone();t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set((hi-lo)/4,(hi-lo)/4);t.needsUpdate=true;inner.material=new THREE.MeshLambertMaterial({color:0xb8b4a9,map:t});}
+ const inner=add(new THREE.BoxGeometry(hi-lo,0.04,hi-lo),NEWGFX?(WASTE?0x8e8a80:0x5f963b):0x4a6832,(lo+hi)/2,0.02,(lo+hi)/2,null,null,true);inner.receiveShadow=true;
+ {const t=(WASTE?DT.sand:DT.grass).clone();t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set((hi-lo)/3,(hi-lo)/3);t.needsUpdate=true;inner.material=new THREE.MeshLambertMaterial({color:WASTE?0xb8b4a9:0x83ad62,map:t});}
+ // A few soft, irregular worn patches stop the enclosed yard reading as a game board.
+ if(!WASTE){for(let i=0;i<10;i++){const x=lo+.8+hash(i,31)*(hi-lo-1.6),z=lo+.8+hash(i,47)*(hi-lo-1.6),s=.28+hash(i,59)*.45;const patch=add(new THREE.CircleGeometry(s,14),0x6f8d4c,x,.045,z,null,{transparent:true,opacity:.2,depthWrite:false},true);patch.rotation.x=-Math.PI/2;patch.rotation.z=hash(i,71)*Math.PI;}}
  const pts=[];for(let k=lo;k<=hi;k++){pts.push(V3(k,0.05,lo),V3(k,0.05,hi),V3(lo,0.05,k),V3(hi,0.05,k));}
- HB.group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xe8e0cc,transparent:true,opacity:0.12})));
+ const buildGrid=new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xffef9d,transparent:true,opacity:0.3,depthWrite:false}));buildGrid.visible=!!HB.placing;HB.group.add(buildGrid);HB.placementGrids.push(buildGrid);
  // A surfaced approach makes the front entrance readable from inside and outside the base.
  const gateRoadLen=Y+3.1,gateRoadZ=hi+(Y-0.1)/2;const gateRoad=add(new THREE.BoxGeometry(1.75,0.035,gateRoadLen),WASTE?0x4b4944:0xa9875e,(lo+hi)/2,0.055,gateRoadZ,null,{roughness:1},true);gateRoad.receiveShadow=true;
  [-0.72,0.72].forEach(x=>add(new THREE.BoxGeometry(0.07,0.018,gateRoadLen),WASTE?0xd5a51d:0xe6d39a,(lo+hi)/2+x,0.08,gateRoadZ,null,{emissive:WASTE?0x5a4305:0x000000,emissiveIntensity:WASTE?.35:0},true));
@@ -3812,9 +3814,10 @@ function fitsAt(type,rot,x,y,moveId){const h=NET.me.home,k=homeKindOf(type),[w,d
 function freeSpot(type,rot){const h=NET.me.home,c=h.hq.x+h.hq.size/2,Y=homeKindOf(type).field?(h.yard||0):0;let best=null,bd=1e9;
  for(let x=h.lo-Y;x<h.hi+Y;x++)for(let y=h.lo-Y;y<h.hi+Y;y++){if(!fitsAt(type,rot,x,y))continue;const d=Math.hypot(x+0.5-c,y+0.5-c)+((x<h.lo||y<h.lo||x>=h.hi||y>=h.hi)?6:0);if(d<bd){bd=d;best=[x,y];}}return best;}
 function placeValid(){const p=HB.placing;return !!p&&fitsAt(p.type,p.rot,p.x,p.y,p.moveId);}
+function showPlacementGrid(show){(HB.placementGrids||[]).forEach(g=>g.visible=!!show);}
 function startPlacing(type,moveId){const k=homeKindOf(type);if(!k)return;card.hidden=true;$('tutBar').hidden=true;const t0=moveId?NET.me.home.tiles.find(t=>t.id===moveId):null;
  const spot=t0?[t0.x,t0.y]:(freeSpot(type,false)||[NET.me.home.lo+1,NET.me.home.lo+1]);
- HB.placing={type,moveId,rot:t0?t0.rotated:false,x:spot[0],y:spot[1]};buildGhost();updateGhost();renderPlaceBar();hint.hidden=true;const tut=NET.me.home&&NET.me.home.tutorial,guidedResearch=!moveId&&type==='research'&&researchGuideActive();if(!moveId&&tut&&tut.do===type){pointGuideAt($('plYes'),'4 of 5 · Press Build here');setTimeout(()=>toast('Move the transparent '+k.name+' to green, then press Build here'),250);}else if(guidedResearch){pointGuideAt($('plYes'),'4 of 5 · Press Build here');setTimeout(()=>toast('Move the Research lab to green, then press Build here'),250);}else if(!HB.dragTip){HB.dragTip=1;setTimeout(()=>toast('Drag the building where you want it, or use the arrows'),400);}
+ HB.placing={type,moveId,rot:t0?t0.rotated:false,x:spot[0],y:spot[1]};showPlacementGrid(true);buildGhost();updateGhost();renderPlaceBar();hint.hidden=true;const tut=NET.me.home&&NET.me.home.tutorial,guidedResearch=!moveId&&type==='research'&&researchGuideActive();if(!moveId&&tut&&tut.do===type){pointGuideAt($('plYes'),'4 of 5 · Press Build here');setTimeout(()=>toast('Move the transparent '+k.name+' to green, then press Build here'),250);}else if(guidedResearch){pointGuideAt($('plYes'),'4 of 5 · Press Build here');setTimeout(()=>toast('Move the Research lab to green, then press Build here'),250);}else if(!HB.dragTip){HB.dragTip=1;setTimeout(()=>toast('Drag the building where you want it, or use the arrows'),400);}
  renderTutorialObjective(tut,NET.me&&NET.me.guide);
  if(!t0&&!freeSpot(type,false))toast('No free space left: expand your base or move something');}
 /** The ghost: a see-through copy of the building on a green (fits) or red (blocked) footprint. */
@@ -3837,7 +3840,7 @@ function renderPlaceBar(){const p=HB.placing,b=$('placeBar');if(!p){b.hidden=tru
  $('plYes').onclick=()=>{if(!placeValid()){toast(homeKindOf(p.type).field?'That spot is blocked, in the fog, or across the wall':'That spot is blocked, or outside your walls (only fields, pumps and panels go outside)');return;}const call=p.moveId?NET.conn.invoke('MoveHome',p.moveId,p.x,p.y,p.rot):NET.conn.invoke('PlaceHome',p.type,p.x,p.y,p.rot);
    call.then(r=>{if(!r.ok){toast(r.error);return;}const tutBefore=NET.me.home.tutorial,guidedResearch=!p.moveId&&p.type==='research'&&researchGuideActive();cancelPlacing();applyMe(r.player);const builtDetail=k.blurb+(k.perHour?' · Now producing +'+k.perHour+' '+k.res+' per hour':'');toast(p.moveId?k.name+' moved':k.name+' built'+(k.perHour?': +'+k.perHour+' '+k.res+'/h':''));if(!p.moveId)celebrate(k.name+' constructed',builtDetail,'construction');
     const ta=r.player.home.tutorial;if(tutBefore&&(!ta||ta.step>tutBefore.step))setTimeout(()=>toast('Objective complete · '+tutorialRewardText(tutBefore)+(ta?' · Next: '+ta.title:'')),1600);if(guidedResearch)setTimeout(()=>{toast('Research lab online. Now choose its first permanent upgrade.');openTech();},1900);}).catch(er=>toast(er.message));};}
-function cancelPlacing(){HB.placing=null;clearGuideTarget();if(HB.ghost){HB.group.remove(HB.ghost);HB.ghost=null;}$('placeBar').hidden=true;hint.hidden=false;const t=NET.me&&NET.me.home&&NET.me.home.tutorial;if(t&&guideActing===t.do){guideActing=null;setTimeout(renderTutorial,80);}}
+function cancelPlacing(){HB.placing=null;showPlacementGrid(false);clearGuideTarget();if(HB.ghost){HB.group.remove(HB.ghost);HB.ghost=null;}$('placeBar').hidden=true;hint.hidden=false;const t=NET.me&&NET.me.home&&NET.me.home.tutorial;if(t&&guideActing===t.do){guideActing=null;setTimeout(renderTutorial,80);}}
 function homePointer(ray){const h=NET.me.home;
  if(HB.placing){const hit=ray.intersectObject(HB.ground,false)[0];if(!hit)return;const k=homeKindOf(HB.placing.type),[w,d]=homeFootprint(k,HB.placing.rot);HB.placing.x=Math.round(hit.point.x+h.grid/2-w/2);HB.placing.y=Math.round(hit.point.z+h.grid/2-d/2);updateGhost();return;}
  const objs=[...HB.collectors,...HB.meshes.values()];if(HB.hqVisual)objs.push(HB.hqVisual);if(HB.gatePick)objs.push(HB.gatePick);const hit=ray.intersectObjects(objs,true)[0];
