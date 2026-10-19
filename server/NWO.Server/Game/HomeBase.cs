@@ -70,7 +70,7 @@ public static class HomeBase
     public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
     public static readonly Step[] Tutorial =
     [
-        new("barracks", "Build your first building", "The Headquarters is the center of your base. Upgrading it creates room for more buildings and unlocks stronger upgrades later.", Cash: 300),
+        new("barracks", "Learn about your Headquarters", "Every base begins with a Headquarters. It controls how many home buildings you can operate, and higher Headquarters levels allow stronger building upgrades. Select it now; then use Build to place your first Barracks.", Cash: 300),
         new("train", "Train your first defenders", "Your new Barracks houses troops who protect this base. Select it and train five gunners so raiders cannot reach an undefended gate.", Cash: 200),
         new("laststand", "Raiders at the perimeter", "Raider bikes are racing toward your unfinished base. Build towers on the glowing pads with scrap earned during the fight. Press a raider to make the Headquarters turret focus on it, and stop at least 12 raiders before time runs out.", Cash: 600, Fuel: 80),
         new("walls", "Reinforce the gate", "Walls determine how much damage your gate can take in Last Stand. They also strengthen your towers and Headquarters during real base raids.", Cash: 200),
