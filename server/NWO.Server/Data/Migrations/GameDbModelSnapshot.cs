@@ -385,8 +385,14 @@ namespace NWO.Server.Data.Migrations
                     b.Property<Guid>("PlayerId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("ConstructionEndsAt")
+                        .HasColumnType("TEXT");
+
                       b.Property<int>("Level")
                           .HasColumnType("INTEGER");
+
+                    b.Property<int?>("PendingLevel")
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("Rotated")
                         .HasColumnType("INTEGER");
@@ -606,11 +612,16 @@ namespace NWO.Server.Data.Migrations
 
             modelBuilder.Entity("NWO.Server.Data.Parcel", b =>
                 {
+                    b.Property<DateTime?>("BuildingEndsAt")
+                        .HasColumnType("TEXT");
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("Buildings")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PendingBuilding")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ClaimedAt")
@@ -718,6 +729,12 @@ namespace NWO.Server.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("HqLevel")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("HqUpgradeEndsAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PendingHqLevel")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateOnly>("InspectDay")

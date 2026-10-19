@@ -75,6 +75,7 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public Task<World.Result> ReinforceWalls() => world.ReinforceWalls(Me.Id);
 
     public Task<World.Result> UpgradeHq() => world.UpgradeHq(Me.Id);
+    public Task<World.Result> RefreshConstruction() => world.RefreshConstruction(Me.Id);
 
     public Task<Operations.StartResult> StartOperation(string operation) => Operations.Start(db, Me.Id, operation);
 

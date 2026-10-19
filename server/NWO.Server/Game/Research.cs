@@ -109,7 +109,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         return new
         {
             labs = Labs(p),
-            labCount = p.HomeTiles.Count(t => t.Type == "research"),
+            labCount = p.HomeTiles.Count(t => t.Type == "research" && HomeBase.Level(t) > 0),
             labLevel = LabLevel(p),
             current = p.ResearchId is null ? null : new { id = p.ResearchId, name = Find(p.ResearchId)?.Name, endsAt = p.ResearchEndsAt },
             recommended = recommended is null ? null : new { recommended.Id, recommended.Name, recommended.Effect },

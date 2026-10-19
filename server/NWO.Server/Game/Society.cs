@@ -31,11 +31,11 @@ public static class Society
 
     public static int Capacity(Player p) =>
         6 + 4 * p.HqLevel
-        + p.HomeTiles.Sum(t => HomeHousing.GetValueOrDefault(t.Type))
+        + p.HomeTiles.Where(t => HomeBase.Level(t) > 0).Sum(t => HomeHousing.GetValueOrDefault(t.Type))
         + p.Parcels.Sum(x => Economy.BuildingsOn(x).Count(b => b == "housing")) * HousingBlock;
 
     public static int Jobs(Player p) =>
-        p.HomeTiles.Sum(t => HomeJobs.GetValueOrDefault(t.Type))
+        p.HomeTiles.Where(t => HomeBase.Level(t) > 0).Sum(t => HomeJobs.GetValueOrDefault(t.Type))
         + p.Parcels.Sum(x => Economy.BuildingsOn(x).Sum(b => LandJobs.GetValueOrDefault(b)));
 
     /// <summary>People living in the base as last banked. Players from before the population existed start full.</summary>

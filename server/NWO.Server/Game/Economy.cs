@@ -68,6 +68,14 @@ public static class Economy
         string.IsNullOrEmpty(p.Buildings) ? [] : p.Buildings.Split(',');
 
     public static int SlotsUsed(Parcel p) => BuildingsOn(p).Sum(b => Buildings[b].Slots);
+    public static int ReservedSlots(Parcel p) => SlotsUsed(p) + (p.PendingBuilding is { } pending && Buildings.TryGetValue(pending, out var b) ? b.Slots : 0);
+    public static int BuildSeconds(Player p, BuildingType building, bool guided)
+    {
+        if (p.IsBot) return 0;
+        if (guided) return 12;
+        var quality = 35 + building.Cost / 5 + building.Slots * 20;
+        return (int)Math.Clamp(Math.Round(quality * (1 + Math.Max(0, p.HqLevel - 1) * .12)), 60, 30 * 60);
+    }
 
     public static TimeSpan Storage(Player p)
     {

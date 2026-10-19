@@ -57,9 +57,62 @@ public static class HomeBase
 
     static readonly double[] OutputMultipliers = [1, 1.35, 1.75, 2.25, 3];
 
-    public static int Level(HomeTile tile) => Math.Clamp(tile.Level, 1, MaxBuildingLevel);
-    public static double OutputMultiplier(HomeTile tile) => OutputMultipliers[Level(tile) - 1];
-    public static string Unlock(string type, int level) => LevelUnlocks[type][Math.Clamp(level, 1, MaxBuildingLevel) - 1];
+    public static bool Constructing(HomeTile tile, DateTime? now = null) =>
+        tile.PendingLevel is not null && tile.ConstructionEndsAt is { } end && end > (now ?? DateTime.UtcNow);
+    public static int Level(HomeTile tile) => Math.Clamp(tile.Level, 0, MaxBuildingLevel);
+    public static int Level(HomeTile tile, DateTime now) => Level(tile);
+    public static double OutputMultiplier(HomeTile tile)
+    {
+        var level = Level(tile);
+        return level == 0 ? 0 : OutputMultipliers[level - 1];
+    }
+    public static string Unlock(string type, int level) => level <= 0 ? "Under construction" : LevelUnlocks[type][Math.Clamp(level, 1, MaxBuildingLevel) - 1];
+    /// <summary>New structures stay quick; upgrades become the long-term progression clock.</summary>
+    public static int BuildSeconds(Player p, Kind kind, string type)
+    {
+        if (p.IsBot) return 0;
+        if (p.TutorialStep < Tutorial.Length && Tutorial[p.TutorialStep].Do == type)
+            return type switch { "barracks" => 5, "crops" => 8, "solar" => 10, _ => 12 };
+        var quality = 18 + kind.Cost / 18 + kind.W * kind.H * 4;
+        return (int)Math.Clamp(Math.Round(quality * (1 + Math.Max(0, p.HqLevel - 1) * .18)), 20, 600);
+    }
+    public static int UpgradeSeconds(Player p, int targetLevel)
+    {
+        if (p.IsBot) return 0;
+        if (targetLevel == 2 && Guide.Current(p, "upgrade")) return 12;
+        return targetLevel switch { 2 => 90, 3 => 15 * 60, 4 => 2 * 60 * 60, _ => 24 * 60 * 60 };
+    }
+    public static int HqUpgradeSeconds(Player p, int targetLevel, bool sponsored) => sponsored ? 10 : targetLevel switch
+    {
+        2 => 30, 3 => 5 * 60, 4 => 30 * 60, 5 => 2 * 60 * 60,
+        6 => 4 * 60 * 60, 7 => 8 * 60 * 60, 8 => 12 * 60 * 60,
+        9 => 18 * 60 * 60, _ => 24 * 60 * 60
+    };
+    public static bool FinalizeReady(GameDb db, Player p, DateTime now)
+    {
+        var readyTiles = p.HomeTiles.Where(t => t.PendingLevel is not null && t.ConstructionEndsAt <= now).ToList();
+        var readyParcels = p.Parcels.Where(x => x.PendingBuilding is not null && x.BuildingEndsAt <= now).ToList();
+        var readyHq = p.PendingHqLevel is not null && p.HqUpgradeEndsAt <= now;
+        if (readyTiles.Count == 0 && readyParcels.Count == 0 && !readyHq) return false;
+        // Bank production at the old levels before any completed structure becomes active.
+        Economy.Settle(db, p, now);
+        var changed = false;
+        foreach (var tile in readyTiles)
+        {
+            tile.Level = Math.Clamp(tile.PendingLevel!.Value, 1, MaxBuildingLevel);
+            tile.PendingLevel = null; tile.ConstructionEndsAt = null; changed = true;
+        }
+        foreach (var parcel in readyParcels)
+        {
+            parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? parcel.PendingBuilding : parcel.Buildings + "," + parcel.PendingBuilding;
+            parcel.PendingBuilding = null; parcel.BuildingEndsAt = null; changed = true;
+        }
+        if (readyHq && p.PendingHqLevel is { } hq)
+        {
+            p.HqLevel = Math.Clamp(hq, 1, 10); p.PendingHqLevel = null; p.HqUpgradeEndsAt = null; changed = true;
+        }
+        return changed;
+    }
     public static double UpgradeCost(Kind kind, int currentLevel)
     {
         var multipliers = new[] { 0d, 1d, 2d, 4d, 7d };
@@ -133,7 +186,9 @@ public static class HomeBase
         if (p.Cash < k.Cost) return $"Not enough cash to build a {k.Name.ToLower()}.";
         Economy.Settle(db, p, DateTime.UtcNow);
         Ledger.Add(db, p, "cash", -k.Cost, $"Built a {k.Name} at home");
-        var tile = new HomeTile { PlayerId = p.Id, Type = type, X = x, Y = y, Rotated = rotate, Level = 1 };
+        var seconds = BuildSeconds(p, k, type);
+        var tile = new HomeTile { PlayerId = p.Id, Type = type, X = x, Y = y, Rotated = rotate, Level = seconds == 0 ? 1 : 0,
+            PendingLevel = seconds == 0 ? null : 1, ConstructionEndsAt = seconds == 0 ? null : DateTime.UtcNow.AddSeconds(seconds) };
         db.HomeTiles.Add(tile);
         tiles.Add(tile);
         Advance(db, p, type);
@@ -145,8 +200,10 @@ public static class HomeBase
 
     public static string? Move(GameDb db, Player p, List<HomeTile> tiles, long id, int x, int y, bool rotate)
     {
+        FinalizeReady(db, p, DateTime.UtcNow);
         var t = tiles.FirstOrDefault(z => z.Id == id);
         if (t is null) return "That building isn't yours.";
+        if (Constructing(t)) return "Wait for construction to finish before moving this building.";
         tiles.Remove(t);
         var k = Kinds[t.Type];
         int w = rotate ? k.H : k.W, h = rotate ? k.W : k.H;
@@ -167,8 +224,10 @@ public static class HomeBase
 
     public static string? Upgrade(GameDb db, Player p, List<HomeTile> tiles, long id)
     {
+        FinalizeReady(db, p, DateTime.UtcNow);
         var tile = tiles.FirstOrDefault(t => t.Id == id);
         if (tile is null || !Kinds.TryGetValue(tile.Type, out var kind)) return "That building isn't yours.";
+        if (Constructing(tile)) return $"That {kind.Name.ToLower()} is already under construction.";
         var level = Level(tile);
         if (level >= MaxBuildingLevel) return $"Your {kind.Name.ToLower()} is fully upgraded.";
         if (level >= p.HqLevel) return $"Upgrade your Headquarters to level {level + 1} before raising this building again.";
@@ -176,9 +235,12 @@ public static class HomeBase
         if (p.Cash < cost) return $"Upgrading this {kind.Name.ToLower()} to level {level + 1} costs {cost:N0} cash.";
         // Bank the old rate first so an upgrade cannot retroactively improve uncollected production.
         Economy.Settle(db, p, DateTime.UtcNow);
-        Ledger.Add(db, p, "cash", -cost, $"Upgraded {kind.Name} to level {level + 1}");
-        tile.Level = level + 1;
-        if (tile.Type == "barracks" && tile.Level >= 2) Guide.Advance(db, p, "upgrade");
+        var target = level + 1;
+        Ledger.Add(db, p, "cash", -cost, $"Started {kind.Name} level {target} upgrade");
+        var seconds = UpgradeSeconds(p, target);
+        if (seconds == 0) tile.Level = target;
+        else { tile.PendingLevel = target; tile.ConstructionEndsAt = DateTime.UtcNow.AddSeconds(seconds); }
+        if (tile.Type == "barracks" && target >= 2) Guide.Advance(db, p, "upgrade");
         Progression.Add(db, p, 30, $"upgraded {kind.Name}");
         return null;
     }
@@ -236,31 +298,40 @@ public static class HomeBase
 
     public static object View(Player p, List<HomeTile> tiles)
     {
+        var now = DateTime.UtcNow;
         var (lo, hi) = Bounds(p);
         var next = p.HomeLevel + 1 < Sizes.Length ? p.HomeLevel + 1 : -1;
         var sponsoredHqUpgrade = Guide.Current(p, "hq");
         return new
         {
             grid = GridMax, lo, hi, yard = Yard, hq = new { x = HqAt.x, y = HqAt.y, size = HqSize }, hqLevel = p.HqLevel,
+            hqConstructing = p.PendingHqLevel is not null,
+            pendingHqLevel = p.PendingHqLevel, hqUpgradeEndsAt = p.HqUpgradeEndsAt,
             maxBuildings = MaxBuildings(p), upgradeCost = sponsoredHqUpgrade ? 0 : Economy.HqUpgradeCost(p), upgradeNormalCost = Economy.HqUpgradeCost(p), upgradeSponsored = sponsoredHqUpgrade,
+            hqUpgradeSeconds = HqUpgradeSeconds(p, Math.Min(10, p.HqLevel + 1), sponsoredHqUpgrade),
             tiles = tiles.Select(t =>
             {
                 var k = Kinds[t.Type];
-                var level = Level(t);
+                var constructing = t.PendingLevel is not null;
+                var activeLevel = Level(t, now);
+                var level = constructing ? t.PendingLevel!.Value : activeLevel;
                 var canUpgrade = level < MaxBuildingLevel;
                 return new
                 {
                     t.Id, t.Type, t.X, t.Y, rotated = t.Rotated, level,
+                    activeLevel, constructing, completesAt = t.ConstructionEndsAt, pendingLevel = t.PendingLevel,
+                    pendingUnlock = t.PendingLevel is { } pending ? Unlock(t.Type, pending) : null,
                     visualLevel = 1 + (level - 1) * 2,
                     maxLevel = MaxBuildingLevel,
-                    currentUnlock = Unlock(t.Type, level),
+                    currentUnlock = constructing ? (activeLevel == 0 ? "Not online yet" : Unlock(t.Type, activeLevel)) : Unlock(t.Type, level),
                     nextUnlock = canUpgrade ? Unlock(t.Type, level + 1) : null,
                     upgradeCost = canUpgrade ? UpgradeCost(k, level) : 0,
+                    upgradeSeconds = canUpgrade ? UpgradeSeconds(p, level + 1) : 0,
                     needsHq = canUpgrade ? level + 1 : 0,
                     outputPerHour = Math.Round(k.PerHour * Suit(p, k) * OutputMultiplier(t), 1),
                 };
             }),
-            kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field }),
+            kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field, buildSeconds = BuildSeconds(p, kv.Value, kv.Key) }),
             expand = next < 0 ? null : new { size = Sizes[next], cash = ExpandCash[next], power = ExpandPower[next], needHq = next + 1 },
             walls = new { level = p.WallLevel, max = MaxWallLevel, next = p.WallLevel < MaxWallLevel ? new { cash = WallCash[p.WallLevel + 1], power = WallPower[p.WallLevel + 1] } : null },
             tutorial = p.TutorialStep < Tutorial.Length ? new
@@ -299,11 +370,11 @@ public static class HomeBase
         var home = parcels.FirstOrDefault(x => x.IsHome);
         foreach (var x in parcels.Where(x => !x.IsHome)) db.Parcels.Remove(x);
         p.Parcels.RemoveAll(x => !x.IsHome);
-        if (home is not null) home.Buildings = "";
+        if (home is not null) { home.Buildings = ""; home.PendingBuilding = null; home.BuildingEndsAt = null; }
         var start = new Player();
         foreach (var r in Ledger.Resources)
             Ledger.Add(db, p, r, Ledger.Get(start, r) - Ledger.Get(p, r), "Started over");
-        p.HqLevel = 1; p.HomeLevel = 0; p.WallLevel = 1; p.TutorialStep = 0; p.GuideStep = 0;
+        p.HqLevel = 1; p.PendingHqLevel = null; p.HqUpgradeEndsAt = null; p.HomeLevel = 0; p.WallLevel = 1; p.TutorialStep = 0; p.GuideStep = 0;
         p.OperationLevels = null; p.OperationPaidDay = null; p.OperationPaidWins = 0; p.Xp = 0;
         p.LastCollectAt = DateTime.UtcNow;
     }

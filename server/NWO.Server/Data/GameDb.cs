@@ -29,6 +29,9 @@ public class Player
     public double Power { get; set; }
 
     public int HqLevel { get; set; } = 1;
+    /// <summary>An HQ upgrade in progress. The active HqLevel changes only when this timer finishes.</summary>
+    public int? PendingHqLevel { get; set; }
+    public DateTime? HqUpgradeEndsAt { get; set; }
     /// <summary>How far the home base walls reach (an index into HomeBase.Sizes).</summary>
     public int HomeLevel { get; set; }
     /// <summary>How strong the base's walls are, 1 to 5. Raises Last Stand's gate integrity and the base's tower and HQ health in raids.</summary>
@@ -115,6 +118,9 @@ public class Parcel
     public string Resource { get; set; } = "none";
     /// <summary>Comma-separated building types on this parcel, e.g. "rig,warehouse".</summary>
     public string? Buildings { get; set; }
+    /// <summary>One parcel structure may be under construction at a time.</summary>
+    public string? PendingBuilding { get; set; }
+    public DateTime? BuildingEndsAt { get; set; }
     public Guid? OwnerId { get; set; }
     public Player? Owner { get; set; }
     public DateTime? ClaimedAt { get; set; }
@@ -133,6 +139,9 @@ public class HomeTile
     public bool Rotated { get; set; }
     /// <summary>Each home building advances independently; level 1 is the newly built state.</summary>
     public int Level { get; set; } = 1;
+    /// <summary>The level being constructed. Level 1 means a newly placed structure is not online yet.</summary>
+    public int? PendingLevel { get; set; }
+    public DateTime? ConstructionEndsAt { get; set; }
 }
 
 public class ChatMessage

@@ -26,6 +26,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         style = p?.Owner is { IsBot: true } o ? Bots.Style(o.Id) : null,
         home = p?.IsHome ?? false,
         b = p is null ? Array.Empty<string>() : Economy.BuildingsOn(p).ToArray(),
+        construction = p?.PendingBuilding is null ? null : new { type = p.PendingBuilding, completesAt = p.BuildingEndsAt },
     };
 
     public async Task<object> Snapshot(int sector)
@@ -136,6 +137,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
     {
         if (!Economy.Buildings.TryGetValue(type, out var t)) return "Unknown building.";
         if (parcel is null || parcel.OwnerId != me.Id) return "You can only build on your own parcels.";
+        if (parcel.PendingBuilding is not null) return "Finish the building already under construction on this parcel first.";
         if (Research.Unlocking(type) is { } tech && !Research.Has(me, tech.Id)) return $"Research {tech.Name} in your Research lab to build a {t.Name.ToLower()}.";
         if (Guide.Current(me, "build"))
         {
@@ -151,11 +153,13 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
                 return $"For this first land lesson, build {names}. It is the strongest match for this parcel.";
             }
         }
-        if (Economy.SlotsUsed(parcel) + t.Slots > Economy.SlotsPerParcel) return "Not enough free slots on this parcel.";
+        if (Economy.ReservedSlots(parcel) + t.Slots > Economy.SlotsPerParcel) return "Not enough free slots on this parcel.";
         if (me.Cash < t.Cost) return $"Not enough cash to build a {t.Name.ToLower()}.";
         Economy.Settle(db, me, now);
-        Ledger.Add(db, me, "cash", -t.Cost, $"Built {t.Name} on {sector}:{i},{j}");
-        parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? type : parcel.Buildings + "," + type;
+        Ledger.Add(db, me, "cash", -t.Cost, $"Started {t.Name} on {sector}:{i},{j}");
+        var seconds = Economy.BuildSeconds(me, t, Guide.Current(me, "build"));
+        if (seconds == 0) parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? type : parcel.Buildings + "," + type;
+        else { parcel.PendingBuilding = type; parcel.BuildingEndsAt = now.AddSeconds(seconds); }
         Guide.Advance(db, me, "build");
         return null;
     });
@@ -192,6 +196,8 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
 
     public Task<Result> UpgradeHq(Guid playerId) => ChangePlayer(playerId, (db, me) =>
     {
+        HomeBase.FinalizeReady(db, me, DateTime.UtcNow);
+        if (me.PendingHqLevel is not null) return "Your Headquarters is already being upgraded.";
         if (me.HqLevel >= 10) return "Your HQ is at the maximum level for this season.";
         // The guide must never dead-end because the player spent early cash while learning other systems.
         // The Caretaker sponsors this one upgrade; every later HQ level uses the normal economy.
@@ -201,9 +207,19 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (me.Cash < cost) return $"Upgrading to level {me.HqLevel + 1} costs {cost:N0} cash.";
         if (me.Power < power) return $"Upgrading to level {me.HqLevel + 1} also needs {power:N0} power. Build solar panels.";
         if (power > 0) Ledger.Add(db, me, "power", -power, $"Power for HQ level {me.HqLevel + 1}");
-        if (cost > 0) Ledger.Add(db, me, "cash", -cost, $"Upgraded HQ to level {me.HqLevel + 1}");
-        me.HqLevel++;
+        var target = me.HqLevel + 1;
+        if (cost > 0) Ledger.Add(db, me, "cash", -cost, $"Started HQ level {target} upgrade");
+        var seconds = HomeBase.HqUpgradeSeconds(me, target, sponsored);
+        if (seconds == 0) me.HqLevel = target;
+        else { me.PendingHqLevel = target; me.HqUpgradeEndsAt = DateTime.UtcNow.AddSeconds(seconds); }
         Guide.Advance(db, me, "hq");
+        return null;
+    });
+
+    /// <summary>Completes server-authoritative construction timers after the client countdown reaches zero.</summary>
+    public Task<Result> RefreshConstruction(Guid playerId) => ChangePlayer(playerId, (db, me) =>
+    {
+        HomeBase.FinalizeReady(db, me, DateTime.UtcNow);
         return null;
     });
 
@@ -215,6 +231,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
             using var scope = scopes.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<GameDb>();
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
+            HomeBase.FinalizeReady(db, me, DateTime.UtcNow);
             var error = apply(db, me);
             // Return authoritative player data with rejected actions too. The client can then
             // correct a stale balance immediately instead of continuing to show unusable cash.
@@ -235,6 +252,7 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
             using var scope = scopes.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<GameDb>();
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
+            HomeBase.FinalizeReady(db, me, DateTime.UtcNow);
             var parcel = await db.Parcels.Include(p => p.Owner).FirstOrDefaultAsync(p => p.Sector == sector && p.I == i && p.J == j);
             var error = await apply(db, me, parcel, DateTime.UtcNow);
             if (error is not null) return new Result(false, error);

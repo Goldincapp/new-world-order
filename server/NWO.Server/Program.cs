@@ -126,6 +126,7 @@ api.MapGet("/me", async (HttpContext ctx, GameDb db, World world) =>
     {
         var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
         var now = DateTime.UtcNow;
+        HomeBase.FinalizeReady(gdb, p, now);
         var away = now - p.LastSeenAt;
         p.LastSeenAt = now;
         Dictionary<string, double>? collected = null;
@@ -497,10 +498,10 @@ static class Dto
             pending = Economy.Pending(p, now),
             people = Math.Floor(Society.PopulationNow(p, now)), housing = Society.Capacity(p),
             ratesPerHour = Economy.RatesPerHour(p),
-            parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x) }),
+            parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x), construction = x.PendingBuilding is null ? null : new { type = x.PendingBuilding, completesAt = x.BuildingEndsAt } }),
             home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, owner = p.IsOwner, progression = Progression.View(p), guide = Guide.View(p), operations = Operations.View(p), allianceId = p.AllianceId, allianceRole = p.AllianceRole, warScore = Region2.Score(p),
             claimCost = Economy.ClaimCost,
-            buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour, tech = Research.Unlocking(kv.Key)?.Name, locked = Research.Unlocking(kv.Key) is { } tk && !Research.Has(p, tk.Id) }),
+            buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour, buildSeconds = Economy.BuildSeconds(p, kv.Value, Guide.Current(p, "build")), tech = Research.Unlocking(kv.Key)?.Name, locked = Research.Unlocking(kv.Key) is { } tk && !Research.Has(p, tk.Id) }),
             research = Research.View(p),
             suitability = Economy.Suitability,
             ration = new { ready = now - p.LastRationAt >= Economy.RationEvery, nextAt = p.LastRationAt + Economy.RationEvery, crate = Economy.Ration(p) },
