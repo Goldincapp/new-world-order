@@ -127,6 +127,7 @@ api.MapGet("/me", async (HttpContext ctx, GameDb db, World world) =>
         var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
         var now = DateTime.UtcNow;
         HomeBase.FinalizeReady(gdb, p, now);
+        Research.RepairRestartedGuide(p);
         var away = now - p.LastSeenAt;
         p.LastSeenAt = now;
         Dictionary<string, double>? collected = null;
