@@ -142,7 +142,10 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (Guide.Current(me, "build"))
         {
             var land = SectorTemplate.Code(parcel.Sector, parcel.I, parcel.J);
+            // The first parcel lesson is about matching production to land. Housing and storage
+            // solve different needs, so they should never win this recommendation on raw cash.
             var available = Economy.Buildings.Keys
+                .Where(b => b is "farm" or "rig" or "sawmill" or "mine")
                 .Where(b => Research.Unlocking(b) is not { } needed || Research.Has(me, needed.Id))
                 .ToArray();
             var best = available.Max(b => Economy.Suit(b, land));
@@ -190,6 +193,9 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
 
     public Task<Result> UpgradeHome(Guid playerId, long id) =>
         ChangePlayer(playerId, (db, me) => HomeBase.Upgrade(db, me, me.HomeTiles, id));
+
+    public Task<Result> CancelHomeUpgrade(Guid playerId) =>
+        ChangePlayer(playerId, (db, me) => HomeBase.CancelUpgrade(db, me, me.HomeTiles));
 
     public Task<Result> ExpandHome(Guid playerId) => ChangePlayer(playerId, (db, me) => HomeBase.Expand(db, me));
     public Task<Result> ReinforceWalls(Guid playerId) => ChangePlayer(playerId, (db, me) => HomeBase.ReinforceWalls(db, me));

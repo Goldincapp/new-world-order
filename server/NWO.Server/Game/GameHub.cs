@@ -70,6 +70,7 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public Task<World.Result> MoveHome(long id, int x, int y, bool rotate) => world.MoveHome(Me.Id, id, x, y, rotate);
 
     public Task<World.Result> UpgradeHome(long id) => world.UpgradeHome(Me.Id, id);
+    public Task<World.Result> CancelHomeUpgrade() => world.CancelHomeUpgrade(Me.Id);
 
     public Task<World.Result> ExpandHome() => world.ExpandHome(Me.Id);
     public Task<World.Result> ReinforceWalls() => world.ReinforceWalls(Me.Id);

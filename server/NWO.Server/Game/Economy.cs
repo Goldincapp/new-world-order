@@ -31,7 +31,9 @@ public static class Economy
 
     public static readonly Dictionary<string, BuildingType> Buildings = new()
     {
-        ["housing"] = new("Housing", 800, 2, "cash", 60),
+        // Housing is primarily population capacity, not an industry. Its modest rent prevents it
+        // from outperforming a sawmill or mine on land suited to those businesses.
+        ["housing"] = new("Housing", 800, 2, "cash", 10),
         ["farm"] = new("Farm", 600, 3, "grain", 24),
         ["rig"] = new("Oil rig", 1500, 2, "oil", 36),
         ["sawmill"] = new("Sawmill", 700, 2, "cash", 30),

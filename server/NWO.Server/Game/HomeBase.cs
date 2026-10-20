@@ -270,6 +270,72 @@ public static class HomeBase
         return null;
     }
 
+    /// <summary>
+    /// Cancels the one active level-up and returns part of what was paid. The crew keeps 10% immediately
+    /// for mobilisation, rising smoothly to 75% as the work approaches completion. New level-1 construction
+    /// is deliberately separate: this command only cancels upgrades to an existing building or the HQ.
+    /// </summary>
+    public static string? CancelUpgrade(GameDb db, Player p, List<HomeTile> tiles)
+    {
+        var now = DateTime.UtcNow;
+        FinalizeReady(db, p, now);
+        var job = ActiveUpgrade(p, tiles, now);
+        if (job is null) return "There is no active building upgrade to cancel.";
+
+        string reason;
+        DateTime fallbackStart;
+        var hqGuideIndex = Array.FindIndex(Guide.Steps, x => x.Do == "hq");
+        var buildingGuideIndex = Array.FindIndex(Guide.Steps, x => x.Do == "upgrade");
+        var guidedHq = job.Headquarters && job.TargetLevel == 2 && p.GuideStep == hqGuideIndex + 1;
+        var guidedBuilding = !job.Headquarters && job.TargetLevel == 2 && p.GuideStep == buildingGuideIndex + 1;
+        if (job.Headquarters)
+        {
+            reason = $"Started HQ level {job.TargetLevel} upgrade";
+            fallbackStart = job.CompletesAt.AddSeconds(-HqUpgradeSeconds(p, job.TargetLevel, guidedHq));
+        }
+        else
+        {
+            var tile = tiles.FirstOrDefault(t => t.Id == job.TileId);
+            if (tile is null || !Kinds.TryGetValue(tile.Type, out var kind)) return "That upgrade could not be found.";
+            reason = $"Started {kind.Name} level {job.TargetLevel} upgrade";
+            fallbackStart = job.CompletesAt.AddSeconds(-(guidedBuilding ? 12 : UpgradeSeconds(p, job.TargetLevel)));
+        }
+
+        // The debit is also the durable record of the real start time and paid amount. This keeps
+        // cancellations correct for compressed tutorial timers and upgrades begun before this feature existed.
+        var earliest = fallbackStart.AddSeconds(-2);
+        var cashDebit = db.Ledger.Where(x => x.PlayerId == p.Id && x.Resource == "cash" && x.Reason == reason && x.Delta < 0 && x.At >= earliest && x.At <= now)
+            .OrderByDescending(x => x.Id).FirstOrDefault();
+        var powerReason = $"Power for HQ level {job.TargetLevel}";
+        var powerDebit = job.Headquarters
+            ? db.Ledger.Where(x => x.PlayerId == p.Id && x.Resource == "power" && x.Reason == powerReason && x.Delta < 0 && x.At >= earliest && x.At <= now)
+                .OrderByDescending(x => x.Id).FirstOrDefault()
+            : null;
+        var started = cashDebit?.At ?? powerDebit?.At ?? fallbackStart;
+        var total = Math.Max(1, (job.CompletesAt - started).TotalSeconds);
+        var elapsed = Math.Clamp((now - started).TotalSeconds / total, 0, 1);
+        var refundRate = 0.90 - 0.65 * elapsed;
+        var cashRefund = Math.Floor((-(cashDebit?.Delta ?? 0)) * refundRate);
+        var powerRefund = Math.Floor((-(powerDebit?.Delta ?? 0)) * refundRate);
+
+        if (job.Headquarters)
+        {
+            p.PendingHqLevel = null;
+            p.HqUpgradeEndsAt = null;
+            if (guidedHq) p.GuideStep = hqGuideIndex;
+        }
+        else
+        {
+            var tile = tiles.First(t => t.Id == job.TileId);
+            tile.PendingLevel = null;
+            tile.ConstructionEndsAt = null;
+            if (guidedBuilding) p.GuideStep = buildingGuideIndex;
+        }
+        if (cashRefund > 0) Ledger.Add(db, p, "cash", cashRefund, $"Refunded cancelled {job.Name} level {job.TargetLevel} upgrade");
+        if (powerRefund > 0) Ledger.Add(db, p, "power", powerRefund, $"Refunded cancelled HQ level {job.TargetLevel} upgrade");
+        return null;
+    }
+
     public static string? ReinforceWalls(GameDb db, Player p)
     {
         var next = p.WallLevel + 1;
@@ -402,6 +468,7 @@ public static class HomeBase
         foreach (var r in Ledger.Resources)
             Ledger.Add(db, p, r, Ledger.Get(start, r) - Ledger.Get(p, r), "Started over");
         p.HqLevel = 1; p.PendingHqLevel = null; p.HqUpgradeEndsAt = null; p.HomeLevel = 0; p.WallLevel = 1; p.TutorialStep = 0; p.GuideStep = 0;
+        p.Techs = null; p.ResearchId = null; p.ResearchEndsAt = null; p.ResearchHelpers = null;
         p.OperationLevels = null; p.OperationPaidDay = null; p.OperationPaidWins = 0; p.Xp = 0;
         p.LastCollectAt = DateTime.UtcNow;
     }
