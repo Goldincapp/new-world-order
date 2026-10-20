@@ -5,6 +5,7 @@
     .ops[hidden],.ops [hidden]{display:none!important}.ops-top{position:relative;z-index:4;height:4.2em;padding:.65em .85em;box-sizing:border-box;display:flex;align-items:center;gap:.75em;background:linear-gradient(180deg,#0a1725f5,#06101bd9);border-bottom:1px solid #62c9ed55;box-shadow:0 .5em 1.8em #0008;backdrop-filter:blur(12px)}
     .ops-title{min-width:0;flex:1}.ops-title b{display:block;color:#f4fbff;font:850 1.05em/1.1 system-ui;letter-spacing:.015em}.ops-title small{display:block;color:#8fa8b9;margin-top:.25em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .ops-stat{text-align:center;min-width:4.3em}.ops-stat b{display:block;font-size:1.05em}.ops-stat small{color:#9faeb8;font-size:.7em;text-transform:uppercase;letter-spacing:.08em}
+    .ops-sound{flex:0 0 auto;width:2.7em;height:2.7em;padding:0!important;display:grid;place-items:center;font-size:1.05em!important}.ops-sound.off{opacity:.5}
     .ops button{border:1px solid #6fa8c555;border-radius:.8em;background:linear-gradient(180deg,#203a50dd,#0b1c2bdd);color:#f4fbff;padding:.55em .75em;font:750 .9em system-ui;box-shadow:inset 0 1px #ffffff12,0 .35em 1em #0006}.ops button.primary{background:linear-gradient(135deg,#f5c65a,#ca8f24);color:#171107;border-color:#ffe094}.ops-back{flex:0 0 auto;white-space:nowrap;border-color:#9dcce366!important;background:#102536ee!important}
     .ops canvas#opsCanvas{position:relative;z-index:2;display:block;flex:1;width:100%;min-height:0;background:transparent}.ops-3d{position:absolute;z-index:1;left:0;right:0;top:4.2em;width:100%;height:calc(100% - 4.2em);pointer-events:none;background:transparent}.ops-tip{position:absolute;z-index:3;left:50%;bottom:1em;transform:translateX(-50%);max-width:82%;padding:.5em .9em;border-radius:1em;background:#07131ed6;border:1px solid #7ac9e74a;color:#eaf8ff;text-align:center;font-weight:700;pointer-events:none;transition:bottom .2s;box-shadow:0 .5em 1.8em #0008;backdrop-filter:blur(10px)}
     .ops.has-controls .ops-tip{bottom:5.8em}.ops-controls{position:absolute;z-index:3;left:50%;bottom:.7em;transform:translateX(-50%);display:flex;gap:.55em;width:min(32em,94%);justify-content:center}.ops-ability{position:relative!important;overflow:hidden;min-width:8.6em;padding:.68em .8em!important;background:linear-gradient(145deg,#17334bdd,#091925ee)!important;border-color:#61b7d666!important;box-shadow:inset 0 1px #fff1,0 .55em 1.4em #000a!important}.ops-ability.ready{border-color:#76ddff!important;box-shadow:inset 0 1px #fff2,0 0 1.1em #39bfea44!important}.ops-ability:disabled{opacity:.64}.ops-ability span{display:block;font-size:.7em;color:#9fb9c9;margin-top:.22em}.ops-ability i{position:absolute;left:0;right:0;bottom:0;height:var(--cool,0%);background:#02070bbd;pointer-events:none}.ops-ability b,.ops-ability span{position:relative;z-index:1}
@@ -15,7 +16,7 @@
 
   const root = document.createElement('div');
   root.className = 'ops'; root.hidden = true;
-  root.innerHTML = '<div class="ops-top"><button class="ops-back" id="opsExit" aria-label="Back to game">← Game</button><div class="ops-title"><b id="opsName">Operations</b><small id="opsObjective">Short missions. Lasting consequences.</small></div><div class="ops-stat"><b id="opsScore">0</b><small id="opsScoreLabel">score</small></div><div class="ops-stat"><b id="opsTime">0:00</b><small>time</small></div></div><canvas id="opsCanvas"></canvas><canvas class="ops-3d" id="ops3DCanvas" hidden></canvas><div class="ops-tip" id="opsTip">Choose an operation</div><div class="ops-controls" id="opsControls" hidden></div><div class="ops-menu" id="opsMenu"></div><div class="ops-result" id="opsResult" hidden></div>';
+  root.innerHTML = '<div class="ops-top"><button class="ops-back" id="opsExit" aria-label="Back to game">← Game</button><div class="ops-title"><b id="opsName">Operations</b><small id="opsObjective">Short missions. Lasting consequences.</small></div><button class="ops-sound" id="opsSound" aria-label="Turn operation sound off">🔊</button><div class="ops-stat"><b id="opsScore">0</b><small id="opsScoreLabel">score</small></div><div class="ops-stat"><b id="opsTime">0:00</b><small>time</small></div></div><canvas id="opsCanvas"></canvas><canvas class="ops-3d" id="ops3DCanvas" hidden></canvas><div class="ops-tip" id="opsTip">Choose an operation</div><div class="ops-controls" id="opsControls" hidden></div><div class="ops-menu" id="opsMenu"></div><div class="ops-result" id="opsResult" hidden></div>';
   document.addEventListener('DOMContentLoaded', () => document.querySelector('#screen').appendChild(root));
 
   window.NWOOperations = function ({ connection, player, applyPlayer, toast, refreshGuide }) {
@@ -24,6 +25,13 @@
     const frameInterval = lowPower ? 1000 / 30 : 1000 / 60;
     let enhanced3d = !lowPower && (() => { try { return localStorage.getItem('nwoOperation3D') === '1'; } catch { return false; } })();
     let raf = 0, current = null, pointer = { x: .5, y: .8, down: false }, stageUnavailable = false, lastHudAt = 0, slow3dFrames = 0;
+    let audio = null, soundOn = (() => { try { return localStorage.getItem('nwoOperationSound') !== '0'; } catch { return true; } })(), lastSound = {};
+    function unlockAudio() { if (!soundOn) return null; try { audio ||= new (window.AudioContext || window.webkitAudioContext)(); if (audio.state === 'suspended') audio.resume(); return audio; } catch { return null; } }
+    function tone(freq=220,dur=.08,type='sine',gain=.045,slide=1,key='tone',gap=0){const now=performance.now();if(!soundOn||now-(lastSound[key]||0)<gap)return;lastSound[key]=now;const a=unlockAudio();if(!a)return;const o=a.createOscillator(),g=a.createGain(),at=a.currentTime;o.type=type;o.frequency.setValueAtTime(freq,at);o.frequency.exponentialRampToValueAtTime(Math.max(30,freq*slide),at+dur);g.gain.setValueAtTime(gain,at);g.gain.exponentialRampToValueAtTime(.0001,at+dur);o.connect(g).connect(a.destination);o.start(at);o.stop(at+dur+.02);}
+    function noise(dur=.1,gain=.025,key='noise',gap=0){const now=performance.now();if(!soundOn||now-(lastSound[key]||0)<gap)return;lastSound[key]=now;const a=unlockAudio();if(!a)return;const n=Math.max(1,Math.floor(a.sampleRate*dur)),b=a.createBuffer(1,n,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*(1-i/n);const s=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();s.buffer=b;f.type='lowpass';f.frequency.value=1400;g.gain.value=gain;s.connect(f).connect(g).connect(a.destination);s.start();}
+    function sfx(name){if(name==='start'){tone(180,.35,'sawtooth',.05,2.1,'start',300);}else if(name==='win'){tone(440,.42,'triangle',.06,2,'win',500);}else if(name==='fail'){tone(190,.5,'sawtooth',.05,.45,'fail',500);}else if(name==='build'){tone(320,.12,'square',.035,1.7,'build',80);}else if(name==='shot'){tone(135,.035,'square',.018,.65,'shot',85);}else if(name==='rail'){tone(720,.13,'sawtooth',.035,.3,'rail',120);}else if(name==='flame'){noise(.13,.03,'flame',120);tone(78,.12,'sawtooth',.014,.8,'flametone',120);}else if(name==='hit'){noise(.09,.04,'hit',120);}else if(name==='pickup'){tone(520,.12,'triangle',.04,1.7,'pickup',90);}else if(name==='ability'){tone(260,.2,'triangle',.045,2.2,'ability',180);}}
+    function syncSoundButton(){$('opsSound').textContent=soundOn?'🔊':'🔇';$('opsSound').classList.toggle('off',!soundOn);$('opsSound').setAttribute('aria-label',soundOn?'Turn operation sound off':'Turn operation sound on');}
+    syncSoundButton();$('opsSound').onclick=()=>{soundOn=!soundOn;try{localStorage.setItem('nwoOperationSound',soundOn?'1':'0');}catch{}syncSoundButton();if(soundOn){unlockAudio();tone(440,.08,'triangle',.04,1.4,'toggle');}};
     function createStage() { if (!enhanced3d || lowPower || stageUnavailable || !window.NWOOperations3D) return null; try { return window.NWOOperations3D.create(stageCanvas); } catch (error) { stageUnavailable = true; console.warn('Operation 3D view unavailable; using illustrated units.', error); return null; } }
     let stage = createStage();
     const assetPath = 'assets/operations/';
@@ -50,7 +58,7 @@
     // main source of operation lag, especially on high-DPI phones.
     function fit() { const r = canvas.getBoundingClientRect(), w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height)), d = Math.min(devicePixelRatio || 1, lowPower ? 1 : 1.5), bw = Math.round(w * d), bh = Math.round(h * d); if (canvas.width !== bw || canvas.height !== bh) { canvas.width = bw; canvas.height = bh; ctx.setTransform(d, 0, 0, d, 0, 0); ctx.imageSmoothingQuality = lowPower ? 'low' : 'medium'; } return { w, h }; }
     function pos(e) { const r = canvas.getBoundingClientRect(); pointer.x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); pointer.y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)); }
-    canvas.addEventListener('pointerdown', e => { pointer.down = true; pos(e); try { canvas.setPointerCapture(e.pointerId); } catch {} if (current && current.tap) current.tap(pointer.x, pointer.y); });
+    canvas.addEventListener('pointerdown', e => { unlockAudio(); pointer.down = true; pos(e); try { canvas.setPointerCapture(e.pointerId); } catch {} if (current && current.tap) current.tap(pointer.x, pointer.y); });
     canvas.addEventListener('pointermove', e => { if (pointer.down) pos(e); });
     canvas.addEventListener('pointerup', e => { pointer.down = false; pos(e); });
     function close() { cancelAnimationFrame(raf); current = null; hideBuild(); if (stage) stage.hide(); root.hidden = true; root.style.backgroundImage = ''; root.style.backgroundSize = ''; root.classList.remove('has-controls', 'running'); window.__operationsActive = false; $('opsControls').hidden = true; $('opsResult').hidden = true; refreshGuide(); }
@@ -71,13 +79,14 @@
     }
     async function start(id,briefed=false) {
       if(!briefed){briefing(id);return;}
+      unlockAudio();
       if (!connection()) { toast('Reconnect to start an operation'); return; }
       try {
         const s = await connection().invoke('StartOperation', id);
         if (!s.ok) { toast(s.error); return; }
         window.__operationsActive = true; root.hidden = false; root.classList.add('running'); root.style.backgroundImage = id === 'laststand' ? 'url("' + assetPath + assetFiles.lastBg + '")' : id === 'extraction' ? 'url("' + assetPath + assetFiles.extractionBg + '")' : 'url("' + assetPath + assetFiles.leviathanBg + '")'; root.style.backgroundSize = 'auto calc(100% - 4.2em)'; $('opsMenu').hidden = true; $('opsResult').hidden = true; $('opsCanvas').hidden = false; $('opsTip').hidden = false;
         $('opsName').textContent = info[id][1] + ' - Threat ' + s.difficulty; $('opsObjective').textContent = s.reward ? 'Win: ' + s.reward + (s.paidLeft > 0 ? '' : ' (no paid wins left today)') : info[id][2]; $('opsScoreLabel').textContent = id === 'extraction' ? 'cargo' : id === 'laststand' ? 'raiders' : 'damage'; $('opsTip').textContent = info[id][3];
-        current = makeGame(id, s); current.target = s.target; current.started = performance.now(); current.last = current.started; current.frameAt = 0; lastHudAt = 0; slow3dFrames = 0; setupControls(); tick(current.started);
+        unlockAudio();sfx('start');current = makeGame(id, s); current.target = s.target; current.started = performance.now(); current.last = current.started; current.frameAt = 0; lastHudAt = 0; slow3dFrames = 0; setupControls(); tick(current.started);
       } catch (e) { toast(e.message || 'Could not start operation'); }
     }
     function tick(now) {
@@ -94,7 +103,7 @@
       try {
         const r = await connection().invoke('CompleteOperation', g.id, Math.floor(g.score));
         if (r.player) applyPlayer(r.player);
-        const won = !!r.ok, isBest = won && (!old[g.id] || finalScore > old[g.id].score), reward = won ? (r.reward || 'Operation complete') : r.error; if (isBest) { old[g.id] = { score: finalScore, grade: runGrade }; try { localStorage.setItem('nwoOperationRecords', JSON.stringify(old)); } catch {} }
+        const won = !!r.ok, isBest = won && (!old[g.id] || finalScore > old[g.id].score), reward = won ? (r.reward || 'Operation complete') : r.error;sfx(won?'win':'fail'); if (isBest) { old[g.id] = { score: finalScore, grade: runGrade }; try { localStorage.setItem('nwoOperationRecords', JSON.stringify(old)); } catch {} }
         $('opsResult').hidden = false; $('opsResult').innerHTML = '<div><div class="ops-grade">' + runGrade + '</div>' + (isBest ? '<div class="ops-new">NEW PERSONAL BEST</div>' : '') + '<h2>' + (won ? 'Operation complete' : 'Mission failed') + '</h2><p>' + (won ? r.summary : r.error) + '<br><b>Score ' + finalScore + ' / Target ' + g.target + '</b></p><div class="reward">' + reward + '</div><div class="acts"><button id="opsAgain">' + (won ? 'Play threat ' + (r.level || '') : 'Retry threat ' + (r.level || '')) + '</button><button class="primary" id="opsContinue">' + (r.rewarded ? 'Continue guide' : 'Operations') + '</button></div></div>';
         root.querySelector('#opsAgain').onclick = () => start(g.id); root.querySelector('#opsContinue').onclick = r.rewarded ? close : menu;
       } catch (e) { toast(e.message || 'Result could not be saved'); menu(); }
@@ -169,7 +178,7 @@
     const FWH = .48; // field width per canvas height: every arena is drawn to the screen's height, so this never changes
     const LS_TOWERS = {
       gun: { name: 'GUN NEST', hint: 'Fast, one target', cost: [20, 25, 35], range: [.2, .22, .24], rate: [.5, .38, .3], dmg: [1, 1, 2], art: 'lsTowerGun' },
-      burner: { name: 'BURNER', hint: 'Burns everything close', cost: [25, 30, 40], range: [.11, .12, .13], rate: [.35, .28, .24], dmg: [1, 1.5, 2], art: 'lsTowerBurner' },
+      burner: { name: 'SCORCHER', hint: 'Continuous flame cone', cost: [25, 30, 40], range: [.11, .12, .13], rate: [.35, .28, .24], dmg: [1, 1.5, 2], art: 'lsTowerBurner' },
       rail: { name: 'RAIL GUN', hint: 'Long range, heavy hit', cost: [35, 35, 45], range: [.34, .38, .42], rate: [1.8, 1.5, 1.2], dmg: [6, 9, 13], art: 'lsTowerRail' },
       beacon: { name: 'LUMEN BEACON', hint: 'Slows and marks raiders', cost: [25, 25, 30], range: [.15, .17, .19], slow: [.35, .45, .55], mark: [.25, .35, .5], art: 'lsTowerBeacon' },
     };
@@ -204,7 +213,7 @@
       const speak = text => { line = { who: 'LUMEN', text, t: 3.6 }; };
       function pick(wave) { const r = Math.random(), heavy = Math.min(.35, (L - 1) * .025 + wave * .05); if (L >= 4 && wave >= 2 && r < .08 + L * .005) return 'mortar'; if (L >= 3 && r < .18 + heavy * .4) return 'truck'; if (L >= 2 && r < .32 + heavy) return 'technical'; return 'bike'; }
       function send(type) { const t = types[type], lane = (Math.random() - .5) * (t.heavy ? .015 : .04); raiders.push({ type, d: 0, x: .5, y: -.06, hp: t.hp, max: t.hp, flash: 0, gunCd: 1.2 + Math.random(), slow: 0, mark: 0, engaged: null, hitCd: 0, angle: 0, heading: 0, lane, laneGoal: lane, pace: .7, wob: Math.random() * 6, dust: 0 }); }
-      function hitGate(amount, x, y) { if (!amount) return; hp = Math.max(0, hp - amount); hurt = .5; shake = Math.min(9, shake + 4); haptic(30); burst(fx, x, y || GATE, '#ff6b3d', 14); popup(popups, x, (y || GATE) - .04, 'GATE -' + amount, '#ff8c76'); }
+      function hitGate(amount, x, y) { if (!amount) return; hp = Math.max(0, hp - amount); hurt = .5; shake = Math.min(9, shake + 4); haptic(30); sfx('hit');burst(fx, x, y || GATE, '#ff6b3d', 14); popup(popups, x, (y || GATE) - .04, 'GATE -' + amount, '#ff8c76'); }
       function hit(game, r, n, color) {
         if (!raiders.includes(r)) return; n *= 1 + r.mark; r.hp -= n; r.flash = .1; burst(fx, r.x, r.y, color || '#ffb04d', 3); if (r.hp > 0) return;
         raiders.splice(raiders.indexOf(r), 1); kills++; game.score = kills; const t = types[r.type]; scrap += t.scrap; burst(fx, r.x, r.y, '#ff8a3d', r.max > 2 ? 30 : 16);
@@ -221,8 +230,8 @@
         m.innerHTML = html + '<button data-close="1" class="ops-build-x">Close</button>'; m.hidden = false; refreshBuild();
         const r = canvas.getBoundingClientRect(), rr = root.getBoundingClientRect(), sx = r.left - rr.left + geo.x0 + p.x * geo.fw, sy = r.top - rr.top + p.y * geo.h;
         m.style.left = Math.max(8, Math.min(rr.width - 196, sx - 94)) + 'px'; m.style.top = Math.max(70, Math.min(rr.height - m.offsetHeight - 8, sy + 26)) + 'px';
-        m.querySelectorAll('[data-build]').forEach(b => b.onclick = () => { const v = LS_TOWERS[b.dataset.build]; if (scrap < v.cost[0]) return; scrap -= v.cost[0]; towers[i] = { type: b.dataset.build, level: 0, cd: 0, aim: 0 }; burst(fx, p.x, p.y, '#ffd27a', 24); popup(popups, p.x, p.y - .05, v.name, '#ffd27a'); haptic(20); hideBuild(); buildPad = -1; });
-        m.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const tw = towers[i], v = LS_TOWERS[tw.type], c = v.cost[tw.level + 1]; if (scrap < c) return; scrap -= c; tw.level++; burst(fx, p.x, p.y, '#ffd27a', 24); popup(popups, p.x, p.y - .05, 'UPGRADED', '#ffd27a'); haptic(20); hideBuild(); buildPad = -1; });
+        m.querySelectorAll('[data-build]').forEach(b => b.onclick = () => { const v = LS_TOWERS[b.dataset.build]; if (scrap < v.cost[0]) return; scrap -= v.cost[0]; towers[i] = { type: b.dataset.build, level: 0, cd: 0, aim: 0 }; sfx('build');burst(fx, p.x, p.y, '#ffd27a', 24); popup(popups, p.x, p.y - .05, v.name, '#ffd27a'); haptic(20); hideBuild(); buildPad = -1; });
+        m.querySelectorAll('[data-up]').forEach(b => b.onclick = () => { const tw = towers[i], v = LS_TOWERS[tw.type], c = v.cost[tw.level + 1]; if (scrap < c) return; scrap -= c; tw.level++; sfx('build');burst(fx, p.x, p.y, '#ffd27a', 24); popup(popups, p.x, p.y - .05, 'UPGRADED', '#ffd27a'); haptic(20); hideBuild(); buildPad = -1; });
         m.querySelector('[data-close]').onclick = () => { hideBuild(); buildPad = -1; };
       }
       function refreshBuild() { const m = root.querySelector('#opsBuild'); if (m && !m.hidden) m.querySelectorAll('button[data-cost]').forEach(b => { b.disabled = scrap < +b.dataset.cost; }); }
@@ -236,8 +245,8 @@
         controls() { return [{ id: 'overcharge', name: 'OVERCHARGE', hint: 'Turret fires faster', cooldown: overCd, max: 14 }, { id: 'strike', name: 'LUMEN: AIRSTRIKE', hint: 'Hit raiders near the gate', cooldown: strikeCd, max: 10 }]; },
         ability(id) {
           if (this.failed) return;
-          if (id === 'overcharge' && overCd <= 0) { overCd = 14; overcharge = 4; haptic([15, 25, 15]); popup(popups, TURRET.x, TURRET.y - .09, 'OVERCHARGE', '#ffca62'); }
-          if (id === 'strike' && strikeCd <= 0) { const marked = [...raiders].filter(r => r.y > .05).sort((a, b) => b.d - a.d).slice(0, 3); if (!marked.length) { speak('Nothing on the road yet. Holding the strike.'); return; } strikeCd = 10; strike = { t: .55, marks: marked }; speak('Marking ' + marked.length + '. Strike inbound.'); }
+          if (id === 'overcharge' && overCd <= 0) { overCd = 14; overcharge = 4; sfx('ability');haptic([15, 25, 15]); popup(popups, TURRET.x, TURRET.y - .09, 'OVERCHARGE', '#ffca62'); }
+          if (id === 'strike' && strikeCd <= 0) { const marked = [...raiders].filter(r => r.y > .05).sort((a, b) => b.d - a.d).slice(0, 3); if (!marked.length) { speak('Nothing on the road yet. Holding the strike.'); return; } strikeCd = 10; strike = { t: .55, marks: marked }; sfx('ability');speak('Marking ' + marked.length + '. Strike inbound.'); }
         },
         update(dt) {
           if (this.failed) return; elapsed += dt; if (elapsed > 5 && !$('opsTip').hidden) $('opsTip').hidden = true;
@@ -267,18 +276,18 @@
           towers.forEach((tw, i) => { if (!tw) return; const v = LS_TOWERS[tw.type], at = towerAt(i); tw.cd -= dt; const list = inRangeOf(at, v.range[tw.level]), tracked = furthest([...list]);
             if (tracked) { const want = Math.atan2((tracked.y - at.y) * geo.h, (tracked.x - at.x) * geo.fw) + Math.PI / 2; tw.aim += Math.atan2(Math.sin(want - tw.aim), Math.cos(want - tw.aim)) * Math.min(1, dt * (tw.type === 'rail' ? 5 : 10)); }
             else if (tw.type === 'beacon') tw.aim += dt * .45;
+            if(tw.type==='burner'&&tracked){let q=tw.flame;if(!q){q=tw.flame={x:at.x,y:at.y-.015,r:v.range[tw.level],angle:tw.aim,t:.18,seed:Math.random()*20};flames.push(q);}Object.assign(q,{x:at.x,y:at.y-.015,r:v.range[tw.level],angle:tw.aim,t:.18});sfx('flame');if(tw.cd<=0){tw.cd=v.rate[tw.level];list.forEach(r=>hit(this,r,v.dmg[tw.level],'#ff9a3d'));}return;}
             if (tw.type === 'beacon' || tw.cd > 0 || !tracked) return; tw.cd = v.rate[tw.level];
-            if (tw.type === 'gun') rounds.push({ x: at.x + Math.sin(tw.aim) * .025 / FWH, y: at.y - Math.cos(tw.aim) * .025, target: tracked, kind: 'round', vx: 0, vy: -1, dmg: v.dmg[tw.level] });
-            if (tw.type === 'burner') { list.forEach(r => hit(this, r, v.dmg[tw.level], '#ff9a3d')); flames.push({ x: at.x, y: at.y - .015, r: v.range[tw.level], angle: tw.aim, t: .34, seed: Math.random() * 20 }); }
-            if (tw.type === 'rail') { beams.push({ x0: at.x, y0: at.y - .04, x1: tracked.x, y1: tracked.y, t: .18 }); hit(this, tracked, v.dmg[tw.level], '#9ff6ff'); } });
+            if (tw.type === 'gun') {sfx('shot');rounds.push({ x: at.x + Math.sin(tw.aim) * .025 / FWH, y: at.y - Math.cos(tw.aim) * .025, target: tracked, kind: 'round', vx: 0, vy: -1, dmg: v.dmg[tw.level] });}
+            if (tw.type === 'rail') {sfx('rail');beams.push({ x0: at.x, y0: at.y - .04, x1: tracked.x, y1: tracked.y, t: .18 }); hit(this, tracked, v.dmg[tw.level], '#9ff6ff'); } });
           // the HQ turret reaches the lower road by itself; a focused raider is engaged at any distance
           const target = focus && raiders.includes(focus) ? focus : furthest(raiders.filter(r => dist(r, TURRET) < RANGE));
           if (target) { const want = Math.atan2((target.y - TURRET.y) * geo.h, (target.x - TURRET.x) * geo.fw) + Math.PI / 2; aim += Math.atan2(Math.sin(want - aim), Math.cos(want - aim)) * Math.min(1, dt * 14); }
-          fire -= dt; if (fire <= 0 && target) { fire = (target === focus ? .18 : .4) / (overcharge > 0 ? 2.5 : 1); muzzle = .06; rounds.push({ x: TURRET.x + Math.sin(aim) * .07 / FWH, y: TURRET.y - Math.cos(aim) * .07, target, kind: 'round', vx: 0, vy: -1, dmg: 1 }); }
+          fire -= dt; if (fire <= 0 && target) { fire = (target === focus ? .18 : .4) / (overcharge > 0 ? 2.5 : 1); muzzle = .06;sfx('shot'); rounds.push({ x: TURRET.x + Math.sin(aim) * .07 / FWH, y: TURRET.y - Math.cos(aim) * .07, target, kind: 'round', vx: 0, vy: -1, dmg: 1 }); }
           for (let i = rounds.length - 1; i >= 0; i--) { const b = rounds[i]; if (raiders.includes(b.target)) { const left = stepToward(b, b.target.x, b.target.y, 2.2, geo, dt); if (left < .02 * geo.h) { hit(this, b.target, b.dmg, b.kind === 'squad' ? '#ffcf8a' : null); rounds.splice(i, 1); } } else { b.x += b.vx * dt; b.y += b.vy * dt; if (b.y < -.1 || b.y > 1.1 || b.x < -.2 || b.x > 1.2) rounds.splice(i, 1); } }
           if (strike) { strike.t -= dt; if (strike.t <= 0) { strike.marks.forEach(r => { if (raiders.includes(r)) { burst(fx, r.x, r.y, '#ffd27a', 26); hit(this, r, 4, '#ffd27a'); } }); shake = Math.min(9, shake + 5); haptic([20, 30, 40]); strike = null; } }
           beams.forEach(q => q.t -= dt); for (let i = beams.length - 1; i >= 0; i--) if (beams[i].t <= 0) beams.splice(i, 1);
-          flames.forEach(q => q.t -= dt); for (let i = flames.length - 1; i >= 0; i--) if (flames[i].t <= 0) flames.splice(i, 1);
+          flames.forEach(q => q.t -= dt); for (let i = flames.length - 1; i >= 0; i--) if (flames[i].t <= 0) {towers.forEach(tw=>{if(tw&&tw.flame===flames[i])tw.flame=null;});flames.splice(i, 1);}
           updateFx(fx, dt); updateFx(popups, dt);
           if (buildPad >= 0) refreshBuild(); // light up what you can now afford
           if (!lowWarned && hp < maxHp * .35) { lowWarned = true; speak('The gate will not take much more. Call the strike!'); strikeCd = Math.min(strikeCd, 1); }
@@ -307,7 +316,7 @@
           if (strike) strike.marks.forEach(r => { if (!raiders.includes(r)) return; const k = strike.t / .55, size = geo.h * (.03 + k * .05); ctx.strokeStyle = '#ffd27a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(X(r.x), r.y * h, size, 0, Math.PI * 2); ctx.moveTo(X(r.x) - size * 1.3, r.y * h); ctx.lineTo(X(r.x) + size * 1.3, r.y * h); ctx.moveTo(X(r.x), r.y * h - size * 1.3); ctx.lineTo(X(r.x), r.y * h + size * 1.3); ctx.stroke(); });
           // light: flames, rail beams, muzzle flashes; then solid shots on top
           ctx.save(); ctx.globalCompositeOperation = 'lighter';
-          flames.forEach(q => { const life = Math.max(0, q.t / .34), reach = q.r * h * (.78 + .22 * (1 - life)), sx = X(q.x), sy = q.y * h, dx = Math.sin(q.angle), dy = -Math.cos(q.angle);
+          flames.forEach(q => { const life = Math.max(0, q.t / .18), reach = q.r * h * (.92 + .08 * Math.sin(t*18+q.seed)), sx = X(q.x), sy = q.y * h, dx = Math.sin(q.angle), dy = -Math.cos(q.angle);
             const grad = ctx.createLinearGradient(sx, sy, sx + dx * reach, sy + dy * reach); grad.addColorStop(0, 'rgba(255,245,170,' + (.95 * life) + ')'); grad.addColorStop(.28, 'rgba(255,154,42,' + (.9 * life) + ')'); grad.addColorStop(1, 'rgba(255,45,10,0)');
             ctx.globalAlpha = life; ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(sx + dy * 5, sy - dx * 5); ctx.quadraticCurveTo(sx + dx * reach * .55 + dy * 13, sy + dy * reach * .55 - dx * 13, sx + dx * reach, sy + dy * reach); ctx.quadraticCurveTo(sx + dx * reach * .48 - dy * 13, sy + dy * reach * .48 + dx * 13, sx - dy * 5, sy + dx * 5); ctx.closePath(); ctx.fill();
             for (let k = 0; k < 7; k++) { const f = .12 + k * .115, wob = Math.sin(t * (20+k) + q.seed + k * 2.1) * (5+k), rr = (10 - k * .72) * life; ctx.drawImage(glowDot(k < 2 ? '#fff6bd' : k < 5 ? '#ff9a28' : '#ff3b12', 48), sx + dx * reach * f + dy * wob - rr, sy + dy * reach * f - dx * wob - rr, rr * 2, rr * 2); }
@@ -356,15 +365,15 @@
       const speak = (text, who) => { line = { who: who || 'LUMEN', text, t: 3.4 }; };
       const beaconOpen = () => timeLeft <= 12;
       function aimAt(x, y, speedPx) { const a = Math.atan2((py - y) * geo.h, (px - x) * geo.fw); bullets.push({ x, y, vx: Math.cos(a) * speedPx * geo.h / geo.fw, vy: Math.sin(a) * speedPx, r: .013 }); }
-      function loseCargo(game, why, from) { if (hurt > 0 || boost > 0) return; if (from) { const a = Math.atan2((py - from.y) * geo.h, (px - from.x) * geo.fw); px = Math.max(.04, Math.min(.96, px + Math.cos(a) * .07 * geo.asp)); py = Math.max(.08, Math.min(.92, py + Math.sin(a) * .07)); from.backOff = 1.5; from.alert = 0; } hurt = 1.1; stall = .5; shake = 7; haptic(40); chain = 0; burst(fx, px, py, '#ff6a51', 18); if (carried.length) { const c = carried.pop(), a = Math.random() * Math.PI * 2, d = .16 + Math.random() * .1; c.got = false; c.reclaim = 2.5; c.x = Math.max(.08, Math.min(.92, px + Math.cos(a) * d)); c.y = Math.max(.22, Math.min(.84, py + Math.sin(a) * d * .6)); game.score = Math.max(0, game.score - c.value); popup(popups, px, py - .05, 'CARGO LOST: ' + c.kind.name, '#ff8b75'); } else popup(popups, px, py - .05, why, '#ff8b75'); }
+      function loseCargo(game, why, from) { if (hurt > 0 || boost > 0) return; if (from) { const a = Math.atan2((py - from.y) * geo.h, (px - from.x) * geo.fw); px = Math.max(.04, Math.min(.96, px + Math.cos(a) * .07 * geo.asp)); py = Math.max(.08, Math.min(.92, py + Math.sin(a) * .07)); from.backOff = 1.5; from.alert = 0; } hurt = 1.1; stall = .5; shake = 7; haptic(40);sfx('hit'); chain = 0; burst(fx, px, py, '#ff6a51', 18); if (carried.length) { const c = carried.pop(), a = Math.random() * Math.PI * 2, d = .16 + Math.random() * .1; c.got = false; c.reclaim = 2.5; c.x = Math.max(.08, Math.min(.92, px + Math.cos(a) * d)); c.y = Math.max(.22, Math.min(.84, py + Math.sin(a) * d * .6)); game.score = Math.max(0, game.score - c.value); popup(popups, px, py - .05, 'CARGO LOST: ' + c.kind.name, '#ff8b75'); } else popup(popups, px, py - .05, why, '#ff8b75'); }
       const game = { id: 'extraction', duration: s.duration, score: 0, extracted: false, completeNow: false,
         controls() { const enough = this.score >= s.target, ready = enough && beaconOpen(); return [{ id: 'boost', name: 'NITRO', hint: 'Outrun patrols', cooldown: boostCd, max: 6 }, { id: 'scramble', name: 'LUMEN: SCRAMBLE', hint: 'Blind the yard', cooldown: scrambleCd, max: 12 }, { id: 'extract', name: 'EXTRACT', hint: ready ? 'Bank cargo and escape' : !enough ? 'Need ' + s.target + ' cargo' : 'Beacon in ' + Math.ceil(timeLeft - 12) + 's', cooldown: 0, max: 1, disabled: !ready }]; },
         ability(id) {
-          if (id === 'boost' && boostCd <= 0) { boostCd = 6; boost = 1.6; popup(popups, px, py - .05, 'NITRO', '#78e9ff'); burst(fx, px, py, '#67ddff', 20); }
-          if (id === 'scramble' && scrambleCd <= 0) { scrambleCd = 12; scramble = 3.5; const n = bullets.length; bullets.splice(0); patrols.forEach(p => p.alert = 0); burst(fx, px, py, '#ffd27a', 30); speak(n ? 'Scrambled them, and ' + n + ' shots with them. You have three seconds.' : 'Their sensors are down. Three seconds - move!'); }
+          if (id === 'boost' && boostCd <= 0) { boostCd = 6; boost = 1.6;sfx('ability'); popup(popups, px, py - .05, 'NITRO', '#78e9ff'); burst(fx, px, py, '#67ddff', 20); }
+          if (id === 'scramble' && scrambleCd <= 0) { scrambleCd = 12; scramble = 3.5;sfx('ability'); const n = bullets.length; bullets.splice(0); patrols.forEach(p => p.alert = 0); burst(fx, px, py, '#ffd27a', 30); speak(n ? 'Scrambled them, and ' + n + ' shots with them. You have three seconds.' : 'Their sensors are down. Three seconds - move!'); }
           if (id === 'extract' && this.score >= s.target && beaconOpen() && !this.extracted) this.finishRun();
         },
-        finishRun() { this.extracted = true; this.completeNow = true; haptic([30, 35, 60]); popup(popups, px, py - .05, 'CARGO SECURED', '#8cff9b'); burst(fx, px, py, '#7cf39b', 36); },
+        finishRun() { this.extracted = true; this.completeNow = true;sfx('win'); haptic([30, 35, 60]); popup(popups, px, py - .05, 'CARGO SECURED', '#8cff9b'); burst(fx, px, py, '#7cf39b', 36); },
         update(dt, left) {
           timeLeft = left; elapsed += dt; if (elapsed > 5 && !$('opsTip').hidden) $('opsTip').hidden = true;
           if (elapsed < .1) speak(L >= 2 ? 'Caretaker yard, and it is guarded. Grab crates, stay out of the light.' : 'Caretaker supply yard. Grab what you can - I will keep watch.');
@@ -383,7 +392,7 @@
           sentries.forEach(q => { const dist = Math.hypot((px - q.x) * geo.fw, (py - q.y) * geo.h) / geo.h; if (blind || dist > .4) { q.charge = 0; return; } q.cd -= dt; if (q.cd <= .5) q.charge = 1 - q.cd / .5; if (q.cd <= 0) { q.cd = Math.max(1.3, 2.4 - L * .06); q.charge = 0; aimAt(q.x, q.y - .03, .3 + L * .008); } });
           drones.forEach(d => { d.t += dt * .22; d.x = .5 + Math.sin(d.t) * .38; d.y = .45 + Math.sin(d.t * 2) * .2; const inLight = !blind && Math.hypot((px - d.x) * geo.fw, (py - d.y) * geo.h) / geo.h < .08; d.spot = inLight ? 1 : Math.max(0, d.spot - dt * 2); if (inLight) { patrols.forEach(p => p.alert = 1); if (spottedSaid <= 0) { spottedSaid = 6; speak('Searchlight! Every patrol knows where we are.'); } } });
           for (let i = bullets.length - 1; i >= 0; i--) { const b = bullets[i]; b.x += b.vx * dt; b.y += b.vy * dt; if (Math.hypot((b.x - px) * geo.fw, (b.y - py) * geo.h) / geo.h < .03) { bullets.splice(i, 1); loseCargo(this, 'HIT'); } else if (b.y < -.05 || b.y > 1.05 || b.x < -.1 || b.x > 1.1) bullets.splice(i, 1); }
-          crates.forEach(c => { if (!c.got && c.reclaim != null) { c.reclaim -= dt; if (c.reclaim <= 0) { c.got = true; c.gone = true; burst(fx, c.x, c.y, '#ff3dbb', 14); popup(popups, c.x, c.y - .03, 'RECLAIMED', '#ff6a9a'); } } if (!c.got && Math.hypot((px - c.x) * geo.fw, (py - c.y) * geo.h) / geo.h < .045) { c.got = true; c.reclaim = null; carried.push(c); chain++; chainTimer = 4; this.score += c.value; burst(fx, c.x, c.y, c.kind.color, 22); popup(popups, c.x, c.y - .03, (chain > 1 ? 'x' + chain + '  ' : '') + '+' + c.value + ' ' + c.kind.name, c.kind.color); } });
+          crates.forEach(c => { if (!c.got && c.reclaim != null) { c.reclaim -= dt; if (c.reclaim <= 0) { c.got = true; c.gone = true; burst(fx, c.x, c.y, '#ff3dbb', 14); popup(popups, c.x, c.y - .03, 'RECLAIMED', '#ff6a9a'); } } if (!c.got && Math.hypot((px - c.x) * geo.fw, (py - c.y) * geo.h) / geo.h < .045) { c.got = true; c.reclaim = null; carried.push(c); chain++; chainTimer = 4; this.score += c.value;sfx('pickup'); burst(fx, c.x, c.y, c.kind.color, 22); popup(popups, c.x, c.y - .03, (chain > 1 ? 'x' + chain + '  ' : '') + '+' + c.value + ' ' + c.kind.name, c.kind.color); } });
           if (beaconOpen() && this.score >= s.target && !this.extracted && Math.hypot((px - PAD.x) * geo.fw, (py - PAD.y) * geo.h) / geo.h < .06) this.finishRun();
           updateFx(fx, dt); updateFx(popups, dt);
           if (left <= 0 && !this.extracted) this.score = 0;
@@ -434,7 +443,7 @@
       const attackCues = { hunter: 'Keep moving', spiral: 'Weave through the gaps', scan: 'Leave the marked side', discs: 'Watch the bounces', grid: 'Step off the red tiles', wall: 'Find the safe lane' };
       function speak(who, text) { line = { who, text, t: 3.2 }; }
       function damage(game, amount, x, y, crit) { game.score += amount; bossFlash = .07; tally += amount; tallyCrit = tallyCrit || crit; if (tallyTimer <= 0) tallyTimer = .28; if (Math.random() < .35) burst(fx, x, y, crit ? '#7cf3ff' : '#ffb04d', crit ? 5 : 3); }
-      function hitPlayer(amount, label) { if (invulnerable > 0) return; if (shield > 0) { burst(fx, px, py, '#ffe08a', 10); return; } hp = Math.max(0, hp - amount); invulnerable = .7; hurt = .5; shake = 7; haptic(35); popup(popups, px, py - .07, label + ' -' + amount, '#ff7a6c'); }
+      function hitPlayer(amount, label) { if (invulnerable > 0) return; if (shield > 0) { burst(fx, px, py, '#ffe08a', 10); return; } hp = Math.max(0, hp - amount); invulnerable = .7; hurt = .5; shake = 7; haptic(35);sfx('hit'); popup(popups, px, py - .07, label + ' -' + amount, '#ff7a6c'); }
       function aimedShot(x, y, speed, spread, kind) { const a = Math.atan2((py - y) * geo.asp, px - x) + (spread || 0); hostile.push({ x, y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed / geo.asp, kind: kind || 'orb', r: .028 }); }
       function cannon(side) { cannonFlash[side < 0 ? 0 : 1] = .14; return { x: bossX + side * geo.muzzleDx, y: geo.muzzleY }; }
       function beginAttack(phase) {
@@ -464,8 +473,8 @@
         controls() { return [{ id: 'missile', name: 'MISSILE SALVO', hint: 'Heavy damage', cooldown: missileCd, max: 6 }, { id: 'guard', name: PARTNER + ': OVERWATCH', hint: 'Shield + clear fire', cooldown: guardCd, max: 12 }]; },
         ability(id) {
           if (this.failed) return;
-          if (id === 'missile' && missileCd <= 0) { missileCd = 6; missiles.push({ x: px - .03, y: py - .03, side: -1, trail: [] }, { x: px + .03, y: py - .03, side: 1, trail: [] }); haptic([18, 28, 18]); popup(popups, px, py - .08, 'MISSILES AWAY', '#ffca62'); }
-          if (id === 'guard' && guardCd <= 0) { guardCd = 12; shield = 2.6; const cleared = hostile.length; hostile.splice(0); damage(this, 15 + cleared * 2, bossX, geo.coreY, false); burst(fx, px, py, '#ffe08a', 30); haptic([25, 35, 45]); speak(PARTNER, cleared ? 'Shield up. I scrambled ' + cleared + ' of its shots.' : 'Shield up. Breathe.'); }
+          if (id === 'missile' && missileCd <= 0) { missileCd = 6;sfx('ability'); missiles.push({ x: px - .03, y: py - .03, side: -1, trail: [] }, { x: px + .03, y: py - .03, side: 1, trail: [] }); haptic([18, 28, 18]); popup(popups, px, py - .08, 'MISSILES AWAY', '#ffca62'); }
+          if (id === 'guard' && guardCd <= 0) { guardCd = 12; shield = 2.6;sfx('ability'); const cleared = hostile.length; hostile.splice(0); damage(this, 15 + cleared * 2, bossX, geo.coreY, false); burst(fx, px, py, '#ffe08a', 30); haptic([25, 35, 45]); speak(PARTNER, cleared ? 'Shield up. I scrambled ' + cleared + ' of its shots.' : 'Shield up. Breathe.'); }
         },
         update(dt) {
           if (this.failed) return; elapsed += dt; if (elapsed > 5 && !$('opsTip').hidden) $('opsTip').hidden = true; const phase = elapsed < this.duration / 3 ? 1 : elapsed < this.duration * 2 / 3 ? 2 : 3;

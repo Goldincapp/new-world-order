@@ -22,7 +22,7 @@ public static class Society
     /// <summary>Unstaffed buildings still run, at this fraction of their output.</summary>
     const double UnstaffedOutput = 0.8;
 
-    static readonly Dictionary<string, int> HomeHousing = new() { ["barracks"] = 4 };
+    static readonly Dictionary<string, int> HomeHousing = new() { ["barracks"] = 4, ["housing"] = HousingBlock };
     static readonly Dictionary<string, int> HomeJobs = new() { ["workshop"] = 3, ["research"] = 2, ["warehouse"] = 1, ["crops"] = 1, ["oilpump"] = 1, ["generator"] = 1 };
     static readonly Dictionary<string, int> LandJobs = new() { ["farm"] = 3, ["rig"] = 3, ["sawmill"] = 3, ["mine"] = 3, ["warehouse"] = 2, ["solar"] = 1, ["wind"] = 1 };
 
@@ -31,7 +31,7 @@ public static class Society
 
     public static int Capacity(Player p) =>
         6 + 4 * p.HqLevel
-        + p.HomeTiles.Where(t => HomeBase.Level(t) > 0).Sum(t => HomeHousing.GetValueOrDefault(t.Type))
+        + p.HomeTiles.Where(t => HomeBase.Level(t) > 0).Sum(t => t.Type == "housing" ? HousingBlock * HomeBase.Level(t) : HomeHousing.GetValueOrDefault(t.Type))
         + p.Parcels.Sum(x => Economy.BuildingsOn(x).Count(b => b == "housing")) * HousingBlock;
 
     public static int Jobs(Player p) =>

@@ -33,6 +33,7 @@ public static class HomeBase
     public static readonly Dictionary<string, Kind> Kinds = new()
     {
         ["barracks"] = new("Barracks", 600, 2, 2, "cash", 0, "Trains and houses your troops", 2),
+        ["housing"] = new("Housing block", 450, 2, 2, "cash", 0, "Adds room for 12 settlers", 6),
         ["warehouse"] = new("Warehouse", 500, 2, 2, "cash", 0, "+2 hours of storage before you must collect", 3),
         ["research"] = new("Research lab", 800, 2, 2, "cash", 0, "+5% to everything your land produces", 2),
         ["crops"] = new("Crop plot", 150, 1, 1, "grain", 5, "Grows grain. Your home parcel's terrain affects output", SuitAs: "farm", Field: true),
@@ -46,6 +47,7 @@ public static class HomeBase
     public static readonly Dictionary<string, string[]> LevelUnlocks = new()
     {
         ["barracks"] = ["Gunners", "Rocket launchers", "Tanks", "Helicopters", "Command school"],
+        ["housing"] = ["12 settler homes", "24 settler homes", "36 settler homes", "48 settler homes", "60 settler homes"],
         ["warehouse"] = ["Organised storage", "Secured bays", "Forklifts", "Climate storage", "Logistics hub"],
         ["research"] = ["Tier 1 research", "Tier 2 research", "Tier 3 research", "Prototype wing", "Innovation centre"],
         ["crops"] = ["Hand planting", "Irrigation lines", "Greenhouse rows", "Seed vault", "Hydroponics"],
@@ -127,7 +129,7 @@ public static class HomeBase
         new("train", "Train your first defenders", "Your new Barracks houses troops who protect this base. Select it and train five gunners so raiders cannot reach an undefended gate.", Cash: 200),
         new("laststand", "Raiders at the perimeter", "Raider bikes are racing toward your unfinished base. Build towers on the glowing pads with scrap earned during the fight. Press a raider to make the Headquarters turret focus on it, and stop at least 12 raiders before time runs out.", Cash: 600, Fuel: 80),
         new("walls", "Reinforce the gate", "Walls determine how much damage your gate can take in Last Stand. They also strengthen your towers and Headquarters during real base raids.", Cash: 200),
-        new("people", "Meet your settlers", "More people means higher building and resource output. People consume food and power and also need housing. Your Headquarters provides enough housing for the first settlers.", Cash: 150),
+        new("people", "Meet your settlers", "More people means higher building and resource output. People consume food and power and also need housing. Your Headquarters houses the first settlers; build Housing blocks at home when you need room for more.", Cash: 150),
         new("crops", "Grow a food supply", "Your settlers consume food each hour. A Crop plot is the small food building used inside your home base; larger Farms can be built on fertile parcels later.", Cash: 250),
         new("solar", "Make power", "Your settlers consume power each hour. A power shortage eventually reduces population and leaves jobs unfilled. Solar panels produce power without consuming another resource.", Cash: 250, Power: 20),
     ];

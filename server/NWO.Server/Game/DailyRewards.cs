@@ -49,9 +49,11 @@ public static class DailyRewards
     public static object View(Player p, DateTime now)
     {
         var s = State(p, now);
+        var unlocked = p.TutorialStep >= HomeBase.Tutorial.Length;
         return new
         {
-            s.ready,
+            unlocked,
+            ready = unlocked && s.ready,
             activeStreak = s.active,
             claimedThrough = s.claimedThrough,
             nextDay = s.nextDay,
@@ -63,6 +65,8 @@ public static class DailyRewards
 
     public static ClaimOutcome Claim(GameDb db, Player p, DateTime now)
     {
+        if (p.TutorialStep < HomeBase.Tutorial.Length)
+            return new("Finish the Survival chapter before login supply drops unlock.", null, 1);
         var s = State(p, now);
         if (!s.ready) return new("Today's reward has already been claimed.", null, s.nextDay);
         var reward = Calendar[s.nextDay - 1];
