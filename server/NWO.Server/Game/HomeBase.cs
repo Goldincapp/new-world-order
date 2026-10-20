@@ -61,6 +61,27 @@ public static class HomeBase
 
     public static bool Constructing(HomeTile tile, DateTime? now = null) =>
         tile.PendingLevel is not null && tile.ConstructionEndsAt is { } end && end > (now ?? DateTime.UtcNow);
+    public record UpgradeQueueItem(string Name, int TargetLevel, DateTime CompletesAt, bool Headquarters, long? TileId = null);
+    /// <summary>Players have one upgrade crew. New construction does not consume it, but HQ and existing-building level-ups do.</summary>
+    public static UpgradeQueueItem? ActiveUpgrade(Player p, IEnumerable<HomeTile>? tiles = null, DateTime? now = null)
+    {
+        var at = now ?? DateTime.UtcNow;
+        if (p.PendingHqLevel is { } hq && p.HqUpgradeEndsAt is { } hqEnd && hqEnd > at)
+            return new("Headquarters", hq, hqEnd, true);
+        var tile = (tiles ?? p.HomeTiles).Where(t => t.Level > 0 && t.PendingLevel is not null && t.ConstructionEndsAt > at)
+            .OrderBy(t => t.ConstructionEndsAt).FirstOrDefault();
+        return tile is null ? null : new(Kinds.GetValueOrDefault(tile.Type)?.Name ?? "Building", tile.PendingLevel!.Value,
+            tile.ConstructionEndsAt!.Value, false, tile.Id);
+    }
+    public static string? UpgradeQueueError(Player p, IEnumerable<HomeTile>? tiles = null, DateTime? now = null)
+    {
+        var at = now ?? DateTime.UtcNow;
+        var job = ActiveUpgrade(p, tiles, at);
+        if (job is null) return null;
+        var left = job.CompletesAt - at;
+        var wait = left.TotalHours >= 1 ? $"{Math.Ceiling(left.TotalHours):N0}h" : left.TotalMinutes >= 1 ? $"{Math.Ceiling(left.TotalMinutes):N0}m" : $"{Math.Max(1, Math.Ceiling(left.TotalSeconds)):N0}s";
+        return $"{job.Name} level {job.TargetLevel} is already upgrading ({wait} remaining). Only one building can upgrade at a time.";
+    }
     public static int Level(HomeTile tile) => Math.Clamp(tile.Level, 0, MaxBuildingLevel);
     public static int Level(HomeTile tile, DateTime now) => Level(tile);
     public static double OutputMultiplier(HomeTile tile)
@@ -226,10 +247,12 @@ public static class HomeBase
 
     public static string? Upgrade(GameDb db, Player p, List<HomeTile> tiles, long id)
     {
-        FinalizeReady(db, p, DateTime.UtcNow);
+        var now = DateTime.UtcNow;
+        FinalizeReady(db, p, now);
         var tile = tiles.FirstOrDefault(t => t.Id == id);
         if (tile is null || !Kinds.TryGetValue(tile.Type, out var kind)) return "That building isn't yours.";
         if (Constructing(tile)) return $"That {kind.Name.ToLower()} is already under construction.";
+        if (UpgradeQueueError(p, tiles, now) is { } queueError) return queueError;
         var level = Level(tile);
         if (level >= MaxBuildingLevel) return $"Your {kind.Name.ToLower()} is fully upgraded.";
         if (level >= p.HqLevel) return $"Upgrade your Headquarters to level {level + 1} before raising this building again.";
@@ -304,6 +327,7 @@ public static class HomeBase
         var (lo, hi) = Bounds(p);
         var next = p.HomeLevel + 1 < Sizes.Length ? p.HomeLevel + 1 : -1;
         var sponsoredHqUpgrade = Guide.Current(p, "hq");
+        var upgradeQueue = ActiveUpgrade(p, tiles, now);
         return new
         {
             grid = GridMax, lo, hi, yard = Yard, hq = new { x = HqAt.x, y = HqAt.y, size = HqSize }, hqLevel = p.HqLevel,
@@ -311,6 +335,7 @@ public static class HomeBase
             pendingHqLevel = p.PendingHqLevel, hqUpgradeEndsAt = p.HqUpgradeEndsAt,
             maxBuildings = MaxBuildings(p), upgradeCost = sponsoredHqUpgrade ? 0 : Economy.HqUpgradeCost(p), upgradeNormalCost = Economy.HqUpgradeCost(p), upgradeSponsored = sponsoredHqUpgrade,
             hqUpgradeSeconds = HqUpgradeSeconds(p, Math.Min(10, p.HqLevel + 1), sponsoredHqUpgrade),
+            upgradeQueue = upgradeQueue is null ? null : new { upgradeQueue.Name, level = upgradeQueue.TargetLevel, completesAt = upgradeQueue.CompletesAt, hq = upgradeQueue.Headquarters, tileId = upgradeQueue.TileId },
             tiles = tiles.Select(t =>
             {
                 var k = Kinds[t.Type];

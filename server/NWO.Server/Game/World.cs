@@ -196,8 +196,10 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
 
     public Task<Result> UpgradeHq(Guid playerId) => ChangePlayer(playerId, (db, me) =>
     {
-        HomeBase.FinalizeReady(db, me, DateTime.UtcNow);
+        var now = DateTime.UtcNow;
+        HomeBase.FinalizeReady(db, me, now);
         if (me.PendingHqLevel is not null) return "Your Headquarters is already being upgraded.";
+        if (HomeBase.UpgradeQueueError(me, me.HomeTiles, now) is { } queueError) return queueError;
         if (me.HqLevel >= 10) return "Your HQ is at the maximum level for this season.";
         // The guide must never dead-end because the player spent early cash while learning other systems.
         // The Caretaker sponsors this one upgrade; every later HQ level uses the normal economy.
