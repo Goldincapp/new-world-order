@@ -32,7 +32,7 @@ public static class HomeBase
 
     public static readonly Dictionary<string, Kind> Kinds = new()
     {
-        ["barracks"] = new("Barracks", 600, 2, 2, "cash", 0, "Trains and houses your troops", 2),
+        ["barracks"] = new("Barracks", 600, 2, 2, "cash", 0, "Trains defenders and unlocks raid units, including tanks and helicopters", 2),
         ["housing"] = new("Housing block", 450, 2, 2, "cash", 0, "Adds room for 12 settlers", 6),
         ["warehouse"] = new("Warehouse", 500, 2, 2, "cash", 0, "+2 hours of storage before you must collect", 3),
         ["research"] = new("Research lab", 800, 2, 2, "cash", 0, "+5% to everything your land produces", 2),
@@ -122,8 +122,12 @@ public static class HomeBase
         var changed = false;
         foreach (var tile in readyTiles)
         {
+            var wasNewBuilding = tile.Level <= 0;
             tile.Level = Math.Clamp(tile.PendingLevel!.Value, 1, MaxBuildingLevel);
             tile.PendingLevel = null; tile.ConstructionEndsAt = null; changed = true;
+            // A guided building is not complete until its timer finishes. Advancing here keeps the
+            // next Caretaker briefing from appearing briefly while the structure is still scaffolding.
+            if (wasNewBuilding) Advance(db, p, tile.Type);
         }
         foreach (var parcel in readyParcels)
         {
@@ -141,16 +145,19 @@ public static class HomeBase
         var multipliers = new[] { 0d, 1d, 2d, 4d, 7d };
         return Math.Ceiling(kind.Cost * multipliers[Math.Clamp(currentLevel, 1, MaxBuildingLevel - 1)] / 50) * 50;
     }
+    public static double UpgradeOreCost(Kind kind, int currentLevel) =>
+        Math.Ceiling(kind.Cost * Math.Max(1, currentLevel) * 0.10 / 10) * 10;
 
     /// <summary>The first chapter: one visible need, one action and one reward at a time.</summary>
     public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
     public static readonly Step[] Tutorial =
     [
-        new("barracks", "Learn about your Headquarters", "Every base begins with a Headquarters. It controls how many home buildings you can operate, and higher Headquarters levels allow stronger building upgrades. Select it now; then use Build to place your first Barracks.", Cash: 300),
-        new("train", "Train your first defenders", "Your new Barracks houses troops who protect this base. Select it and train five gunners so raiders cannot reach an undefended gate.", Cash: 200),
-        new("laststand", "Raiders at the perimeter", "Raider bikes are racing toward your unfinished base. Build towers on the glowing pads with scrap earned during the fight. Press a raider to make the Headquarters turret focus on it, and stop at least 12 raiders before time runs out.", Cash: 600, Fuel: 80),
-        new("walls", "Reinforce the gate", "Walls determine how much damage your gate can take in Last Stand. They also strengthen your towers and Headquarters during real base raids.", Cash: 200),
-        new("people", "Meet your settlers", "More people means higher building and resource output. People consume food and power and also need housing. Your Headquarters houses the first settlers; build Housing blocks at home when you need room for more.", Cash: 150),
+        new("hqintro", "Learn about your Headquarters", "Every base begins with a Headquarters. It controls how many home buildings you can operate, and higher Headquarters levels allow stronger building upgrades. Select it now for more information.", Cash: 150),
+        new("barracks", "Build your Barracks", "A Barracks trains the defenders who protect your settlement. Select Build, choose Barracks, and place it inside the walls.", Cash: 150),
+        new("train", "Train your first defenders", "Select your new Barracks and train five gunners. They will hold the gate during defensive Operations and protect the settlement from future attacks.", Cash: 200),
+        new("laststand", "Launch Last Stand", "Last Stand is a replayable Operation, not an attack by another player. Stop the raiders with your Headquarters turret, gunners, and temporary towers built with scrap. Successful Operations raise their Threat level, and the first five wins each day pay resources.", Cash: 600, Fuel: 80),
+        new("walls", "Reinforce the gate", "Walls determine how much damage your gate can take in Last Stand. Reinforce the entry gate now to add integrity and strengthen your defensive towers.", Cash: 200),
+        new("people", "Meet your settlers", "More people mean more building and resource output because more jobs can be filled. Fully staffed buildings run at 100%, while available extra workers can raise settlement output as high as 120%. People consume food and power and also need housing.", Cash: 150),
         new("crops", "Grow a food supply", "Your settlers consume food each hour. A Crop plot is the small food building used inside your home base; larger Farms can be built on fertile parcels later.", Cash: 250),
         new("solar", "Make power", "Your settlers consume power each hour. A power shortage eventually reduces population and leaves jobs unfilled. Solar panels produce power without consuming another resource.", Cash: 250, Power: 20),
     ];
@@ -214,7 +221,9 @@ public static class HomeBase
             PendingLevel = seconds == 0 ? null : 1, ConstructionEndsAt = seconds == 0 ? null : DateTime.UtcNow.AddSeconds(seconds) };
         db.HomeTiles.Add(tile);
         tiles.Add(tile);
-        Advance(db, p, type);
+        // Instant builds can complete the objective now. Timed tutorial builds advance from
+        // FinalizeReady so the following instruction appears only after the building comes online.
+        if (seconds == 0) Advance(db, p, type);
         if (!guided) Progression.Add(db, p, 25, $"built {k.Name}");
         return null;
     }
@@ -257,11 +266,14 @@ public static class HomeBase
         if (level >= MaxBuildingLevel) return $"Your {kind.Name.ToLower()} is fully upgraded.";
         if (level >= p.HqLevel) return $"Upgrade your Headquarters to level {level + 1} before raising this building again.";
         var cost = UpgradeCost(kind, level);
+        var ore = UpgradeOreCost(kind, level);
         if (p.Cash < cost) return $"Upgrading this {kind.Name.ToLower()} to level {level + 1} costs {cost:N0} cash.";
+        if (p.Ore < ore) return $"Upgrading this {kind.Name.ToLower()} to level {level + 1} also needs {ore:N0} ore. Build a Mine or buy ore at the Market.";
         // Bank the old rate first so an upgrade cannot retroactively improve uncollected production.
         Economy.Settle(db, p, DateTime.UtcNow);
         var target = level + 1;
         Ledger.Add(db, p, "cash", -cost, $"Started {kind.Name} level {target} upgrade");
+        Ledger.Add(db, p, "ore", -ore, $"Ore for {kind.Name} level {target}");
         var seconds = UpgradeSeconds(p, target);
         if (seconds == 0) tile.Level = target;
         else { tile.PendingLevel = target; tile.ConstructionEndsAt = DateTime.UtcNow.AddSeconds(seconds); }
@@ -311,12 +323,17 @@ public static class HomeBase
             ? db.Ledger.Where(x => x.PlayerId == p.Id && x.Resource == "power" && x.Reason == powerReason && x.Delta < 0 && x.At >= earliest && x.At <= now)
                 .OrderByDescending(x => x.Id).FirstOrDefault()
             : null;
-        var started = cashDebit?.At ?? powerDebit?.At ?? fallbackStart;
+        var materialResource = job.Headquarters ? "timber" : "ore";
+        var materialReason = job.Headquarters ? $"Timber for HQ level {job.TargetLevel}" : $"Ore for {job.Name} level {job.TargetLevel}";
+        var materialDebit = db.Ledger.Where(x => x.PlayerId == p.Id && x.Resource == materialResource && x.Reason == materialReason && x.Delta < 0 && x.At >= earliest && x.At <= now)
+            .OrderByDescending(x => x.Id).FirstOrDefault();
+        var started = cashDebit?.At ?? powerDebit?.At ?? materialDebit?.At ?? fallbackStart;
         var total = Math.Max(1, (job.CompletesAt - started).TotalSeconds);
         var elapsed = Math.Clamp((now - started).TotalSeconds / total, 0, 1);
         var refundRate = 0.90 - 0.65 * elapsed;
         var cashRefund = Math.Floor((-(cashDebit?.Delta ?? 0)) * refundRate);
         var powerRefund = Math.Floor((-(powerDebit?.Delta ?? 0)) * refundRate);
+        var materialRefund = Math.Floor((-(materialDebit?.Delta ?? 0)) * refundRate);
 
         if (job.Headquarters)
         {
@@ -333,6 +350,7 @@ public static class HomeBase
         }
         if (cashRefund > 0) Ledger.Add(db, p, "cash", cashRefund, $"Refunded cancelled {job.Name} level {job.TargetLevel} upgrade");
         if (powerRefund > 0) Ledger.Add(db, p, "power", powerRefund, $"Refunded cancelled HQ level {job.TargetLevel} upgrade");
+        if (materialRefund > 0) Ledger.Add(db, p, materialResource, materialRefund, $"Refunded cancelled {job.Name} level {job.TargetLevel} upgrade");
         return null;
     }
 
@@ -399,7 +417,7 @@ public static class HomeBase
             grid = GridMax, lo, hi, yard = Yard, hq = new { x = HqAt.x, y = HqAt.y, size = HqSize }, hqLevel = p.HqLevel,
             hqConstructing = p.PendingHqLevel is not null,
             pendingHqLevel = p.PendingHqLevel, hqUpgradeEndsAt = p.HqUpgradeEndsAt,
-            maxBuildings = MaxBuildings(p), upgradeCost = sponsoredHqUpgrade ? 0 : Economy.HqUpgradeCost(p), upgradeNormalCost = Economy.HqUpgradeCost(p), upgradeSponsored = sponsoredHqUpgrade,
+            maxBuildings = MaxBuildings(p), upgradeCost = sponsoredHqUpgrade ? 0 : Economy.HqUpgradeCost(p), upgradeNormalCost = Economy.HqUpgradeCost(p), upgradeTimber = 100 * p.HqLevel, upgradeSponsored = sponsoredHqUpgrade,
             hqUpgradeSeconds = HqUpgradeSeconds(p, Math.Min(10, p.HqLevel + 1), sponsoredHqUpgrade),
             upgradeQueue = upgradeQueue is null ? null : new { upgradeQueue.Name, level = upgradeQueue.TargetLevel, completesAt = upgradeQueue.CompletesAt, hq = upgradeQueue.Headquarters, tileId = upgradeQueue.TileId },
             tiles = tiles.Select(t =>
@@ -419,6 +437,7 @@ public static class HomeBase
                     currentUnlock = constructing ? (activeLevel == 0 ? "Not online yet" : Unlock(t.Type, activeLevel)) : Unlock(t.Type, level),
                     nextUnlock = canUpgrade ? Unlock(t.Type, level + 1) : null,
                     upgradeCost = canUpgrade ? UpgradeCost(k, level) : 0,
+                    upgradeOre = canUpgrade ? UpgradeOreCost(k, level) : 0,
                     upgradeSeconds = canUpgrade ? UpgradeSeconds(p, level + 1) : 0,
                     needsHq = canUpgrade ? level + 1 : 0,
                     outputPerHour = Math.Round(k.PerHour * Suit(p, k) * OutputMultiplier(t), 1),

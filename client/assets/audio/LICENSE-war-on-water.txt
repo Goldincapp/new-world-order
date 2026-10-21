@@ -1,0 +1,9 @@
+War on Water: Chapter 1
+
+Creator: yd
+Source: https://opengameart.org/content/war-on-water-tracks
+Asset: wowchapter1.ogg
+License: Creative Commons CC0 1.0 Universal (public-domain dedication)
+License text: https://creativecommons.org/publicdomain/zero/1.0/
+
+The in-game music control also identifies the track and its CC0 license.

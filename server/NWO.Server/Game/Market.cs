@@ -19,6 +19,8 @@ public class Market(World world, IHubContext<GameHub> hub)
     /// <summary>Where the Caretaker buys and sells each commodity.</summary>
     public static readonly Dictionary<string, (double buy, double sell)> CaretakerBand = new()
     {
+        ["timber"] = (8, 14),
+        ["ore"] = (18, 30),
         ["oil"] = (32, 54),
         ["grain"] = (12, 24),
         ["fuel"] = (48, 80),

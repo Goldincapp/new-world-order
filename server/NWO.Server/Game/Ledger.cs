@@ -5,11 +5,11 @@ namespace NWO.Server.Game;
 /// <summary>The only way balances change: every change is written down with a reason and the new balance.</summary>
 public static class Ledger
 {
-    public static readonly string[] Resources = ["cash", "oil", "fuel", "grain", "gold", "power"];
+    public static readonly string[] Resources = ["cash", "timber", "ore", "oil", "fuel", "grain", "gold", "power"];
 
     public static double Get(Player p, string res) => res switch
     {
-        "cash" => p.Cash, "oil" => p.Oil, "fuel" => p.Fuel, "grain" => p.Grain, "gold" => p.Gold, "power" => p.Power,
+        "cash" => p.Cash, "timber" => p.Timber, "ore" => p.Ore, "oil" => p.Oil, "fuel" => p.Fuel, "grain" => p.Grain, "gold" => p.Gold, "power" => p.Power,
         _ => throw new ArgumentException($"Unknown resource {res}"),
     };
 
@@ -21,6 +21,8 @@ public static class Ledger
         switch (res)
         {
             case "cash": p.Cash = balance; break;
+            case "timber": p.Timber = balance; break;
+            case "ore": p.Ore = balance; break;
             case "oil": p.Oil = balance; break;
             case "fuel": p.Fuel = balance; break;
             case "grain": p.Grain = balance; break;

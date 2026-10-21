@@ -139,31 +139,18 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (parcel is null || parcel.OwnerId != me.Id) return "You can only build on your own parcels.";
         if (parcel.PendingBuilding is not null) return "Finish the building already under construction on this parcel first.";
         if (Research.Unlocking(type) is { } tech && !Research.Has(me, tech.Id)) return $"Research {tech.Name} in your Research lab to build a {t.Name.ToLower()}.";
-        if (Guide.Current(me, "build"))
-        {
-            var land = SectorTemplate.Code(parcel.Sector, parcel.I, parcel.J);
-            // The first parcel lesson is about matching production to land. Housing and storage
-            // solve different needs, so they should never win this recommendation on raw cash.
-            var available = Economy.Buildings.Keys
-                .Where(b => b is "farm" or "rig" or "sawmill" or "mine")
-                .Where(b => Research.Unlocking(b) is not { } needed || Research.Has(me, needed.Id))
-                .ToArray();
-            var best = available.Max(b => Economy.Suit(b, land));
-            var matches = available.Where(b => Math.Abs(Economy.Suit(b, land) - best) < 0.001).ToArray();
-            if (!matches.Contains(type))
-            {
-                var names = string.Join(" or ", matches.Select(b => Economy.Buildings[b].Name));
-                return $"For this first land lesson, build {names}. It is the strongest match for this parcel.";
-            }
-        }
+        var guideBuild = Guide.Current(me, "build") ? "sawmill" : Guide.Current(me, "mine") ? "mine" : Guide.Current(me, "oil") ? "rig" : null;
+        if (guideBuild is not null && type != guideBuild)
+            return $"For this lesson, build the highlighted {Economy.Buildings[guideBuild].Name}. The other choices remain available afterward.";
         if (Economy.ReservedSlots(parcel) + t.Slots > Economy.SlotsPerParcel) return "Not enough free slots on this parcel.";
         if (me.Cash < t.Cost) return $"Not enough cash to build a {t.Name.ToLower()}.";
         Economy.Settle(db, me, now);
         Ledger.Add(db, me, "cash", -t.Cost, $"Started {t.Name} on {sector}:{i},{j}");
-        var seconds = Economy.BuildSeconds(me, t, Guide.Current(me, "build"));
+        var guideAction = Guide.Current(me, "build") ? "build" : Guide.Current(me, "mine") ? "mine" : Guide.Current(me, "oil") ? "oil" : null;
+        var seconds = Economy.BuildSeconds(me, t, guideAction is not null);
         if (seconds == 0) parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? type : parcel.Buildings + "," + type;
         else { parcel.PendingBuilding = type; parcel.BuildingEndsAt = now.AddSeconds(seconds); }
-        Guide.Advance(db, me, "build");
+        if (guideAction is not null) Guide.Advance(db, me, guideAction);
         return null;
     });
 
@@ -211,9 +198,12 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         // The Caretaker sponsors this one upgrade; every later HQ level uses the normal economy.
         var sponsored = Guide.Current(me, "hq");
         var cost = sponsored ? 0 : Economy.HqUpgradeCost(me);
+        var timber = 100 * me.HqLevel;
         var power = sponsored ? 0 : me.HqLevel >= 2 ? me.HqLevel * 15 : 0;
         if (me.Cash < cost) return $"Upgrading to level {me.HqLevel + 1} costs {cost:N0} cash.";
+        if (me.Timber < timber) return $"Upgrading to level {me.HqLevel + 1} needs {timber:N0} timber. Build a Sawmill or buy timber at the Market.";
         if (me.Power < power) return $"Upgrading to level {me.HqLevel + 1} also needs {power:N0} power. Build solar panels.";
+        Ledger.Add(db, me, "timber", -timber, $"Timber for HQ level {me.HqLevel + 1}");
         if (power > 0) Ledger.Add(db, me, "power", -power, $"Power for HQ level {me.HqLevel + 1}");
         var target = me.HqLevel + 1;
         if (cost > 0) Ledger.Add(db, me, "cash", -cost, $"Started HQ level {target} upgrade");

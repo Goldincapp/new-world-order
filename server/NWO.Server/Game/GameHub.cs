@@ -158,6 +158,13 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
         return new World.Result(true, Player: Dto.Me(p));
     });
 
+    public async Task<World.Result> LearnHeadquarters() => await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == Me.Id);
+        HomeBase.Advance(gdb, p, "hqintro");
+        return new World.Result(true, Player: Dto.Me(p));
+    });
+
     public string? Strike(double x, double z) => battles.Strike(Me.Id, x, z);
 
     public string? Retreat() => battles.Retreat(Me.Id);

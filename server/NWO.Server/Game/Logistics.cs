@@ -347,7 +347,8 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
                 {
                     var need = shortfalls.Count > 0 && Rng.NextDouble() < 0.7 ? shortfalls.Dequeue() : ((int sector, string res, double perHour)?)null;
                     var sector = need?.sector ?? (Rng.NextDouble() < 0.6 && settled.Count > 0 ? settled[Rng.Next(settled.Count)] : targets[Rng.Next(targets.Count)]);
-                    var res = need?.res ?? new[] { "grain", "grain", "fuel", "oil" }[Rng.Next(4)];
+                    var resources = new[] { "grain", "grain", "fuel", "oil", "timber", "ore" };
+                    var res = need?.res ?? resources[Rng.Next(resources.Length)];
                     var qty = need is { } n ? Math.Clamp(Math.Ceiling(n.perHour * 6 / 50) * 50, 50, 300) : new[] { 50, 100, 150, 200 }[Rng.Next(4)];
                     var reward = Math.Round(qty * Market.CaretakerBand[res].sell * (1.25 + Rng.NextDouble() * 0.25) / 50) * 50;
                     var issuer = need is not null ? (res == "grain" ? "Hungry settlers" : "Sector council") : sector == 8 ? "Vellmoor capital" : new[] { "Sector council", "Aurelian citizens", "Coldharbor_Gov", "Relief committee" }[Rng.Next(4)];

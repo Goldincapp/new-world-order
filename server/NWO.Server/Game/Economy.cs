@@ -19,8 +19,8 @@ public static class Economy
     {
         ["oil"] = ("oil", 24),
         ["grain"] = ("grain", 18),
-        ["timber"] = ("cash", 30),
-        ["ore"] = ("cash", 45),
+        ["timber"] = ("timber", 12),
+        ["ore"] = ("ore", 10),
         ["stone"] = ("cash", 35),
         ["housing"] = ("cash", 40),
         ["salvage"] = ("cash", 35),
@@ -36,8 +36,8 @@ public static class Economy
         ["housing"] = new("Housing", 800, 2, "cash", 10),
         ["farm"] = new("Farm", 600, 3, "grain", 24),
         ["rig"] = new("Oil rig", 1500, 2, "oil", 36),
-        ["sawmill"] = new("Sawmill", 700, 2, "cash", 30),
-        ["mine"] = new("Mine", 900, 2, "cash", 40),
+        ["sawmill"] = new("Sawmill", 700, 2, "timber", 24),
+        ["mine"] = new("Mine", 900, 2, "ore", 20),
         ["warehouse"] = new("Warehouse", 1000, 3, "cash", 10),
         ["solar"] = new("Solar farm", 900, 2, "power", 12),
         ["wind"] = new("Wind turbine", 1400, 2, "power", 20),
@@ -88,7 +88,7 @@ public static class Economy
 
     public static Dictionary<string, double> RatesPerHour(Player p)
     {
-        var r = new Dictionary<string, double> { ["cash"] = 40, ["oil"] = 0, ["grain"] = 0, ["fuel"] = 0 };
+        var r = new Dictionary<string, double> { ["cash"] = 40, ["timber"] = 0, ["ore"] = 0, ["oil"] = 0, ["grain"] = 0, ["fuel"] = 0 };
         // The HQ's own generator keeps the lights on for the people it houses; growing past that needs more power
         r["power"] = Society.HqPower(p);
         // The Caretaker tithes what's made in sectors it still holds

@@ -70,7 +70,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
     {
         if (!Guide.Active(p) || Guide.Steps[p.GuideStep].Do != "research") return null;
         var owned = Owned(p);
-        return Techs.FirstOrDefault(t =>
+        return Techs.OrderBy(t => t.Id == "mining" ? 0 : 1).FirstOrDefault(t =>
         {
             // A guided recommendation must be startable now. Previously this could highlight
             // a Tier 2 technology while every Research lab was still level 1.
@@ -88,7 +88,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         var mult = 1 + OffPathCost * offPath;
         var labs = Math.Max(1, Labs(p));
         var minutes = t.Minutes / (1 + 0.25 * (labs - 1)) / Speed;
-        if (GuidedChoice(p)?.Id == t.Id) return (0, 0, TimeSpan.FromMinutes(minutes));
+        if (GuidedChoice(p)?.Id == t.Id) return (0, 0, TimeSpan.FromSeconds(15));
         return (Math.Round(t.Cash * mult / 10) * 10, Math.Round(t.Gold * mult), TimeSpan.FromMinutes(minutes));
     }
 
@@ -146,8 +146,21 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         var (cash, gold, time) = Cost(p, t);
         Ledger.Add(db, p, "cash", -cash, $"Research: {t.Name}");
         if (gold > 0) Ledger.Add(db, p, "gold", -gold, $"Research: {t.Name}");
-        p.ResearchId = t.Id;
-        p.ResearchEndsAt = DateTime.UtcNow + time;
+        var guided = GuidedChoice(p)?.Id == t.Id;
+        if (guided)
+        {
+            // The next guided action uses the newly unlocked Mine. Completing this one
+            // starter project immediately prevents a confusing locked-building pause.
+            p.Techs = string.Join(",", Owned(p).Append(t.Id).Distinct());
+            p.ResearchId = null;
+            p.ResearchEndsAt = null;
+            Caretaker.Remember(db, p, 1, "order", $"Researched {t.Name}");
+        }
+        else
+        {
+            p.ResearchId = t.Id;
+            p.ResearchEndsAt = DateTime.UtcNow + time;
+        }
         p.ResearchHelpers = null;
         Guide.Advance(db, p, "research");
         return new World.Result(true, Player: Dto.Me(p));

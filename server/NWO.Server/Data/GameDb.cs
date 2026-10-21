@@ -22,6 +22,8 @@ public class Player
     static double Start(string env, double normal) => double.TryParse(Environment.GetEnvironmentVariable(env), out var v) ? v : normal;
     public double Cash { get; set; } = Start("NWO_START_CASH", 6_000);
     public double Oil { get; set; } = 200;
+    public double Timber { get; set; }
+    public double Ore { get; set; }
     public double Fuel { get; set; } = Start("NWO_START_FUEL", 120);
     public double Grain { get; set; } = 300;
     public double Gold { get; set; } = Start("NWO_START_GOLD", 50);

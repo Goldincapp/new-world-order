@@ -796,6 +796,9 @@ namespace NWO.Server.Data.Migrations
                     b.Property<double>("Oil")
                         .HasColumnType("REAL");
 
+                    b.Property<double>("Ore")
+                        .HasColumnType("REAL");
+
                     b.Property<string>("OperationLevels")
                         .HasColumnType("TEXT");
 
@@ -831,6 +834,9 @@ namespace NWO.Server.Data.Migrations
 
                     b.Property<string>("Techs")
                         .HasColumnType("TEXT");
+
+                    b.Property<double>("Timber")
+                        .HasColumnType("REAL");
 
                     b.Property<string>("TokenHash")
                         .IsRequired()

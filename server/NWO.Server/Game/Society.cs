@@ -41,11 +41,15 @@ public static class Society
     /// <summary>People living in the base as last banked. Players from before the population existed start full.</summary>
     public static double Pop(Player p) => p.PopulationAt is null ? Capacity(p) : p.Population;
 
-    /// <summary>How much of its output a base gets for the workers it has: 0.8 with nobody, 1.0 fully staffed.</summary>
+    /// <summary>How much output a base gets from its workers: 0.8 empty, 1.0 staffed, up to 1.2 with a 25% labour reserve.</summary>
     public static double Staffing(Player p)
     {
         var jobs = Jobs(p);
-        return jobs == 0 ? 1 : UnstaffedOutput + (1 - UnstaffedOutput) * Math.Min(1, Pop(p) / jobs);
+        if (jobs == 0) return 1;
+        var coverage = Pop(p) / jobs;
+        return coverage <= 1
+            ? UnstaffedOutput + (1 - UnstaffedOutput) * coverage
+            : 1 + .2 * Math.Min(1, (coverage - 1) / .25);
     }
 
     /// <summary>Food and power hold while this hour's balance is positive or there is something left in store.</summary>
@@ -98,9 +102,18 @@ public static class Society
         people = Math.Floor(l.People), housing = l.Housing,
         food = new { made = R(l.FoodMade), eaten = R(l.FoodEaten), net = R(l.Food) },
         power = new { made = R(l.PowerMade), used = R(l.PowerUsed), net = R(l.Power) },
-        work = new { jobs = l.Jobs, filled = Math.Floor(l.Filled), output = l.Jobs == 0 ? 100 : Math.Round(100 * (UnstaffedOutput + (1 - UnstaffedOutput) * Math.Min(1, l.Filled / l.Jobs))) },
+        work = new { jobs = l.Jobs, filled = Math.Floor(l.Filled), output = l.Jobs == 0 ? 100 : Math.Round(100 * StaffingFor(l.People, l.Jobs)) },
         status,
     };
+
+    static double StaffingFor(double people, int jobs)
+    {
+        if (jobs == 0) return 1;
+        var coverage = people / jobs;
+        return coverage <= 1
+            ? UnstaffedOutput + (1 - UnstaffedOutput) * coverage
+            : 1 + .2 * Math.Min(1, (coverage - 1) / .25);
+    }
 
     static double R(double v) => Math.Round(v, 1);
 

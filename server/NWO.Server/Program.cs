@@ -424,18 +424,18 @@ api.MapGet("/admin/chatlog", async (HttpContext ctx, GameDb db, DateTime? since,
 api.MapGet("/admin/sentinel/history", (HttpContext ctx) => Admin.Allowed(ctx) ? Results.Ok(Siege.History) : Results.Unauthorized());
 
 // Admin: give a player resources, e.g. /admin/grant?name=Kyle2&cash=100000. Recorded in the ledger.
-api.MapPost("/admin/grant", async (HttpContext ctx, World world, IHubContext<GameHub> hub, string name, double? cash, double? fuel, double? gold, double? oil, double? grain) =>
+api.MapPost("/admin/grant", async (HttpContext ctx, World world, IHubContext<GameHub> hub, string name, double? cash, double? fuel, double? gold, double? oil, double? grain, double? timber, double? ore) =>
 {
     if (!Admin.Allowed(ctx)) return Results.Unauthorized();
     var r = await world.Locked(async db =>
     {
         var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstOrDefaultAsync(x => x.Name.ToLower() == name.ToLower());
         if (p is null) return (object?)null;
-        foreach (var (res, amt) in new[] { ("cash", cash), ("fuel", fuel), ("gold", gold), ("oil", oil), ("grain", grain) })
+        foreach (var (res, amt) in new[] { ("cash", cash), ("fuel", fuel), ("gold", gold), ("oil", oil), ("grain", grain), ("timber", timber), ("ore", ore) })
             if (amt is > 0) Ledger.Add(db, p, res, amt.Value, "Granted by an admin");
         var me = Dto.Me(p);
         _ = hub.Clients.Clients(GameHub.ConnectionsOf(p.Id)).SendAsync("me", me);
-        return new { p.Name, resources = new { p.Cash, p.Fuel, p.Gold, p.Oil, p.Grain } };
+        return new { p.Name, resources = new { p.Cash, p.Timber, p.Ore, p.Fuel, p.Gold, p.Oil, p.Grain } };
     });
     return r is null ? Results.NotFound(new { error = "No player by that name." }) : Results.Ok(r);
 });
@@ -507,9 +507,10 @@ static class Dto
         return new
         {
             p.Name, p.Nation, p.HomeSector, p.Standing,
-            resources = new { cash = Math.Floor(p.Cash), oil = Math.Floor(p.Oil), fuel = Math.Floor(p.Fuel), grain = Math.Floor(p.Grain), gold = Math.Floor(p.Gold), power = Math.Floor(p.Power) },
+            resources = new { cash = Math.Floor(p.Cash), timber = Math.Floor(p.Timber), ore = Math.Floor(p.Ore), oil = Math.Floor(p.Oil), fuel = Math.Floor(p.Fuel), grain = Math.Floor(p.Grain), gold = Math.Floor(p.Gold), power = Math.Floor(p.Power) },
             pending = Economy.Pending(p, now),
             people = Math.Floor(Society.PopulationNow(p, now)), housing = Society.Capacity(p),
+            productivity = Math.Round(Society.Staffing(p) * 100),
             ratesPerHour = Economy.RatesPerHour(p),
             parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x), construction = x.PendingBuilding is null ? null : new { type = x.PendingBuilding, completesAt = x.BuildingEndsAt } }),
             home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, owner = p.IsOwner, progression = Progression.View(p), guide = Guide.View(p), operations = Operations.View(p), allianceId = p.AllianceId, allianceRole = p.AllianceRole, warScore = Region2.Score(p),
