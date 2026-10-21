@@ -48,13 +48,6 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
     public static Tech? Find(string id) => Techs.FirstOrDefault(t => t.Id == id);
     public static HashSet<string> Owned(Player p) => (p.Techs ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
     public static bool Has(Player p, string id) => Owned(p).Contains(id);
-    /// <summary>Older restart builds left completed technologies behind. At the untouched research lesson,
-    /// that state can only be stale restart data because starting any research immediately advances the guide.</summary>
-    public static void RepairRestartedGuide(Player p)
-    {
-        if (Guide.Current(p, "research") && p.ResearchId is null && !string.IsNullOrWhiteSpace(p.Techs))
-            p.Techs = null;
-    }
     /// <summary>The tech a parcel building needs, if any.</summary>
     public static Tech? Unlocking(string building) => Techs.FirstOrDefault(t => t.Unlocks == building);
 

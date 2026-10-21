@@ -140,11 +140,14 @@ public static class Economy
     public static Dictionary<string, double> Collect(GameDb db, Player p, DateTime now, string reason = "Collected production")
     {
         var got = Pending(p, now);
+        // Collecting pays up to 25 XP for each hour of production since the last collection, so tapping Collect
+        // again and again doesn't farm XP.
+        var xp = (int)Math.Min(25, Math.Max(0, (now - p.LastCollectAt).TotalHours) * 25);
         foreach (var (res, amount) in got) Ledger.Add(db, p, res, amount, reason);
         Society.Advance(p, now);
         p.LastCollectAt = now;
-        if (reason != "Production banked before a change" && got.Values.Any(x => x >= 1))
-            Progression.Add(db, p, 25, "collected production");
+        if (reason != "Production banked before a change" && xp > 0 && got.Values.Any(x => x >= 1))
+            Progression.Add(db, p, xp, "collected production");
         return got;
     }
 
@@ -152,7 +155,7 @@ public static class Economy
     /// Banks production so far before anything changes the rates (a claim or a building),
     /// so a new rig never pays out retroactively.
     /// </summary>
-    public static void Settle(GameDb db, Player p, DateTime now) => Collect(db, p, now, "Production banked before a change");
+    public static Dictionary<string, double> Settle(GameDb db, Player p, DateTime now) => Collect(db, p, now, "Production banked before a change");
 
     /// <summary>The Caretaker's daily ration crate: enough to survive, never enough to grow. Scaled by the player's record.</summary>
     public static readonly TimeSpan RationEvery = TimeSpan.FromHours(20);

@@ -233,10 +233,11 @@ const onboardingSteps = [...tutorialSteps, ...guideSteps];
 const gameSources = readdirSync(paths.game).filter(file => file.endsWith('.cs')).map(file => ({ file, text: readFileSync(resolve(paths.game, file), 'utf8') }));
 gameSources.push({ file: 'Program.cs', text: readFileSync(resolve(root, 'server/NWO.Server/Program.cs'), 'utf8') });
 const onboardingRoutes = {
-  barracks: 'Home → Build → Barracks → place', train: 'Home → Barracks → Train five gunners', laststand: 'Operations → Last Stand', walls: 'Home → Entry gate → Reinforce walls', people: 'Population counter', crops: 'Home → Build → Crop plot → place', solar: 'Home → Build → Solar panel → place', collect: 'Collect ready-production icon', readiness: 'Collect production, build or upgrade, or replay Last Stand',
-  claim: 'Sector → available parcel → Claim', build: 'Sector → owned parcel → Build', extraction: 'Operations → Extraction Run', hq: 'Home → Headquarters → Upgrade HQ', research: 'Home → Build → Research lab → place → Research → recommended upgrade', upgrade: 'Home → Barracks → Upgrade building', order: 'Market → Food → Buy', ship: 'Contracts → affordable delivery', battle: 'Sector → militia camp → Gunner → lane', leviathan: 'Operations → Leviathan Assault', alliance: 'Alliance → join, found, or skip', vote: 'Politics → available vote or skip', record: 'Record', sentinel: 'Home → Headquarters → The Sentinel',
+  hqintro: 'Home → Headquarters', barracks: 'Home → Build → Barracks → place', train: 'Home → Barracks → Train five gunners', laststand: 'Operations → Last Stand', walls: 'Home → Entry gate → Reinforce walls', people: 'Population counter', crops: 'Home → Build → Crop plot → place', solar: 'Home → Build → Solar panel → place', collect: 'Collect ready-production icon', readiness: 'Collect production, build or upgrade, or replay Last Stand',
+  claim: 'Sector → available parcel → Claim', build: 'Sector → owned parcel → Build → Sawmill', mine: 'Sector → owned parcel → Build → Mine', oil: 'Sector → owned parcel → Build → Oil rig', extraction: 'Operations → Extraction Run', hq: 'Home → Headquarters → Upgrade HQ', research: 'Home → Build → Research lab → place → Research → recommended upgrade', upgrade: 'Home → Barracks → Upgrade building', order: 'Market → Food → Buy', ship: 'Contracts → affordable delivery', battle: 'Sector → militia camp → Gunner → lane', leviathan: 'Operations → Leviathan Assault', alliance: 'Alliance → join, found, or skip', vote: 'Politics → available vote or skip', record: 'Record', sentinel: 'Home → Headquarters → The Sentinel',
 };
 const progressionMeta = {
+  hqintro: { minutes: 1, screen: 'Home · Headquarters', introduces: ['Headquarters', 'Building limit'], unlocks: ['Barracks lesson'] },
   barracks: { minutes: 2, screen: 'Home base', introduces: ['Headquarters', 'Cash', 'Buildings'], unlocks: ['Barracks', 'Base defence'] },
   train: { minutes: 2, screen: 'Barracks', introduces: ['Gunners', 'Training cost'], unlocks: ['Trained defenders'] },
   laststand: { minutes: 3, screen: 'Operations · Last Stand', introduces: ['Operations', 'Scrap', 'Towers', 'Fuel'], unlocks: ['Threat progression'] },
@@ -249,9 +250,11 @@ const progressionMeta = {
   claim: { minutes: 3, screen: 'Sector map · available parcel', introduces: ['Parcels', 'Land types'], unlocks: ['First expansion parcel'] },
   build: { minutes: 3, screen: 'Owned parcel', introduces: ['Resource suitability'], unlocks: ['Parcel production'] },
   extraction: { minutes: 4, screen: 'Operations · Extraction Run', introduces: ['Cargo', 'Extraction beacon'], unlocks: ['Extraction threat progression'] },
-  hq: { minutes: 2, screen: 'Headquarters', introduces: ['HQ level', 'Building slots'], unlocks: ['More building capacity'] },
+  hq: { minutes: 2, screen: 'Headquarters', introduces: ['HQ level', 'Building slots', 'Timber'], unlocks: ['More building capacity'] },
   research: { minutes: 3, screen: 'Research lab', introduces: ['Permanent technology'], unlocks: ['Research progression'] },
+  mine: { minutes: 2, screen: 'Owned parcel', introduces: ['Ore'], unlocks: ['Building upgrades'] },
   upgrade: { minutes: 1, screen: 'Home · Barracks', introduces: ['Building levels'], unlocks: ['Rocket launchers'] },
+  oil: { minutes: 2, screen: 'Owned parcel', introduces: ['Oil supply'], unlocks: ['Trade goods'] },
   order: { minutes: 4, screen: 'Market · Grain', introduces: ['Buy orders', 'Sell orders', 'Unit price'], unlocks: ['Player market'] },
   ship: { minutes: 4, screen: 'Contracts', introduces: ['Delivery jobs', 'Route risk'], unlocks: ['Logistics contracts'] },
   battle: { minutes: 4, screen: 'Sector battle', introduces: ['Command points', 'Deployment lanes'], unlocks: ['Regional combat'] },
@@ -265,8 +268,10 @@ const missingProgressionMeta = onboardingSteps.filter(x => !progressionMeta[x.id
 if (missingProgressionMeta.length) warn('Progression', 'Some objectives are missing storyboard design metadata', missingProgressionMeta.map(x => x.id).join(', '), ['tools/playtest/audit.mjs']);
 else pass('Progression', 'Every objective has storyboard metadata', `${onboardingSteps.length} objectives define an intended screen, time estimate, introduced concepts, and unlocks.`, ['tools/playtest/audit.mjs']);
 const dynamicHomeCompletions = new Set(['barracks', 'crops', 'solar', 'walls']);
+// World.Build advances these parcel lessons through a guideAction variable rather than a literal.
+const dynamicParcelCompletions = new Set(['build', 'mine', 'oil']);
 const dynamicOperationCompletions = new Set(serverOps);
-const completionFor = id => dynamicHomeCompletions.has(id) || dynamicOperationCompletions.has(id) || new RegExp(`completeReadingGuide\\('${id}'\\)`).test(source.index) || gameSources.some(x => new RegExp(`(?:HomeBase|Guide)\\.Advance\\([^;]+"${id}"`).test(x.text));
+const completionFor = id => dynamicHomeCompletions.has(id) || dynamicParcelCompletions.has(id) || dynamicOperationCompletions.has(id) || new RegExp(`completeReadingGuide\\('${id}'\\)`).test(source.index) || gameSources.some(x => new RegExp(`(?:HomeBase|Guide)\\.Advance\\([^;]+"${id}"`).test(x.text));
 const missingRoutes = onboardingSteps.filter(x => !onboardingRoutes[x.id]);
 if (missingRoutes.length) fail('Onboarding', 'Some steps have no known click path', missingRoutes.map(x => x.id).join(', '), ['client/index.html']);
 else pass('Onboarding', 'Every step has a click path', `${onboardingSteps.length} tutorial and Field Guide steps map to a first control and completion action.`, ['client/index.html']);

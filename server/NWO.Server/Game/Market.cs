@@ -19,8 +19,11 @@ public class Market(World world, IHubContext<GameHub> hub)
     /// <summary>Where the Caretaker buys and sells each commodity.</summary>
     public static readonly Dictionary<string, (double buy, double sell)> CaretakerBand = new()
     {
-        ["timber"] = (8, 14),
-        ["ore"] = (18, 30),
+        // Timber and ore are mainly building materials. At these prices selling a Sawmill's or Mine's output earns
+        // a little more than the 30 and 40 cash an hour they made before materials existed; contracts pay a multiple
+        // of the selling price.
+        ["timber"] = (1.5, 4),
+        ["ore"] = (2.5, 6),
         ["oil"] = (32, 54),
         ["grain"] = (12, 24),
         ["fuel"] = (48, 80),
@@ -32,6 +35,9 @@ public class Market(World world, IHubContext<GameHub> hub)
     {
         foreach (var (res, band) in CaretakerBand)
         {
+            // Standing orders follow the band, so a price change here reaches the book on the next start.
+            foreach (var o in await db.Orders.Where(o => o.PlayerId == null && o.Resource == res).ToListAsync())
+                o.Price = o.Side == "buy" ? band.buy : band.sell;
             if (!await db.Orders.AnyAsync(o => o.PlayerId == null && o.Resource == res && o.Side == "buy"))
                 db.Orders.Add(new Order { Resource = res, Side = "buy", Price = band.buy, Qty = CaretakerDepth, Remaining = CaretakerDepth });
             if (!await db.Orders.AnyAsync(o => o.PlayerId == null && o.Resource == res && o.Side == "sell"))

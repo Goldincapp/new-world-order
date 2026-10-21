@@ -111,34 +111,43 @@ public static class HomeBase
         6 => 4 * 60 * 60, 7 => 8 * 60 * 60, 8 => 12 * 60 * 60,
         9 => 18 * 60 * 60, _ => 24 * 60 * 60
     };
-    public static bool FinalizeReady(GameDb db, Player p, DateTime now)
+    /// <summary>Switches on everything whose construction has finished. Each one starts producing at its finish time,
+    /// not when the player next looks: production is banked at the old levels up to each finish time in turn, and what
+    /// was made since the last one stays pending for the normal collection. banked, if given, receives what was banked.</summary>
+    public static bool FinalizeReady(GameDb db, Player p, DateTime now, Dictionary<string, double>? banked = null)
     {
-        var readyTiles = p.HomeTiles.Where(t => t.PendingLevel is not null && t.ConstructionEndsAt <= now).ToList();
-        var readyParcels = p.Parcels.Where(x => x.PendingBuilding is not null && x.BuildingEndsAt <= now).ToList();
-        var readyHq = p.PendingHqLevel is not null && p.HqUpgradeEndsAt <= now;
-        if (readyTiles.Count == 0 && readyParcels.Count == 0 && !readyHq) return false;
-        // Bank production at the old levels before any completed structure becomes active.
-        Economy.Settle(db, p, now);
-        var changed = false;
-        foreach (var tile in readyTiles)
+        var events = new List<(DateTime at, Action apply)>();
+        foreach (var tile in p.HomeTiles.Where(t => t.PendingLevel is not null && t.ConstructionEndsAt <= now).ToList())
+            events.Add((tile.ConstructionEndsAt!.Value, () =>
+            {
+                var wasNewBuilding = tile.Level <= 0;
+                tile.Level = Math.Clamp(tile.PendingLevel!.Value, 1, MaxBuildingLevel);
+                tile.PendingLevel = null; tile.ConstructionEndsAt = null;
+                // A guided building is not complete until its timer finishes. Advancing here keeps the
+                // next Caretaker briefing from appearing briefly while the structure is still scaffolding.
+                if (wasNewBuilding) Advance(db, p, tile.Type);
+            }));
+        foreach (var parcel in p.Parcels.Where(x => x.PendingBuilding is not null && x.BuildingEndsAt <= now).ToList())
+            events.Add((parcel.BuildingEndsAt!.Value, () =>
+            {
+                parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? parcel.PendingBuilding : parcel.Buildings + "," + parcel.PendingBuilding;
+                parcel.PendingBuilding = null; parcel.BuildingEndsAt = null;
+            }));
+        if (p.PendingHqLevel is { } hq && p.HqUpgradeEndsAt is { } hqEnd && hqEnd <= now)
+            events.Add((hqEnd, () => { p.HqLevel = Math.Clamp(hq, 1, 10); p.PendingHqLevel = null; p.HqUpgradeEndsAt = null; }));
+        if (events.Count == 0) return false;
+        // Production older than the storage window would be lost to the cap anyway. Dropping it first keeps the
+        // banked pieces below, added together, within the same cap as a single collection.
+        var windowStart = now - Economy.Storage(p);
+        if (p.LastCollectAt < windowStart) p.LastCollectAt = windowStart;
+        foreach (var (at, apply) in events.OrderBy(e => e.at))
         {
-            var wasNewBuilding = tile.Level <= 0;
-            tile.Level = Math.Clamp(tile.PendingLevel!.Value, 1, MaxBuildingLevel);
-            tile.PendingLevel = null; tile.ConstructionEndsAt = null; changed = true;
-            // A guided building is not complete until its timer finishes. Advancing here keeps the
-            // next Caretaker briefing from appearing briefly while the structure is still scaffolding.
-            if (wasNewBuilding) Advance(db, p, tile.Type);
+            if (at > p.LastCollectAt)
+                foreach (var (res, amount) in Economy.Settle(db, p, at))
+                    if (banked is not null && amount != 0) banked[res] = banked.GetValueOrDefault(res) + amount;
+            apply();
         }
-        foreach (var parcel in readyParcels)
-        {
-            parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? parcel.PendingBuilding : parcel.Buildings + "," + parcel.PendingBuilding;
-            parcel.PendingBuilding = null; parcel.BuildingEndsAt = null; changed = true;
-        }
-        if (readyHq && p.PendingHqLevel is { } hq)
-        {
-            p.HqLevel = Math.Clamp(hq, 1, 10); p.PendingHqLevel = null; p.HqUpgradeEndsAt = null; changed = true;
-        }
-        return changed;
+        return true;
     }
     public static double UpgradeCost(Kind kind, int currentLevel)
     {

@@ -63,8 +63,8 @@ Core server patterns:
 **First session (about 15 minutes)**
 
 1. **Sign up.** Pick a name (3 to 16 letters, numbers, `._-`). No email or password: the device keeps a secret token, and a year-long cookie backs it up. The player gets a home plot in the least-crowded open Region 1 sector.
-2. **Survival chapter (7 focused objectives).** The opening uses a problem → action → visible reward rhythm: build a Barracks, train five gunners, defend the base in Last Stand, reinforce the entry gate, meet the settlers, then add food and power. The Caretaker can read each prompt aloud. Its copy explains why; an arrow points at the real control the player must press, without a shortcut button that opens it automatically. Only the controls and resource counters needed for the current objective are shown. Every objective names its reward before the player acts.
-3. **Field Guide (15 visible objectives grouped into chapters, plus one hidden legacy compatibility step).** A short Stabilising checkpoint first asks the player to earn 100 XP through collection, construction/upgrades or replaying Last Stand. Then: claim land → build a terrain-matched structure → Extraction Run → upgrade HQ → research → upgrade the Barracks → market → legal delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
+2. **Survival chapter (8 focused objectives).** The opening uses a problem → action → visible reward rhythm: learn what the Headquarters does, build a Barracks, train five gunners, defend the base in Last Stand, reinforce the entry gate, meet the settlers, then add food and power. The Caretaker can read each prompt aloud. Its copy explains why; an arrow points at the real control the player must press, without a shortcut button that opens it automatically. Only the controls and resource counters needed for the current objective are shown. Every objective names its reward before the player acts.
+3. **Field Guide (15 visible objectives grouped into chapters, plus one hidden legacy compatibility step).** A short Stabilising checkpoint first asks the player to earn 100 XP through collection, construction/upgrades or replaying Last Stand. Then: claim land → build a terrain-matched structure → Extraction Run → upgrade HQ with timber → research → build a Mine → upgrade the Barracks with ore → oil rig → market → legal delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
 4. **Chaptered Field Guide.** Expansion, Growth, Trade, Defence, World Threats and the Caretaker each introduce one new system through a concrete action. Community and Leadership are explicitly optional so an empty server cannot block a solo tester. Each prompt defines the new term, gives one direct call to action and points at the relevant control: a gold callout with a bouncing arrow sits beside the button, or beside a building in the 3D view, and places itself so it doesn't cover the target or the tutorial card. The rest of the screen is no longer darkened. Three mobile action games break up that strategy path. Last Stand now appears during Survival, immediately after the Barracks, so the building has an understandable purpose and an instant payoff. Extraction Run and Leviathan Assault arrive later as tests of expansion and world-threat readiness. Completed Operations remain replayable without repeat tutorial payouts.
 
 **Every session after that (the core loop, 5 to 15 minutes)**
@@ -140,11 +140,11 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 - **Remembered sign-in.** The token is kept in `localStorage` and in an HttpOnly year-long cookie `nwo_t`. If the page loses its copy, `/me` authenticates by cookie and hands the token back.
 - **Recovery codes.** `POST /api/me/recovery` issues a 12-character code like `ABCD-EFGH-JKLM` (no look-alike letters). `POST /api/auth/recover {code}` signs in on another device and adds that device to `ExtraTokens` (keeps the last 6), so other devices stay signed in.
 - **Returning players.** The client retries `/me` through bad connections (a "Reconnecting…" toast, then a Try again card). It only shows sign-up on a real 401. Devices that have played skip the intro.
-- **Start over.** `POST /me/restart` resets base, land, money, tutorial, XP, operation threat levels and daily operation wins; name, nation and record stay.
+- **Start over.** `POST /me/restart` resets base, land, money, tutorial, research, XP, operation threat levels and daily operation wins; name, nation and record stay.
 
 ### 5.2 Resources and economy (`Economy.cs`, `Ledger.cs`)
 
-- **Resources:** cash, oil, grain, fuel, gold, power. The HUD calls grain **Food** while the server/market retain the `grain` identifier. There's also a land counter (parcels owned), shown as a chip in the HUD.
+- **Resources:** cash, oil, grain, fuel, gold, power, timber and ore. Timber pays for HQ upgrades (100 × the current HQ level) and ore for building upgrades (10% of the building's price × its current level, rounded up to 10). The HUD calls grain **Food** while the server/market retain the `grain` identifier. There's also a land counter (parcels owned), shown as a chip in the HUD.
 - **Starting supplies:** defaults are 6,000 cash, 120 fuel and 50 gold. The live test server sets `NWO_START_CASH=100000`, `NWO_START_FUEL=1000` and `NWO_START_GOLD=500`.
 - **Base income:** 40 cash an hour.
 - **Land yield per parcel per hour**, by resource under it:
@@ -153,8 +153,8 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
   |---|---|
   | Oil | 24 oil |
   | Grain | 18 grain |
-  | Timber | 30 cash |
-  | Ore | 45 cash |
+  | Timber | 12 timber |
+  | Ore | 10 ore |
   | Stone | 35 cash |
   | Housing | 40 cash |
   | Salvage | 35 cash |
@@ -167,17 +167,19 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 
   | Building | Cost (cash) | Slots | Output per hour | Needs research |
   |---|---|---|---|---|
-  | Housing | 800 | 2 | 60 cash | Housing blocks |
+  | Housing | 800 | 2 | 10 cash | Housing blocks |
   | Farm | 600 | 3 | 24 grain | none |
   | Oil rig | 1,500 | 2 | 36 oil | none |
-  | Sawmill | 700 | 2 | 30 cash | none |
-  | Mine | 900 | 2 | 40 cash | Mining |
+  | Sawmill | 700 | 2 | 24 timber | none |
+  | Mine | 900 | 2 | 20 ore | Mining |
   | Warehouse | 1,000 | 3 | 10 cash | Warehousing |
   | Solar farm | 900 | 2 | 12 power | Solar arrays |
   | Wind turbine | 1,400 | 2 | 20 power | Wind power |
 
 - **Suitability.** Anything can be built anywhere, but land decides output. A rig on oil sands runs at 1.0, on barren ground 0.06. A farm gets 1.5 on fertile land. Solar gets 1.25 on barren land.
-- **HQ upgrade** costs 2,000 × level² cash, and from level 2 also 15 × level power. The Field Guide's HQ step is free: the Caretaker sponsors that one upgrade so the guide can't dead-end.
+- **HQ upgrade** costs 2,000 × level² cash and 100 × level timber, and from level 2 also 15 × level power. The Field Guide's HQ step is free: the Caretaker sponsors that one upgrade so the guide can't dead-end.
+- **Daily login rewards** (`DailyRewards.cs`). After Survival, one claim per UTC day walks a 30-day calendar of cash, food, oil, fuel, gold and power, with bigger caches on days 7, 14, 21, 28 and 30. Claiming on consecutive days continues the streak; a missed day starts again at day 1, and after day 30 it loops. Claims don't change standing.
+- **Account XP and level** (`Progression.cs`). Level is `1 + XP / 100`; see 5.18 for what pays XP.
 - **Daily supplies (Caretaker ration crate):** every 20 hours, 20 to 110 food/grain and 0 to 25 fuel depending on standing tier. This has its own Claim daily supplies button and is not bundled into production collection.
 - **Caretaker tithe:** up to 15% of everything made in a sector it still holds (see 5.6).
 
@@ -189,7 +191,7 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
 - **Needs.** Each person eats 0.4 grain and uses 0.25 power an hour, taken out of production, so rates can go negative. Upkeep waits until the Survival food-and-power lessons are finished, preventing a new player's first food screen from starting negative. Consumption only ever takes what is in store, so balances never go below zero.
 - **HQ generator.** The HQ makes (6 + 4 × HQ level) × 0.25 power an hour, enough for the people the HQ itself houses. Growing past that needs solar or wind.
 - **Growth.** While food and power hold (this hour's balance is positive, or there is some left in store) the population closes most of the gap to its housing in about 6 hours. If either runs out it shrinks 4% an hour, down to 2.
-- **Work.** Buildings need workers: workshop 3, research lab 2, warehouse 1, crop plot, oil pump and generator 1 each; farm, rig, sawmill and mine 3, land warehouse 2, solar farm and wind turbine 1. Output runs from 80% with nobody to 100% fully staffed.
+- **Work.** Buildings need workers: workshop 3, research lab 2, warehouse 1, crop plot, oil pump and generator 1 each; farm, rig, sawmill and mine 3, land warehouse 2, solar farm and wind turbine 1. Output runs from 80% with nobody to 100% fully staffed, and spare people raise it further, up to 120% at 25% more people than jobs.
 - **Sector and nation.** A sector's ledger is the sum of the real players' bases whose home is there (AI neighbours aren't counted); the nation's is the sum of all of them. Hub `EconomyView` returns all three.
 - **Needs board.** When contracts are posted, 70% of new ones go to sectors short of food (a grain order) or power (a fuel order for generators), for about six hours of the shortfall rounded up to 50 (50 to 300), issued by "Hungry settlers" or the sector council. A sector gets at most one open order per shortage.
 - **In the HUD.** A People chip (people/housing, red when food or power has run out) opens the Economy card, with Your base, Sector and Nation tabs.
@@ -218,8 +220,10 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   | Solar panel | 350 | 1×1, field | 5 power/h |
   | Generator | 700 | 1×1, field | 4 fuel/h |
 
+- **Construction timers.** New buildings take 20 seconds to 10 minutes (longer at higher HQ levels; tutorial builds take 5 to 12 seconds). Building upgrades take 90 seconds to level 2, 15 minutes to 3, 2 hours to 4 and 24 hours to 5. HQ upgrades take 30 seconds to level 2, then 5 minutes, 30 minutes, 2, 4, 8, 12 and 18 hours, and 24 hours from level 10. Only one upgrade (a building or the HQ) can run at a time. A building or HQ switches on at its finish time even if the player is away: production is banked at the old levels up to that moment.
+- **Cancelling an upgrade** refunds 90% of the cash, ore or timber and power at the start, falling steadily to 25% near the end.
 - **Building levels.** Every home building has its own level from 1 to 5 and cannot rise above the HQ level. Its model gains visible detail and a stronger silhouette with each level. Production buildings improve output; Warehouses add storage time; Research labs open higher research tiers; Barracks add defender capacity and unlock Gunners at level 1, Launchers at level 2, Tanks at level 3 and Helicopters at level 4.
-  - **Costs and effects.** Upgrading costs the building's price × 1, 2, 4 and 7 for levels 2 to 5 (rounded up to 50). Production buildings make ×1.35, ×1.75, ×2.25 and ×3 at levels 2 to 5. Production made before an upgrade is banked at the old rate.
+  - **Costs and effects.** Upgrading costs the building's price × 1, 2, 4 and 7 for levels 2 to 5 (rounded up to 50), plus ore. Production buildings make ×1.35, ×1.75, ×2.25 and ×3 at levels 2 to 5. Production made before an upgrade is banked at the old rate.
 - **The entrance.** The front wall has one full-width gate with a paved approach, labelled with the wall level. Its look follows the wall level through five stages: a scrap gate with amber beacons, then side buttresses and armour bands, a powered arch with status lamps, watch posts with close-range guns, and finally a second armoured gate forming a lit airlock.
 - **Placement UI.** A ghost model appears at the nearest free spot by the HQ. Drag it or use the arrows, Rotate, then confirm. Green means it fits, red means blocked.
 - **Defence:**
@@ -290,6 +294,8 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 
   | Commodity | Caretaker buys at | Caretaker sells at |
   |---|---|---|
+  | Timber | 1.5 | 4 |
+  | Ore | 2.5 | 6 |
   | Oil | 32 | 54 |
   | Grain | 12 | 24 |
   | Fuel | 48 | 80 |
@@ -418,7 +424,7 @@ Hold 10% of a sector's claimable land (about 98 parcels) to name it. Anyone who 
 Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Leviathan Assault** (Field Guide). They share one look: Blender-rendered arenas fitted to the screen's height, solid outlined projectiles with glow, damage numbers, red screen edges when hurt, and **Lumen**, a friendly AI drone that flies with the player in every operation and talks them through it.
 
 - **Threat levels.** Each operation has its own threat level (`Player.OperationLevels`), starting at 1. Every win raises it by one, up to 30; losing keeps it. The level sets the enemies and the target. Player damage doesn't grow with it. Starting the character over clears every operation back to threat 1.
-- **Account XP.** After Survival, a successful operation gives 50 XP, collecting at least one unit of ready production gives 25 XP, construction gives 25 XP and a building upgrade gives 30 XP. Level is `1 + XP / 100`. Expansion stays gated behind the first 100-XP Stabilising checkpoint.
+- **Account XP.** After Survival, a successful operation gives 50 XP, collecting ready production gives 25 XP per hour of production since the last collection (at most 25), construction gives 25 XP and a building upgrade gives 30 XP. Level is `1 + XP / 100`. Expansion stays gated behind the first 100-XP Stabilising checkpoint.
 - **Rewards.** The guided run (the tutorial or Field Guide step) pays that step's reward, as before. Every other win pays a reward that grows 20% per level (up to five times the base at level 21), for the first **5 wins each UTC day** across all operations (`OperationPaidDay`, `OperationPaidWins`). Wins after that still raise the level.
 
   | Operation | Length | Target at level 1 | Target per level | Base win reward |

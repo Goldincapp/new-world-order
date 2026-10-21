@@ -126,13 +126,17 @@ api.MapGet("/me", async (HttpContext ctx, GameDb db, World world) =>
     {
         var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
         var now = DateTime.UtcNow;
-        HomeBase.FinalizeReady(gdb, p, now);
-        Research.RepairRestartedGuide(p);
+        // Anything finished while away starts producing at its finish time; what that banks is part of the welcome total.
+        var banked = new Dictionary<string, double>();
+        HomeBase.FinalizeReady(gdb, p, now, banked);
         var away = now - p.LastSeenAt;
         p.LastSeenAt = now;
         Dictionary<string, double>? collected = null;
-        if (away.TotalSeconds >= 60 && Economy.Pending(p, now).Values.Sum() >= 1)
+        if (away.TotalSeconds >= 60 && (Economy.Pending(p, now).Values.Sum() >= 1 || banked.Values.Any(v => v >= 1)))
+        {
             collected = Economy.Collect(gdb, p, now, "Collected on return");
+            foreach (var (res, amount) in banked) collected[res] = collected.GetValueOrDefault(res) + amount;
+        }
         return new { player = Dto.Me(p), awaySeconds = (int)away.TotalSeconds, collected, token = sentToken };
     }));
 });

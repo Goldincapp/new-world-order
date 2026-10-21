@@ -79,7 +79,8 @@ public static class DailyRewards
         Ledger.Add(db, p, "power", reward.Power, reason);
         p.DailyRewardDay = reward.Day;
         p.LastDailyRewardAt = now;
-        db.Records.Add(new RecordEntry { PlayerId = p.Id, Delta = reward.Cash, Kind = "reward", Text = $"Claimed day {reward.Day} login reward" });
+        // A record line, not a standing change: Delta is standing, and the Caretaker reads a player's style from it.
+        db.Records.Add(new RecordEntry { PlayerId = p.Id, Delta = 0, Kind = "reward", Text = $"Claimed day {reward.Day} login reward" });
         return new(null, reward, reward.Day);
     }
 }
