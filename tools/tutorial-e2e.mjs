@@ -159,10 +159,27 @@ try {
     return result;
   };
   const screenshot = async name => {
-    const shot = await cdp.send('Page.captureScreenshot', { format: 'png', fromSurface: true, captureBeyondViewport: false });
     const file = `${name}.png`;
-    await writeFile(path.join(shotsDir, file), Buffer.from(shot.data, 'base64'));
-    return `screenshots/${file}`;
+    let lastError;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const shot = await cdp.send('Page.captureScreenshot', {
+          format: 'png',
+          fromSurface: true,
+          captureBeyondViewport: false,
+          optimizeForSpeed: true,
+        }, 60000);
+        await writeFile(path.join(shotsDir, file), Buffer.from(shot.data, 'base64'));
+        return `screenshots/${file}`;
+      } catch (error) {
+        lastError = error;
+        await pause(500 * attempt);
+      }
+    }
+    // Screenshots are diagnostic evidence, not a gameplay assertion. A slow
+    // hosted runner must not fail an otherwise successful tutorial journey.
+    console.warn(`  WARN Could not capture ${file}: ${lastError?.message || lastError}`);
+    return null;
   };
   const objective = () => evaluate(`window.NET&&NET.me&&((NET.me.home&&NET.me.home.tutorial&&NET.me.home.tutorial.do)||(NET.me.guide&&NET.me.guide.do))||null`);
   const waitObjective = name => waitFor(`window.NET&&NET.me&&NET.me.home&&NET.me.home.tutorial&&NET.me.home.tutorial.do===${JSON.stringify(name)}`, `tutorial objective ${name}`);
@@ -436,7 +453,7 @@ try {
   await click('.action-celebration .ac-continue', 'Finish guide');
   await waitFor(`!document.querySelector('.action-celebration')`, 'Field Guide completion confirmation to close');
   await waitFor(`window.NET&&NET.roadmap&&NET.roadmap.unlocked&&!document.getElementById('bRoadmap').hidden`, 'post-guide Commander Roadmap', 30000);
-  await waitFor(`document.getElementById('tutObjective').textContent.includes('Commander Roadmap')`, 'Commander Roadmap objective handoff');
+  await waitFor(`(()=>{const el=document.getElementById('tutObjective');return el&&!el.hidden&&el.classList.contains('roadmap-objective')&&el.textContent.trim().length>0})()`, 'Commander Roadmap objective handoff');
   // The Roadmap button is already visible. Avoid scrollIntoView here because the game's
   // intentionally clipped full-screen canvas is programmatically scrollable in Chromium.
   await evaluate(`(()=>{document.getElementById('screen').scrollTop=0;document.getElementById('bRoadmap').click();return true})()`);
