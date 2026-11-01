@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Operation Severance · 3D Facility Preview</title>
+  <style>html,body,canvas{width:100%;height:100%;margin:0;display:block;background:#03090d;overflow:hidden}.tag{position:fixed;left:24px;top:20px;z-index:2;padding:10px 14px;border:1px solid #6fdbea66;border-radius:10px;background:#07131de8;color:#eaf8ff;font:700 13px system-ui}.tag b{display:block;color:#ffd36a;font-size:16px}.tag span{color:#8faab7}</style>
+  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head>
+<body>
+  <div class="tag"><b>OPERATION SEVERANCE</b><span>3D facility vertical slice · live renderer</span></div>
+  <canvas id="stage"></canvas>
+  <script type="module">
+    import './operations-3d.js?v=facility-room-cutaway-2';
+    const canvas=document.querySelector('#stage'),stage=window.NWOOperations3D.create(canvas),started=performance.now();
+    const actors=[
+      {id:'state',type:'facilityState',doorOpen:false,cover:[{x:.34,y:.42},{x:.62,y:.68}]},
+      {id:'lead',type:'soldier',x:.25,y:.67,scale:.82,angle:-Math.PI/2,motion:'run',player:true},
+      {id:'breach',type:'soldier',x:.3,y:.59,scale:.8,angle:-Math.PI/2,motion:'run'},
+      {id:'tech',type:'soldier',x:.2,y:.57,scale:.76,angle:-Math.PI/2,motion:'run'},
+      {id:'medic',type:'soldier',x:.27,y:.5,scale:.74,angle:-Math.PI/2,motion:'run'},
+      {id:'lumen',type:'partner',x:.34,y:.49,lift:.72,scale:.65,bob:.012},
+      {id:'patrol',type:'facilityRobot',x:.57,y:.56,scale:1.05,angle:0,motion:'aim',focused:true},
+      {id:'turret',type:'facilityTurret',x:.72,y:.67,scale:.9,angle:0},
+      {id:'drone',type:'facilityDrone',x:.72,y:.34,lift:.62,scale:1.05,bob:.012},
+      {id:'generator',type:'facilityGenerator',x:.69,y:.48,scale:1.08}
+    ];
+    function frame(now){
+      const t=(now-started)/1000,w=canvas.clientWidth,h=canvas.clientHeight,cycle=t%10,goingRight=cycle<5,moving=cycle<3||cycle>=5&&cycle<8,travel=cycle<3?cycle/3:cycle<5?1:cycle<8?1-(cycle-5)/3:0,base=.27+travel*.13,formation=[[0,.09],[.055,.01],[-.055,-.02],[.025,-.1]];
+      actors[0].doorOpen=(t%8)>5;
+      actors.slice(1,5).forEach((actor,i)=>{actor.x=base+formation[i][0];actor.y=.58+formation[i][1];actor.motion=moving?'run':'aim';actor.angle=moving?(goingRight?Math.PI/2:-Math.PI/2):Math.PI/2;actor.shoot=!moving&&Math.sin(t*10)>0.6;});
+      actors[6].motion='aim';actors[6].shoot=Math.sin(t*7)>0.72;actors[6].stun=(t%7)>5.8;
+      stage.update('facility',actors,w,h,t);requestAnimationFrame(frame);
+    }requestAnimationFrame(frame);
+  </script>
+</body>
+</html>

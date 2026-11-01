@@ -18,15 +18,19 @@
     size();
     const ro = new ResizeObserver(size); ro.observe(host);
 
-    // sound: small synthesized thumps, created on the first tap
-    let ac = null;
+    // Recorded CC0 effects provide the physical report and blast. Oscillators remain
+    // only as a fallback and for fictional warning electronics.
+    let ac = null, audioBus = null, loadingAudio = false;
+    const sampleFiles = { gun:'gun-report.ogg', explosion:'explosion-crunch.ogg', metal:'metal-impact.ogg', energy:'energy-shot.ogg', shield:'shield.ogg' }, samples = {};
+    function ensureAudio(){try{if(!ac){ac=new (window.AudioContext||window.webkitAudioContext)();const comp=ac.createDynamicsCompressor(),mix=ac.createGain();comp.threshold.value=-18;comp.ratio.value=7;mix.gain.value=.68;mix.connect(comp).connect(ac.destination);audioBus=mix;}if(ac.state==='suspended')ac.resume();if(!loadingAudio){loadingAudio=true;Object.entries(sampleFiles).forEach(([name,file])=>fetch('assets/audio/operations/'+file).then(r=>r.arrayBuffer()).then(b=>ac.decodeAudioData(b)).then(b=>samples[name]=b).catch(()=>{}));}return ac;}catch{return null;}}
+    function sample(name,vol=.14,rate=1){const a=ensureAudio(),buffer=samples[name];if(!a||!buffer)return false;const src=a.createBufferSource(),gain=a.createGain();src.buffer=buffer;src.playbackRate.value=rate;gain.gain.value=vol;src.connect(gain).connect(audioBus);src.start();return true;}
     function tone(f0, f1, dur, vol, type) {
       try {
-        ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+        ensureAudio();
         const o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime;
         o.type = type || 'sine'; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
         g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-        o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + dur + 0.02);
+        o.connect(g); g.connect(audioBus); o.start(t); o.stop(t + dur + 0.02);
       } catch (e) { }
     }
 
@@ -45,24 +49,24 @@
 
     function fire(px, py) {
       if (st.phase !== 'play') return;
-      if (st.jam > 0) { say('JAMMED', '#ff5a4a'); tone(180, 90, 0.12, 0.05, 'square'); return; }
+      if (st.jam > 0) { say('JAMMED', '#ff5a4a'); if(!sample('energy',.08,.65))tone(180, 90, 0.12, 0.05, 'square'); return; }
       if (st.ammo <= 0) return;
       st.ammo--;
       const g = gun(), dx = px - g.x, dy = py - g.y, dist = Math.hypot(dx, dy);
       st.shells.push({ x: g.x, y: g.y, tx: px, ty: py, vx: dx / dist * SHELL_SPEED, vy: dy / dist * SHELL_SPEED, left: dist / SHELL_SPEED });
-      tone(140, 60, 0.18, 0.18, 'triangle');
+      if(!sample('gun',.2,.9+Math.random()*.08))tone(140, 60, 0.18, 0.18, 'triangle');
     }
 
     function explode(x, y) {
       st.blasts.push({ x, y, t: 0 });
-      tone(90, 30, 0.35, 0.22, 'sawtooth');
+      if(!sample('explosion',.22,.9+Math.random()*.12))tone(90, 30, 0.35, 0.22, 'sawtooth');
       const d = st.d;
       if (st.phase !== 'play') return;
       if (Math.hypot(d.x - x, d.y - y) < BLAST + DRONE_R) {
-        if (shieldState() === 'up') { say('DEFLECTED', '#6fe3ff'); tone(900, 1400, 0.12, 0.05, 'square'); for (let i = 0; i < 8; i++) spark(d.x, d.y, '#6fe3ff'); }
+        if (shieldState() === 'up') { say('DEFLECTED', '#6fe3ff'); if(!sample('shield',.11,1.15))tone(900, 1400, 0.12, 0.05, 'square'); for (let i = 0; i < 8; i++) spark(d.x, d.y, '#6fe3ff'); }
         else {
           st.hp--; for (let i = 0; i < 18; i++) spark(d.x, d.y, '#ffb050');
-          if (st.hp <= 0) { st.phase = 'won'; st.endT = 0; say('DRONE DOWN', '#ffc933'); tone(300, 40, 0.9, 0.25, 'sawtooth'); }
+          if (st.hp <= 0) { st.phase = 'won'; st.endT = 0; say('DRONE DOWN', '#ffc933');sample('metal',.16,.72);tone(90, 38, .45, .09, 'sine'); }
           else say('HIT', '#ffc933');
         }
       }
@@ -97,8 +101,8 @@
         // scan beam
         if (st.phase === 'play') {
           const b = st.beam;
-          if (b.on > 0) { b.on -= dt; const g = gun(); if (Math.abs(g.x - d.x) < 70 && st.jam <= 0) { st.jam = 1.3; say('JAMMED', '#ff5a4a'); tone(220, 110, 0.4, 0.07, 'square'); } }
-          else if (b.warm > 0) { b.warm -= dt; if (b.warm <= 0) { b.on = 0.9; tone(500, 200, 0.6, 0.04, 'sawtooth'); } }
+          if (b.on > 0) { b.on -= dt; const g = gun(); if (Math.abs(g.x - d.x) < 70 && st.jam <= 0) { st.jam = 1.3; say('JAMMED', '#ff5a4a'); if(!sample('energy',.09,.62))tone(220, 110, 0.4, 0.07, 'square'); } }
+          else if (b.warm > 0) { b.warm -= dt; if (b.warm <= 0) { b.on = 0.9; if(!sample('energy',.07,.78))tone(500, 200, 0.6, 0.04, 'sawtooth'); } }
           else { b.cd -= dt; if (b.cd <= 0) { b.warm = 0.7; b.cd = 4 + Math.random() * 2; } }
         }
         if (st.jam > 0) st.jam -= dt;
@@ -175,7 +179,7 @@
     function loop(now) { if (done) return; const dt = Math.min(0.05, (now - last) / 1000); last = now; update(dt); if (!done) { draw(); raf = requestAnimationFrame(loop); } }
     raf = requestAnimationFrame(loop);
 
-    function finish(won) { if (done) return; done = true; cancelAnimationFrame(raf); ro.disconnect(); wrap.remove(); opts.onDone && opts.onDone(won); }
+    function finish(won) { if (done) return; done = true; cancelAnimationFrame(raf); ro.disconnect(); wrap.remove(); if(ac)ac.close().catch(()=>{}); opts.onDone && opts.onDone(won); }
     // a way out
     const quit = document.createElement('button');
     quit.textContent = 'Give up';

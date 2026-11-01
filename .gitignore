@@ -11,3 +11,13 @@ server/*.log
 client/_login.html
 server/.admin-key
 __pycache__/
+artifacts/balance-audit/
+artifacts/visual-regression/
+artifacts/tutorial-e2e/
+artifacts/
+.run-server/
+.server-logs/
+.tmp/
+/*.glb
+/*.png
+*.blend1

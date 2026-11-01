@@ -332,7 +332,7 @@ public class SentinelSim
         phase = Phase, shielded = Shielded, vent = VentOpen, sentX = Math.Round(SentX, 2), sweepLane = sweepLane >= 0 ? (int)sweepLane : -1, fighters = ActiveFighters, pressing = Pressing, armor = Math.Round(ArmorBreak, 2),
         relays = Relays.Select(r => new object[] { r.Id, r.X, r.Z, Math.Round(r.Hp / r.Max, 3), r.Pair }),
         units = Units.Select(u => new object[] { u.Id, u.Type, u.Side, Math.Round(u.X, 2), Math.Round(u.Z, 2), Math.Round(u.Hp / u.Max, 2), u.Side == 0 ? (Fighters.TryGetValue(u.Owner, out var o) ? o.Name : "") : "" }),
-        me = viewer is { } v && Fighters.TryGetValue(v, out var f) ? new { cp = f.Cp, troops = f.Troops, damage = Math.Round(f.Damage + f.RelayDamage), drones = f.Drones, relays = f.Relays, emp = T < f.EmpUntil } : null,
+        me = viewer is { } v && Fighters.TryGetValue(v, out var f) ? new { cp = f.Cp, troops = f.Troops, damage = Math.Round(f.Damage + f.RelayDamage), drones = f.Drones, relays = f.Relays, deployed = f.Deployed, emp = T < f.EmpUntil } : null,
         top = Fighters.Values.OrderByDescending(x => x.Damage + x.RelayDamage * 0.5 + x.Drones * 150).Take(5).Select(x => new { x.Name, damage = Math.Round(x.Damage + x.RelayDamage), x.Drones, x.Relays }),
         events = Events.ToList(),
     };

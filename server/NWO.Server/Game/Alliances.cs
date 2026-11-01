@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using NWO.Server.Data;
+using System.Collections.Concurrent;
+using System.Globalization;
 
 namespace NWO.Server.Game;
 
@@ -13,11 +15,96 @@ public class Alliances(World world, IHubContext<GameHub> hub)
     public const double CreateCost = 5000;
     public const int MaxMembers = 30, MaxHelpers = 10;
     public record Result(bool Ok, string? Error = null, string? Summary = null, object? Player = null);
+    public record EventStart(bool Ok, string? Error = null, int Duration = 0, int Power = 0, int PowerBand = 1, double Multiplier = 1, double BeatSeconds = 1, int MaxScore = 0);
+    public record EventResult(bool Ok, string? Error = null, string? Summary = null, object? Player = null, object? Event = null, string? Reward = null);
+    record EventSession(long AllianceId, DateTime StartedAt, int Duration, int Power, int PowerBand, double Multiplier, int MaxScore);
+
+    static readonly ConcurrentDictionary<Guid, EventSession> EventRuns = new();
+    const int EventDuration = 90;
+    static readonly (int Cash, int Fuel, int Gold)[] EventRewards = [(0, 0, 0), (500, 25, 0), (1500, 75, 0), (3000, 150, 1)];
+    // Personal rewards are cumulative milestones within one weekly cycle. BestScore only rises,
+    // so crossing a threshold guarantees each increment is paid exactly once.
+    static readonly int[] PersonalTargets = [2000, 5000, 9000];
+    static readonly (int Cash, int Fuel, int Gold)[] PersonalRewards = [(0, 0, 0), (250, 0, 0), (600, 20, 0), (1200, 50, 1)];
 
     public static string Group(long id) => "a" + id;
     static bool Officer(Player p) => p.AllianceRole is "leader" or "officer";
 
     async Task Changed(long allianceId) => await hub.Clients.Group(Group(allianceId)).SendAsync("alliance");
+
+    static string EventCycle(DateTime now) => $"{ISOWeek.GetYear(now):0000}-W{ISOWeek.GetWeekOfYear(now):00}";
+
+    static DateTime EventEnds(DateTime now)
+    {
+        var start = ISOWeek.ToDateTime(ISOWeek.GetYear(now), ISOWeek.GetWeekOfYear(now), DayOfWeek.Monday);
+        return DateTime.SpecifyKind(start.AddDays(7), DateTimeKind.Utc);
+    }
+
+    /// <summary>Permanent settlement strength used to tune the relay speed and contribution multiplier.
+    /// Spendable power is deliberately excluded: this is profile strength, not the current battery balance.</summary>
+    static int ProfilePower(Player p)
+    {
+        var troops = Defense.Trained(p);
+        var troopPower = troops.GetValueOrDefault("gunner") * 8 + troops.GetValueOrDefault("launcher") * 20 + troops.GetValueOrDefault("tank") * 65 + troops.GetValueOrDefault("heli") * 85;
+        var techPower = (p.Techs ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Length * 100;
+        var buildingPower = p.HomeTiles.Sum(t => Math.Max(1, t.Level)) * 35;
+        return Math.Max(100, p.HqLevel * 120 + p.WallLevel * 80 + p.Xp + troopPower + techPower + buildingPower + Region2.Score(p) / 10);
+    }
+
+    static int EventTier(int total, int[] targets) => total >= targets[2] ? 3 : total >= targets[1] ? 2 : total >= targets[0] ? 1 : 0;
+
+    static string EventRewardText(int from, int to)
+    {
+        var a = EventRewards[Math.Clamp(from, 0, 3)];
+        var b = EventRewards[Math.Clamp(to, 0, 3)];
+        return string.Join(" · ", new[] { b.Cash > a.Cash ? $"+{b.Cash - a.Cash:N0} cash" : null, b.Fuel > a.Fuel ? $"+{b.Fuel - a.Fuel:N0} fuel" : null, b.Gold > a.Gold ? $"+{b.Gold - a.Gold} gold" : null }.Where(x => x is not null));
+    }
+
+    static string PersonalRewardText(int from, int to)
+    {
+        var a = PersonalRewards[Math.Clamp(from, 0, 3)];
+        var b = PersonalRewards[Math.Clamp(to, 0, 3)];
+        return string.Join(" · ", new[] { b.Cash > a.Cash ? $"+{b.Cash - a.Cash:N0} cash" : null, b.Fuel > a.Fuel ? $"+{b.Fuel - a.Fuel:N0} fuel" : null, b.Gold > a.Gold ? $"+{b.Gold - a.Gold} gold" : null }.Where(x => x is not null));
+    }
+
+    static async Task<object> EventView(GameDb db, Player me, IReadOnlyCollection<Player> members)
+    {
+        var now = DateTime.UtcNow;
+        var cycle = EventCycle(now);
+        var scores = await db.AllianceEventScores.Where(x => x.AllianceId == me.AllianceId && x.Cycle == cycle).ToListAsync();
+        var total = scores.Sum(x => x.BestScore);
+        // AI settlers fill out the world, but only real commanders can play the event.
+        // Scale the cooperative thresholds to eligible humans so bot-heavy starter alliances remain completable.
+        var scale = Math.Max(1, members.Count(x => !x.IsBot));
+        var targets = new[] { scale * 2000, scale * 5000, scale * 9000 };
+        var tier = EventTier(total, targets);
+        var mine = scores.FirstOrDefault(x => x.PlayerId == me.Id);
+        var names = members.ToDictionary(x => x.Id, x => x.Name);
+        var power = ProfilePower(me);
+        var ranked = scores.Where(x => x.BestScore > 0).OrderByDescending(x => x.BestScore).ThenBy(x => x.UpdatedAt).ToList();
+        var myRank = mine is null || mine.BestScore <= 0 ? 0 : ranked.FindIndex(x => x.PlayerId == me.Id) + 1;
+        var personalTier = EventTier(mine?.BestScore ?? 0, PersonalTargets);
+        return new
+        {
+            id = "operation-severance", name = "Operation Severance", cycle, endsAt = EventEnds(now),
+            total, targets, tier, participants = scores.Count(x => x.BestScore > 0), members = scale,
+            myBest = mine?.BestScore ?? 0, attempts = mine?.Attempts ?? 0, playedToday = mine is not null && mine.UpdatedAt.Date == now.Date,
+            dailyResetAt = DateTime.SpecifyKind(now.Date.AddDays(1), DateTimeKind.Utc), myRank,
+            myShare = total > 0 && mine is not null ? Math.Round(mine.BestScore * 100d / total, 1) : 0,
+            personalTier, personalTargets = PersonalTargets,
+            personalRewards = new[] { "250 cash", "600 cash · 20 fuel", "1,200 cash · 50 fuel · 1 gold" },
+            claimedTier = mine?.RewardTier ?? 0, canClaim = tier > (mine?.RewardTier ?? 0),
+            reward = tier > (mine?.RewardTier ?? 0) ? EventRewardText(mine?.RewardTier ?? 0, tier) : null,
+            power, powerBand = Math.Clamp(1 + power / 500, 1, 10),
+            leaders = ranked.Take(5).Select(x => new { name = names.GetValueOrDefault(x.PlayerId, "Former member"), score = x.BestScore, power = x.PowerRating, me = x.PlayerId == me.Id }),
+            tiers = new[]
+            {
+                new { tier = 1, target = targets[0], reward = "500 cash · 25 fuel for every member" },
+                new { tier = 2, target = targets[1], reward = "1,500 cash · 75 fuel for every member" },
+                new { tier = 3, target = targets[2], reward = "3,000 cash · 150 fuel · 1 gold for every member" },
+            }
+        };
+    }
 
     /// <summary>Put a player's open connections in (or out of) their alliance's chat group.</summary>
     async Task Regroup(Guid playerId, long? from, long? to)
@@ -70,6 +157,7 @@ public class Alliances(World world, IHubContext<GameHub> hub)
                 requests = requests.Select(r => new { r.Id, name = r.PlayerName, r.CreatedAt }),
                 invited = sent.Select(r => new { r.Id, name = r.PlayerName, r.By }),
                 canHelp = members.Count(m => m.Id != playerId && m.ResearchId != null && !(m.ResearchHelpers ?? "").Contains(playerId.ToString()) && (m.ResearchHelpers ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).Length < MaxHelpers),
+                allianceEvent = await EventView(db, me, members),
             };
         }
         var all = await db.Alliances.ToListAsync();
@@ -345,6 +433,109 @@ public class Alliances(World world, IHubContext<GameHub> hub)
             await Changed(aid);
         });
     });
+
+    /// <summary>Begin the weekly joint assault with the Caretaker against a hostile AI command array.
+    /// A stronger profile fields a tougher strike team and earns a larger damage multiplier.</summary>
+    public async Task<EventStart> StartEvent(Guid playerId)
+    {
+        using var scope = world.Scopes.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<GameDb>();
+        var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).AsNoTracking().FirstAsync(x => x.Id == playerId);
+        if (p.AllianceId is not { } aid) return new(false, "Join an alliance before entering its event.");
+        var power = ProfilePower(p);
+        var band = Math.Clamp(1 + power / 500, 1, 10);
+        var multiplier = Math.Round(1 + (band - 1) * .12, 2);
+        var beat = Math.Round(Math.Max(.62, 1.18 - band * .045), 2);
+        var max = (int)Math.Ceiling(50000 * multiplier);
+        EventRuns[playerId] = new(aid, DateTime.UtcNow, EventDuration, power, band, multiplier, max);
+        return new(true, Duration: EventDuration, Power: power, PowerBand: band, Multiplier: multiplier, BeatSeconds: beat, MaxScore: max);
+    }
+
+    public async Task<EventResult> CompleteEvent(Guid playerId, int score, bool extracted = false)
+    {
+        if (!EventRuns.TryRemove(playerId, out var run)) return new(false, "That event run is no longer active. Start it again.");
+        var elapsed = (DateTime.UtcNow - run.StartedAt).TotalSeconds;
+        // A squad may bank its intelligence at a checkpoint after committing to the incursion.
+        // Runs that simply end early without extracting still need to reach the normal timer.
+        if ((!extracted && elapsed < run.Duration - 3) || (extracted && elapsed < 15))
+            return new(false, "The incursion ended too early. Reach a secure checkpoint or complete the run.");
+        score = Math.Clamp(score, 0, run.MaxScore);
+        var result = await world.Locked(async db =>
+        {
+            var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == playerId);
+            if (p.AllianceId != run.AllianceId) return new EventResult(false, "Your alliance changed during the run.");
+            if (HomeBase.CommandCenterLevel(p) >= 2) score = Math.Min(run.MaxScore, (int)Math.Round(score * 1.10));
+            var cycle = EventCycle(DateTime.UtcNow);
+            var entry = await db.AllianceEventScores.FirstOrDefaultAsync(x => x.AllianceId == run.AllianceId && x.PlayerId == p.Id && x.Cycle == cycle);
+            if (entry is null)
+            {
+                entry = new AllianceEventScore { AllianceId = run.AllianceId, PlayerId = p.Id, Cycle = cycle };
+                db.AllianceEventScores.Add(entry);
+            }
+            var old = entry.BestScore;
+            var oldPersonalTier = EventTier(old, PersonalTargets);
+            entry.BestScore = Math.Max(old, score);
+            entry.PowerRating = run.Power;
+            entry.Attempts++;
+            entry.UpdatedAt = DateTime.UtcNow;
+            var personalTier = EventTier(entry.BestScore, PersonalTargets);
+            string? personalReward = null;
+            if (personalTier > oldPersonalTier)
+            {
+                var before = PersonalRewards[oldPersonalTier];
+                var after = PersonalRewards[personalTier];
+                if (after.Cash > before.Cash) Ledger.Add(db, p, "cash", after.Cash - before.Cash, $"Operation Severance personal tier {personalTier}");
+                if (after.Fuel > before.Fuel) Ledger.Add(db, p, "fuel", after.Fuel - before.Fuel, $"Operation Severance personal tier {personalTier}");
+                if (after.Gold > before.Gold) Ledger.Add(db, p, "gold", after.Gold - before.Gold, $"Operation Severance personal tier {personalTier}");
+                personalReward = PersonalRewardText(oldPersonalTier, personalTier);
+                Activity.Add(db, p, "reward", $"Operation Severance personal tier {personalTier}", personalReward, "alliance");
+            }
+            var members = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).Where(x => x.AllianceId == run.AllianceId).ToListAsync();
+            await db.SaveChangesAsync();
+            var status = await EventView(db, p, members);
+            var action = extracted ? "Extraction secured" : "Incursion complete";
+            return new EventResult(true, Summary: score > old ? $"{action}: {score:N0} intel. The alliance gained {score - old:N0}." : $"{action}: {score:N0} intel. Your best remains {old:N0}.", Player: Dto.Me(p), Event: status, Reward: personalReward);
+        });
+        if (result.Ok) await Changed(run.AllianceId);
+        return result;
+    }
+
+    public async Task<EventResult> ClaimEvent(Guid playerId)
+    {
+        long? allianceId = null;
+        var result = await world.Locked(async db =>
+        {
+            var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == playerId);
+            if (p.AllianceId is not { } aid) return new EventResult(false, "Join an alliance first.");
+            allianceId = aid;
+            var members = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).Where(x => x.AllianceId == aid).ToListAsync();
+            var cycle = EventCycle(DateTime.UtcNow);
+            var scores = await db.AllianceEventScores.Where(x => x.AllianceId == aid && x.Cycle == cycle).ToListAsync();
+            var eligible = Math.Max(1, members.Count(x => !x.IsBot));
+            var targets = new[] { eligible * 2000, eligible * 5000, eligible * 9000 };
+            var tier = EventTier(scores.Sum(x => x.BestScore), targets);
+            var entry = scores.FirstOrDefault(x => x.PlayerId == p.Id);
+            var claimed = entry?.RewardTier ?? 0;
+            if (tier <= claimed) return new EventResult(false, tier == 0 ? "The alliance has not unlocked the first reward yet." : "You already claimed the current alliance reward.");
+            if (entry is null)
+            {
+                entry = new AllianceEventScore { AllianceId = aid, PlayerId = p.Id, Cycle = cycle, PowerRating = ProfilePower(p) };
+                db.AllianceEventScores.Add(entry);
+            }
+            var before = EventRewards[claimed];
+            var after = EventRewards[tier];
+            if (after.Cash > before.Cash) Ledger.Add(db, p, "cash", after.Cash - before.Cash, $"Operation Severance alliance tier {tier}");
+            if (after.Fuel > before.Fuel) Ledger.Add(db, p, "fuel", after.Fuel - before.Fuel, $"Operation Severance alliance tier {tier}");
+            if (after.Gold > before.Gold) Ledger.Add(db, p, "gold", after.Gold - before.Gold, $"Operation Severance alliance tier {tier}");
+            Activity.Add(db, p, "reward", $"Alliance reward: tier {tier}", EventRewardText(claimed, tier), "alliance");
+            entry.RewardTier = tier;
+            entry.UpdatedAt = DateTime.UtcNow;
+            await db.SaveChangesAsync();
+            return new EventResult(true, Summary: $"Alliance tier {tier} reward claimed.", Player: Dto.Me(p), Event: await EventView(db, p, members), Reward: EventRewardText(claimed, tier));
+        });
+        if (result.Ok && allianceId is { } aid) await Changed(aid);
+        return result;
+    }
 
     /// <summary>Alliance tag for a player, for the map and chat.</summary>
     public static async Task<Dictionary<Guid, string>> Tags(GameDb db, IEnumerable<Guid> ids)

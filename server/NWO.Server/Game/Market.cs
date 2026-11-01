@@ -66,6 +66,7 @@ public class Market(World world, IHubContext<GameHub> hub)
             var me = await db.Players.Include(p => p.Parcels).Include(p => p.HomeTiles).FirstAsync(p => p.Id == playerId);
             var nation = await Politics.Of(db);
             var fee = nation.MarketTax;
+            var guidedPurchase = Guide.Current(me, "order") && res == "grain" && side == "buy" && limit is null && qty == 100;
 
             // Escrow for a limit order: goods for a sell, cash at the limit price for a buy.
             if (limit is not null)
@@ -99,7 +100,7 @@ public class Market(World world, IHubContext<GameHub> hub)
                 if (limit is null)
                 {
                     // Market orders pay or deliver as they go, limited by what the player actually has.
-                    if (side == "buy") q = Math.Min(q, Math.Floor(me.Cash / price));
+                    if (side == "buy" && !guidedPurchase) q = Math.Min(q, Math.Floor(me.Cash / price));
                     else q = Math.Min(q, Math.Floor(Ledger.Get(me, res)));
                     if (q <= 0) break;
                 }
@@ -113,7 +114,10 @@ public class Market(World world, IHubContext<GameHub> hub)
                 // The new order's side.
                 if (side == "buy")
                 {
-                    if (limit is null) Ledger.Add(db, me, "cash", -gross, $"Bought {q:N0} {res} at {price:N2}");
+                    if (limit is null)
+                    {
+                        if (!guidedPurchase) Ledger.Add(db, me, "cash", -gross, $"Bought {q:N0} {res} at {price:N2}");
+                    }
                     else Ledger.Add(db, me, "cash", Cents(q * limit.Value) - gross, $"Refund: bought {q:N0} {res} below your limit");
                     Ledger.Add(db, me, res, q, $"Bought {q:N0} {res} at {price:N2}");
                 }
@@ -144,7 +148,9 @@ public class Market(World world, IHubContext<GameHub> hub)
             else
             {
                 var avg = value / filled;
-                summary = $"{(side == "buy" ? "Bought" : "Sold")} {filled:N0} {res} at {avg:N2} on average" + (left > 0 && limit is not null ? $"; {left:N0} more waiting at {limit:N2}" : "");
+                summary = guidedPurchase
+                    ? $"Caretaker supplied {filled:N0} {res} through the live market and covered the {value:N0} cash cost"
+                    : $"{(side == "buy" ? "Bought" : "Sold")} {filled:N0} {res} at {avg:N2} on average" + (left > 0 && limit is not null ? $"; {left:N0} more waiting at {limit:N2}" : "");
             }
             // The guided purchase teaches a concrete, repeatable action: buy
             // 100 grain immediately. Other trades no longer skip that lesson.

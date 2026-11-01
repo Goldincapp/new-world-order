@@ -234,7 +234,7 @@ const gameSources = readdirSync(paths.game).filter(file => file.endsWith('.cs'))
 gameSources.push({ file: 'Program.cs', text: readFileSync(resolve(root, 'server/NWO.Server/Program.cs'), 'utf8') });
 const onboardingRoutes = {
   hqintro: 'Home → Headquarters', barracks: 'Home → Build → Barracks → place', train: 'Home → Barracks → Train five gunners', laststand: 'Operations → Last Stand', walls: 'Home → Entry gate → Reinforce walls', people: 'Population counter', crops: 'Home → Build → Crop plot → place', solar: 'Home → Build → Solar panel → place', collect: 'Collect ready-production icon', readiness: 'Collect production, build or upgrade, or replay Last Stand',
-  claim: 'Sector → available parcel → Claim', build: 'Sector → owned parcel → Build → Sawmill', mine: 'Sector → owned parcel → Build → Mine', oil: 'Sector → owned parcel → Build → Oil rig', extraction: 'Operations → Extraction Run', hq: 'Home → Headquarters → Upgrade HQ', research: 'Home → Build → Research lab → place → Research → recommended upgrade', upgrade: 'Home → Barracks → Upgrade building', order: 'Market → Food → Buy', ship: 'Contracts → affordable delivery', battle: 'Sector → militia camp → Gunner → lane', leviathan: 'Operations → Leviathan Assault', alliance: 'Alliance → join, found, or skip', vote: 'Politics → available vote or skip', record: 'Record', sentinel: 'Home → Headquarters → The Sentinel',
+  claim: 'Sector → available parcel → Claim', build: 'Sector → owned parcel → Build → Sawmill', mine: 'Sector → owned parcel → Build → Mine', oil: 'Sector → owned parcel → Build → Oil rig', extraction: 'Operations → Extraction Run', hq: 'Home → Headquarters → Upgrade HQ', research: 'Home → Build → Research lab → place → Research → recommended upgrade', upgrade: 'Home → Barracks → Upgrade building', order: 'Market → Food → Buy', ship: 'Contracts → affordable delivery', battle: 'Sector → militia camp → Gunner → lane', leviathan: 'Operations → Leviathan Assault', alliance: 'Alliance → join, found, or skip', vote: 'Politics → available vote or skip', record: 'Record', sentinel: 'World event → Sentinel command → Briefing understood',
 };
 const progressionMeta = {
   hqintro: { minutes: 1, screen: 'Home · Headquarters', introduces: ['Headquarters', 'Building limit'], unlocks: ['Barracks lesson'] },
@@ -262,7 +262,7 @@ const progressionMeta = {
   alliance: { minutes: 3, screen: 'Alliances', introduces: ['Team membership', 'Alliance help'], unlocks: ['Alliance play'] },
   vote: { minutes: 3, screen: 'Politics', introduces: ['Elections', 'Laws'], unlocks: ['Political participation'] },
   record: { minutes: 1, screen: 'Caretaker record', introduces: ['Standing', 'Consequences'], unlocks: ['Standing history'] },
-  sentinel: { minutes: 2, screen: 'Headquarters · Sentinel', introduces: ['Shared boss', 'Ashlands'], unlocks: ['Long-term world objective'] },
+  sentinel: { minutes: 2, screen: 'World event · Sentinel command', introduces: ['Shared boss', 'Ashlands'], unlocks: ['Long-term world objective'] },
 };
 const missingProgressionMeta = onboardingSteps.filter(x => !progressionMeta[x.id]);
 if (missingProgressionMeta.length) warn('Progression', 'Some objectives are missing storyboard design metadata', missingProgressionMeta.map(x => x.id).join(', '), ['tools/playtest/audit.mjs']);
@@ -271,7 +271,7 @@ const dynamicHomeCompletions = new Set(['barracks', 'crops', 'solar', 'walls']);
 // World.Build advances these parcel lessons through a guideAction variable rather than a literal.
 const dynamicParcelCompletions = new Set(['build', 'mine', 'oil']);
 const dynamicOperationCompletions = new Set(serverOps);
-const completionFor = id => dynamicHomeCompletions.has(id) || dynamicParcelCompletions.has(id) || dynamicOperationCompletions.has(id) || new RegExp(`completeReadingGuide\\('${id}'\\)`).test(source.index) || gameSources.some(x => new RegExp(`(?:HomeBase|Guide)\\.Advance\\([^;]+"${id}"`).test(x.text));
+const completionFor = id => dynamicHomeCompletions.has(id) || dynamicParcelCompletions.has(id) || dynamicOperationCompletions.has(id) || new RegExp(`completeReadingGuide\\('${id}'\\)`).test(source.index) || new RegExp(`invoke\\(\\s*['"]GuideSeen['"]\\s*,\\s*['"]${id}['"]`).test(source.index) || gameSources.some(x => new RegExp(`(?:HomeBase|Guide)\\.Advance\\([^;]+"${id}"`).test(x.text));
 const missingRoutes = onboardingSteps.filter(x => !onboardingRoutes[x.id]);
 if (missingRoutes.length) fail('Onboarding', 'Some steps have no known click path', missingRoutes.map(x => x.id).join(', '), ['client/index.html']);
 else pass('Onboarding', 'Every step has a click path', `${onboardingSteps.length} tutorial and Field Guide steps map to a first control and completion action.`, ['client/index.html']);
@@ -399,10 +399,22 @@ const productionRows = homeKinds.map(x => `<tr><td><strong>${esc(x.name)}</stron
 const retirementCards = retirementPairs.filter(x => x.oldExists).map(x => `<article class="retirement"><div class="compare"><div><div class="checker"><img src="${esc(assetHref(x.oldFile))}" alt="${esc(x.oldFile)}" loading="lazy"></div><small>Legacy</small><strong>${esc(x.oldFile)}</strong></div><div><div class="checker"><img src="${esc(assetHref(x.replacement))}" alt="${esc(x.replacement)}" loading="lazy"></div><small>Current replacement</small><strong>${esc(x.replacement)}</strong></div></div><p>${x.oldReferenced ? '<span class="status fail">Still referenced</span>' : x.replacementExists ? '<span class="status pass">Review to retire</span>' : '<span class="status warn">Replacement missing</span>'}</p></article>`).join('');
 const checklist = [
   ['First-run tutorial', 'Restart the tutorial. Confirm only one requested control is highlighted, all other controls are dimmed, and placement instructions never cover Build here.'],
-  ['Last Stand · Threat 1', 'Build or upgrade a tower, focus the HQ turret, use both abilities, confirm trained defenders appear, and finish with a readable reward.'],
-  ['Last Stand · scaling', 'At a higher threat, confirm tougher units and the War Rig remain readable and that the gate/tower balance feels achievable.'],
-  ['Extraction Run', 'Collect, drop, and recover a crate; trigger Nitro and Scramble; extract using both the pad and the button.'],
-  ['Leviathan Assault', 'Verify every attack warning is readable before damage, projectiles remain visible, Lumen follows correctly, and mobile dragging is responsive.'],
+  ['Last Stand · Threat 1', 'Build and upgrade a tower, move it to an empty pad, salvage it for half the invested scrap, focus the HQ turret, use both abilities, confirm trained defenders appear, and finish with a readable reward.'],
+  ['Last Stand · base progression', 'Compare two bases or upgrade between runs: Walls must raise gate HP; HQ must strengthen the turret and unlock ranks IV/V; Barracks must strengthen gunners; Workshops must add starting scrap and tower damage; military research must show its matching benefit.'],
+  ['Last Stand · Missile Battery', 'Without Air Support, confirm the battery is visible but locked. With Air Support, build and upgrade it; verify clustered targets take splash damage and enemies inside its minimum range are ignored.'],
+  ['Last Stand · Arc Coil', 'Without Grid Storage, confirm the coil is visible but locked. With Grid Storage, verify lightning chains through the displayed number of nearby targets, technical and mortar fire pauses during disruption, and heavy armour takes reduced damage.'],
+  ['Last Stand · Field Workshop', 'Without Siege Engineers, confirm the workshop is locked. With it, confirm only one can be deployed, its radius is visible, nearby tower fire speeds up, gate repair occurs once between waves, and moving or salvaging it updates the support area.'],
+  ['Last Stand · Salvage Crane', 'Without Warehousing, confirm the crane is locked. With it, confirm only one can be deployed, its green collection radius is visible, kills inside it pay the displayed 1–4 bonus scrap, and moving or salvaging it updates the collection area.'],
+  ['Last Stand · scaling', 'At Threat 3+, confirm the named wave condition appears, elite variants remain readable, the clock pauses for tactical orders, and the selected field upgrade materially affects the remaining waves.'],
+  ['Extraction Run · core loop', 'Collect, drop, and recover a crate; damage and repair the rover hull; spend a cargo lock; trigger Nitro and Scramble; extract using both the pad and the button.'],
+  ['Extraction Run · progression', 'Compare bases with Workshops, Warehouses, Haulage, Back Channels, and Grid Storage; confirm each displayed rover, cargo, detection, or cooldown benefit changes the run.'],
+  ['Extraction Run · higher threats', 'At Threat 3+, verify the named recovery directive and route checkpoint. At Threat 5+, trigger a shock mine; raise security heat past both thresholds and verify interceptor deployments.'],
+  ['Leviathan Assault · core loop', 'Verify every attack warning is readable before damage, projectiles remain visible, Lumen follows correctly, mobile dragging is responsive, and destroying each marked system updates its status and weakens the matching attack.'],
+  ['Leviathan Assault · progression', 'Compare bases with Barracks, Workshops, Mobilization, Air Support, Siege Engineers, and Grid Storage; verify armour, damage, fire rate, missile count/damage, system damage, and cooldown benefits.'],
+  ['Leviathan Assault · higher threats', 'At Threat 3+, verify both phase-transition upgrade choices pause the clock and materially affect the fight. At Threat 6+, trigger a Combined Pattern and compare Hunter, Quarantine, and Enforcer profile modifiers.'],
+  ['Operations Command dashboard', 'For every unlocked operation, compare the displayed target, reward, profile, next unlock, mastery milestone, personal best, and base-support list against the current player state.'],
+  ['Operation practice mode', 'Win and lose a practice run. Confirm it uses the current Threat but awards nothing, consumes no paid win, records no personal best, does not advance the guide, and does not change Threat.'],
+  ['Operation mastery', 'Cross Threat 5, 10, 20, and 30 once. Confirm the one-time cash/gold milestone appears separately in the debrief and cannot be collected again.'],
   ['Rewards and limits', 'Confirm a win raises only that operation’s threat, pays the displayed amount, and decrements the shared daily paid-win counter.'],
   ['Phone performance', 'Test portrait and landscape. Record visible stutter, delayed presses, clipped controls, and whether performance mode activates.'],
 ].map(([title, text], i) => `<label class="check"><input type="checkbox" data-check="${i}"><span><strong>${esc(title)}</strong><small>${esc(text)}</small></span></label>`).join('');

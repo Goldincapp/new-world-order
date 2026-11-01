@@ -32,10 +32,12 @@ public static class HomeBase
 
     public static readonly Dictionary<string, Kind> Kinds = new()
     {
-        ["barracks"] = new("Barracks", 600, 2, 2, "cash", 0, "Trains defenders and unlocks raid units, including tanks and helicopters", 2),
+        ["barracks"] = new("Barracks", 600, 2, 2, "cash", 0, "Trains and houses soldiers used in player raids and settlement defence. Each level adds 15 trained-unit capacity", 2),
+        ["motorpool"] = new("Motor Pool", 2200, 3, 2, "cash", 0, "Builds, maintains, and houses armored vehicles used in raids and Operations. Each level adds 6 vehicle spaces", 1),
+        ["commandcenter"] = new("National Command Center", 20000, 3, 3, "cash", 0, "Coordinates national production, alliance deployments, logistics, and settlement defence", 1),
         ["housing"] = new("Housing block", 450, 2, 2, "cash", 0, "Adds room for 12 settlers", 6),
         ["warehouse"] = new("Warehouse", 500, 2, 2, "cash", 0, "+2 hours of storage before you must collect", 3),
-        ["research"] = new("Research lab", 800, 2, 2, "cash", 0, "+5% to everything your land produces", 2),
+        ["research"] = new("Research Lab", 800, 2, 2, "cash", 0, "+5% to everything your land produces", 2),
         ["crops"] = new("Crop plot", 150, 1, 1, "grain", 5, "Grows grain. Your home parcel's terrain affects output", SuitAs: "farm", Field: true),
         ["oilpump"] = new("Oil pump", 400, 1, 1, "oil", 6, "A small pump. Your home parcel's terrain affects output", SuitAs: "rig", Field: true),
         ["solar"] = new("Solar panel", 350, 1, 1, "power", 5, "Produces electricity. Your home parcel's terrain affects output", SuitAs: "solar", Field: true),
@@ -46,7 +48,9 @@ public static class HomeBase
     /// <summary>What each upgrade visibly unlocks. Production buildings improve output at every level.</summary>
     public static readonly Dictionary<string, string[]> LevelUnlocks = new()
     {
-        ["barracks"] = ["Gunners", "Rocket launchers", "Tanks", "Helicopters", "Command school"],
+        ["barracks"] = ["Gunners", "Rocket launchers", "Infantry drills", "Veteran infantry", "Command school"],
+        ["motorpool"] = ["Tank bay", "Helicopter pad", "Armoured maintenance", "Rapid deployment", "Command garage"],
+        ["commandcenter"] = ["Coordinated supply network · +10% production", "Alliance command link · +10% alliance Operation intel", "Logistics bureau · +5% delivery payments", "Defence command · +10% tower and Headquarters health", "National operations network · production bonus rises to +15%"],
         ["housing"] = ["12 settler homes", "24 settler homes", "36 settler homes", "48 settler homes", "60 settler homes"],
         ["warehouse"] = ["Organised storage", "Secured bays", "Forklifts", "Climate storage", "Logistics hub"],
         ["research"] = ["Tier 1 research", "Tier 2 research", "Tier 3 research", "Prototype wing", "Innovation centre"],
@@ -89,15 +93,21 @@ public static class HomeBase
         var level = Level(tile);
         return level == 0 ? 0 : OutputMultipliers[level - 1];
     }
+    public static int CommandCenterLevel(Player p) => p.HomeTiles.Where(t => t.Type == "commandcenter").Select(Level).DefaultIfEmpty(0).Max();
+    public static double CommandProductionMultiplier(Player p) => CommandCenterLevel(p) >= 5 ? 1.15 : CommandCenterLevel(p) >= 1 ? 1.10 : 1;
     public static string Unlock(string type, int level) => level <= 0 ? "Under construction" : LevelUnlocks[type][Math.Clamp(level, 1, MaxBuildingLevel) - 1];
-    /// <summary>New structures stay quick; upgrades become the long-term progression clock.</summary>
+    /// <summary>New structures use clear construction bands; upgrades are the long-term progression clock.</summary>
     public static int BuildSeconds(Player p, Kind kind, string type)
     {
         if (p.IsBot) return 0;
+        // The first Research lab is the doorway into the guided research lesson. Keep that
+        // transition brisk; later labs retain their normal construction time.
+        if (type == "research" && Guide.Current(p, "research") && !p.HomeTiles.Any(t => t.Type == "research"))
+            return 5;
         if (p.TutorialStep < Tutorial.Length && Tutorial[p.TutorialStep].Do == type)
             return type switch { "barracks" => 5, "crops" => 8, "solar" => 10, _ => 12 };
-        var quality = 18 + kind.Cost / 18 + kind.W * kind.H * 4;
-        return (int)Math.Clamp(Math.Round(quality * (1 + Math.Max(0, p.HqLevel - 1) * .18)), 20, 600);
+        // Predictable bands are easier to plan around than cost-derived times such as 41 or 59 seconds.
+        return type is "crops" or "oilpump" or "solar" or "generator" ? 30 : 60;
     }
     public static int UpgradeSeconds(Player p, int targetLevel)
     {
@@ -118,23 +128,38 @@ public static class HomeBase
     {
         var events = new List<(DateTime at, Action apply)>();
         foreach (var tile in p.HomeTiles.Where(t => t.PendingLevel is not null && t.ConstructionEndsAt <= now).ToList())
-            events.Add((tile.ConstructionEndsAt!.Value, () =>
+        {
+            var completedLevel = tile.PendingLevel!.Value;
+            var completedAt = tile.ConstructionEndsAt!.Value;
+            events.Add((completedAt, () =>
             {
                 var wasNewBuilding = tile.Level <= 0;
-                tile.Level = Math.Clamp(tile.PendingLevel!.Value, 1, MaxBuildingLevel);
+                tile.Level = Math.Clamp(completedLevel, 1, MaxBuildingLevel);
                 tile.PendingLevel = null; tile.ConstructionEndsAt = null;
+                var kind = Kinds[tile.Type];
+                Activity.Add(db, p, "construction", wasNewBuilding ? $"{kind.Name} complete" : $"{kind.Name} upgraded",
+                    wasNewBuilding ? $"Your new {kind.Name} is online." : $"Level {completedLevel} is active: {Unlock(tile.Type, completedLevel)}.", "home", completedAt);
                 // A guided building is not complete until its timer finishes. Advancing here keeps the
                 // next Caretaker briefing from appearing briefly while the structure is still scaffolding.
                 if (wasNewBuilding) Advance(db, p, tile.Type);
+                else if (tile.Type == "barracks" && completedLevel >= 2) Guide.Advance(db, p, "upgrade");
             }));
+        }
         foreach (var parcel in p.Parcels.Where(x => x.PendingBuilding is not null && x.BuildingEndsAt <= now).ToList())
-            events.Add((parcel.BuildingEndsAt!.Value, () =>
+        {
+            var completedBuilding = parcel.PendingBuilding!;
+            var completedAt = parcel.BuildingEndsAt!.Value;
+            events.Add((completedAt, () =>
             {
-                parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? parcel.PendingBuilding : parcel.Buildings + "," + parcel.PendingBuilding;
+                parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? completedBuilding : parcel.Buildings + "," + completedBuilding;
                 parcel.PendingBuilding = null; parcel.BuildingEndsAt = null;
+                var kind = Economy.Buildings[completedBuilding];
+                Activity.Add(db, p, "construction", $"{kind.Name} complete", $"The {kind.Name} on your Sector {parcel.Sector} parcel is now producing.", "sector", completedAt);
+                Guide.Advance(db, p, completedBuilding switch { "sawmill" => "build", "mine" => "mine", "rig" => "oil", _ => "" });
             }));
+        }
         if (p.PendingHqLevel is { } hq && p.HqUpgradeEndsAt is { } hqEnd && hqEnd <= now)
-            events.Add((hqEnd, () => { p.HqLevel = Math.Clamp(hq, 1, 10); p.PendingHqLevel = null; p.HqUpgradeEndsAt = null; }));
+            events.Add((hqEnd, () => { p.HqLevel = Math.Clamp(hq, 1, 10); p.PendingHqLevel = null; p.HqUpgradeEndsAt = null; Activity.Add(db, p, "construction", "Headquarters upgraded", $"Headquarters level {p.HqLevel} is now active.", "home", hqEnd); Guide.Advance(db, p, "hq"); }));
         if (events.Count == 0) return false;
         // Production older than the storage window would be lost to the cap anyway. Dropping it first keeps the
         // banked pieces below, added together, within the same cap as a single collection.
@@ -157,18 +182,32 @@ public static class HomeBase
     public static double UpgradeOreCost(Kind kind, int currentLevel) =>
         Math.Ceiling(kind.Cost * Math.Max(1, currentLevel) * 0.10 / 10) * 10;
 
+    /// <summary>A completed building sells for half of every cash and ore investment made in it.</summary>
+    public static (double Cash, double Ore) SaleValue(Kind kind, int level)
+    {
+        level = Math.Clamp(level, 1, MaxBuildingLevel);
+        var cash = kind.Cost;
+        var ore = 0d;
+        for (var current = 1; current < level; current++)
+        {
+            cash += UpgradeCost(kind, current);
+            ore += UpgradeOreCost(kind, current);
+        }
+        return (Math.Floor(cash * .5), Math.Floor(ore * .5));
+    }
+
     /// <summary>The first chapter: one visible need, one action and one reward at a time.</summary>
     public record Step(string Do, string Title, string Text, double Cash = 0, double Fuel = 0, double Power = 0);
     public static readonly Step[] Tutorial =
     [
-        new("hqintro", "Learn about your Headquarters", "Every base begins with a Headquarters. It controls how many home buildings you can operate, and higher Headquarters levels allow stronger building upgrades. Select it now for more information.", Cash: 150),
-        new("barracks", "Build your Barracks", "A Barracks trains the defenders who protect your settlement. Select Build, choose Barracks, and place it inside the walls.", Cash: 150),
+        new("hqintro", "Learn about your Headquarters", "This is your Headquarters. It controls the number of buildings you can operate. Upgrading the Headquarters lets you build more buildings and allows stronger building upgrades.", Cash: 150),
+        new("barracks", "Build your Barracks", "Barracks train and house soldiers for player raids and settlement defence. Each level adds 15 trained-unit spaces. Build the first one inside your walls.", Cash: 150),
         new("train", "Train your first defenders", "Select your new Barracks and train five gunners. They will hold the gate during defensive Operations and protect the settlement from future attacks.", Cash: 200),
-        new("laststand", "Launch Last Stand", "Last Stand is a replayable Operation, not an attack by another player. Stop the raiders with your Headquarters turret, gunners, and temporary towers built with scrap. Successful Operations raise their Threat level, and the first five wins each day pay resources.", Cash: 600, Fuel: 80),
-        new("walls", "Reinforce the gate", "Walls determine how much damage your gate can take in Last Stand. Reinforce the entry gate now to add integrity and strengthen your defensive towers.", Cash: 200),
-        new("people", "Meet your settlers", "More people mean more building and resource output because more jobs can be filled. Fully staffed buildings run at 100%, while available extra workers can raise settlement output as high as 120%. People consume food and power and also need housing.", Cash: 150),
-        new("crops", "Grow a food supply", "Your settlers consume food each hour. A Crop plot is the small food building used inside your home base; larger Farms can be built on fertile parcels later.", Cash: 250),
-        new("solar", "Make power", "Your settlers consume power each hour. A power shortage eventually reduces population and leaves jobs unfilled. Solar panels produce power without consuming another resource.", Cash: 250, Power: 20),
+        new("laststand", "Launch Last Stand", "Last Stand is a replayable Operation. Stop the raiders with your Headquarters turret, gunners, and temporary towers built with scrap. Successful Operations raise their Threat level, and the first five wins each day pay resources.", Cash: 600, Fuel: 80),
+        new("walls", "Reinforce the gate", "Reinforce the entry gate. Each level adds 25 gate HP in Last Stand and gives your defensive towers and Headquarters 10% more health during player raids.", Cash: 200),
+        new("people", "Support your settlers", "Settlers work in your buildings. Keep enough housing, food, and power available so jobs stay filled. A well-supported population can raise settlement output as high as 120%.", Cash: 150),
+        new("crops", "Grow a food supply", "Your settlers consume food each hour. A Crop plot is the small food building used inside your home base; larger Farms can be built on fertile parcels later. Use the Build menu to build a Crop plot.", Cash: 250),
+        new("solar", "Make power", "Your settlers consume power each hour. A power shortage eventually reduces population and leaves jobs unfilled. Solar panels produce power without consuming another resource. Select the Build menu to build a Solar panel.", Cash: 250, Power: 20),
     ];
 
     public static (int lo, int hi) Bounds(Player p)
@@ -206,10 +245,36 @@ public static class HomeBase
         return k.SuitAs == "rig" ? Math.Max(0.5, suit) : suit;
     }
 
+    /// <summary>Keep the opening build palette aligned with what the guide has actually taught.</summary>
+    public static bool Introduced(Player p, string type)
+    {
+        if (type == "motorpool") return Research.Has(p, Research.MotorPoolPlans);
+        if (type == "commandcenter") return Research.Has(p, Research.NationalCommand);
+        var core = type is "barracks" or "crops" or "solar";
+        if (p.TutorialStep < Tutorial.Length)
+        {
+            var introducedAt = Array.FindIndex(Tutorial, x => x.Do == type);
+            return core && introducedAt >= 0 && introducedAt <= p.TutorialStep;
+        }
+        if (!Guide.Active(p)) return true;
+        if (core) return true;
+        var current = Guide.Steps[p.GuideStep].Do;
+        var at = Array.FindIndex(Guide.Steps, x => x.Do == current);
+        var researchAt = Array.FindIndex(Guide.Steps, x => x.Do == "research");
+        var oilAt = Array.FindIndex(Guide.Steps, x => x.Do == "oil");
+        if (type == "workshop") return at > Array.FindIndex(Guide.Steps, x => x.Do == "readiness");
+        if (type is "research" or "housing" or "warehouse") return at >= researchAt;
+        if (type is "oilpump" or "generator") return at >= oilAt;
+        return false;
+    }
+
     public static string? Place(GameDb db, Player p, List<HomeTile> tiles, string type, int x, int y, bool rotate)
     {
         var guided = p.TutorialStep < Tutorial.Length;
         if (!Kinds.TryGetValue(type, out var k)) return "Unknown building.";
+        if (!Introduced(p, type)) return "That building unlocks later in the Field Guide.";
+        if (type == "motorpool" && p.HqLevel < 3) return "Upgrade your Headquarters to level 3 before building a Motor Pool.";
+        if (type == "commandcenter" && p.HqLevel < 5) return "Upgrade your Headquarters to level 5 before building a National Command Center.";
         int w = rotate ? k.H : k.W, h = rotate ? k.W : k.H;
         if (OutOfBounds(p, k, x, y, w, h) is { } oob) return oob;
         var (hx, hy) = HqAt;
@@ -263,6 +328,23 @@ public static class HomeBase
         return null;
     }
 
+    public static string? Sell(GameDb db, Player p, List<HomeTile> tiles, long id)
+    {
+        var now = DateTime.UtcNow;
+        FinalizeReady(db, p, now);
+        var tile = tiles.FirstOrDefault(t => t.Id == id);
+        if (tile is null || !Kinds.TryGetValue(tile.Type, out var kind)) return "That building isn't yours.";
+        if (Constructing(tile, now) || tile.PendingLevel is not null) return $"Wait for the {kind.Name.ToLower()} to finish before selling it.";
+        Economy.Settle(db, p, now);
+        var refund = SaleValue(kind, Level(tile));
+        Ledger.Add(db, p, "cash", refund.Cash, $"Sold {kind.Name} level {Level(tile)}");
+        if (refund.Ore > 0) Ledger.Add(db, p, "ore", refund.Ore, $"Recovered materials from {kind.Name} level {Level(tile)}");
+        db.HomeTiles.Remove(tile);
+        tiles.Remove(tile);
+        Activity.Add(db, p, "construction", $"{kind.Name} sold", $"Recovered {refund.Cash:N0} cash" + (refund.Ore > 0 ? $" and {refund.Ore:N0} ore." : "."), "home", now);
+        return null;
+    }
+
     public static string? Upgrade(GameDb db, Player p, List<HomeTile> tiles, long id)
     {
         var now = DateTime.UtcNow;
@@ -286,7 +368,7 @@ public static class HomeBase
         var seconds = UpgradeSeconds(p, target);
         if (seconds == 0) tile.Level = target;
         else { tile.PendingLevel = target; tile.ConstructionEndsAt = DateTime.UtcNow.AddSeconds(seconds); }
-        if (tile.Type == "barracks" && target >= 2) Guide.Advance(db, p, "upgrade");
+        if (seconds == 0 && tile.Type == "barracks" && target >= 2) Guide.Advance(db, p, "upgrade");
         Progression.Add(db, p, 30, $"upgraded {kind.Name}");
         return null;
     }
@@ -307,8 +389,10 @@ public static class HomeBase
         DateTime fallbackStart;
         var hqGuideIndex = Array.FindIndex(Guide.Steps, x => x.Do == "hq");
         var buildingGuideIndex = Array.FindIndex(Guide.Steps, x => x.Do == "upgrade");
-        var guidedHq = job.Headquarters && job.TargetLevel == 2 && p.GuideStep == hqGuideIndex + 1;
-        var guidedBuilding = !job.Headquarters && job.TargetLevel == 2 && p.GuideStep == buildingGuideIndex + 1;
+        // Current builds advance only when their timer completes. The +1 checks retain correct
+        // cancellation/refund behaviour for saves created before that timing change.
+        var guidedHq = job.Headquarters && job.TargetLevel == 2 && (p.GuideStep == hqGuideIndex || p.GuideStep == hqGuideIndex + 1);
+        var guidedBuilding = !job.Headquarters && job.TargetLevel == 2 && (p.GuideStep == buildingGuideIndex || p.GuideStep == buildingGuideIndex + 1);
         if (job.Headquarters)
         {
             reason = $"Started HQ level {job.TargetLevel} upgrade";
@@ -402,6 +486,14 @@ public static class HomeBase
         p.TutorialStep++;
         // Last Stand used to be the first Field Guide step. New players already completed it here.
         if (p.TutorialStep >= Tutorial.Length && p.GuideStep == 0 && Guide.Steps[0].Do == "laststand") p.GuideStep = 1;
+        if (did == "solar" && p.TutorialStep >= Tutorial.Length)
+        {
+            // The opening's major accomplishments count toward Stabilising. Leave one
+            // short production collection for the player so the economy loop is still taught.
+            Progression.Add(db, p, Math.Max(0, 75 - p.Xp), "completed Survival training");
+            var starterWindow = DateTime.UtcNow.AddMinutes(-5);
+            if (p.LastCollectAt > starterWindow) p.LastCollectAt = starterWindow;
+        }
     }
 
     /// <summary>What the home base produces per hour, and the bonuses it gives the rest of the player's land.</summary>
@@ -436,6 +528,7 @@ public static class HomeBase
                 var activeLevel = Level(t, now);
                 var level = constructing ? t.PendingLevel!.Value : activeLevel;
                 var canUpgrade = level < MaxBuildingLevel;
+                var sale = activeLevel > 0 && !constructing ? SaleValue(k, activeLevel) : (Cash: 0d, Ore: 0d);
                 return new
                 {
                     t.Id, t.Type, t.X, t.Y, rotated = t.Rotated, level,
@@ -449,10 +542,11 @@ public static class HomeBase
                     upgradeOre = canUpgrade ? UpgradeOreCost(k, level) : 0,
                     upgradeSeconds = canUpgrade ? UpgradeSeconds(p, level + 1) : 0,
                     needsHq = canUpgrade ? level + 1 : 0,
+                    sellCash = sale.Cash, sellOre = sale.Ore,
                     outputPerHour = Math.Round(k.PerHour * Suit(p, k) * OutputMultiplier(t), 1),
                 };
             }),
-            kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field, buildSeconds = BuildSeconds(p, kv.Value, kv.Key) }),
+            kinds = Kinds.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, w = kv.Value.W, h = kv.Value.H, kv.Value.Res, perHour = Math.Round(kv.Value.PerHour * Suit(p, kv.Value), 1), kv.Value.Blurb, kv.Value.Max, field = kv.Value.Field, introduced = Introduced(p, kv.Key), buildSeconds = BuildSeconds(p, kv.Value, kv.Key) }),
             expand = next < 0 ? null : new { size = Sizes[next], cash = ExpandCash[next], power = ExpandPower[next], needHq = next + 1 },
             walls = new { level = p.WallLevel, max = MaxWallLevel, next = p.WallLevel < MaxWallLevel ? new { cash = WallCash[p.WallLevel + 1], power = WallPower[p.WallLevel + 1] } : null },
             tutorial = p.TutorialStep < Tutorial.Length ? new
@@ -496,8 +590,10 @@ public static class HomeBase
         foreach (var r in Ledger.Resources)
             Ledger.Add(db, p, r, Ledger.Get(start, r) - Ledger.Get(p, r), "Started over");
         p.HqLevel = 1; p.PendingHqLevel = null; p.HqUpgradeEndsAt = null; p.HomeLevel = 0; p.WallLevel = 1; p.TutorialStep = 0; p.GuideStep = 0;
-        p.Techs = null; p.ResearchId = null; p.ResearchEndsAt = null; p.ResearchHelpers = null;
+        p.Techs = null; p.ResearchId = null; p.ResearchEndsAt = null; p.ResearchHelpers = null; p.ResearchCreditMinutes = 0;
         p.OperationLevels = null; p.OperationPaidDay = null; p.OperationPaidWins = 0; p.Xp = 0;
+        p.Defenders = null; p.DefenseDoctrine = null;
+        p.DailyRewardDay = 0; p.LastDailyRewardAt = null;
         p.LastCollectAt = DateTime.UtcNow;
     }
 }

@@ -52,6 +52,8 @@ public class Player
     public string? Techs { get; set; }
     public string? ResearchId { get; set; }
     public DateTime? ResearchEndsAt { get; set; }
+    /// <summary>Banked minutes recovered from Extraction tech cargo; consumed automatically by research.</summary>
+    public double ResearchCreditMinutes { get; set; }
     public List<HomeTile> HomeTiles { get; set; } = new();
     /// <summary>Comma-separated buildings inside the home base walls, e.g. "garden,workshop".</summary>
     public string? HomeBuildings { get; set; }
@@ -216,6 +218,21 @@ public class LedgerEntry
     public DateTime At { get; set; } = DateTime.UtcNow;
 }
 
+/// <summary>A player-facing event worth returning to: completions, results, rewards and attacks.</summary>
+public class ActivityEntry
+{
+    public long Id { get; set; }
+    public Guid PlayerId { get; set; }
+    /// <summary>construction, research, delivery, reward, battle or politics.</summary>
+    public string Kind { get; set; } = "system";
+    public string Title { get; set; } = "";
+    public string Text { get; set; } = "";
+    /// <summary>Optional client destination such as home, research, contracts or politics.</summary>
+    public string? Action { get; set; }
+    public DateTime At { get; set; } = DateTime.UtcNow;
+    public DateTime? SeenAt { get; set; }
+}
+
 /// <summary>A standing buy or sell order on a nation's market. Its goods or cash are held in escrow until filled or cancelled.</summary>
 public class Order
 {
@@ -300,7 +317,7 @@ public class Drone
     public DateTime? DownUntil { get; set; }
 }
 
-/// <summary>A Caretaker militia camp. Cleared, the sector is safe for everyone until the militia returns.</summary>
+/// <summary>A rogue militia camp controlled by a disconnected defence AI. Cleared, the sector is safe for everyone until the militia returns.</summary>
 public class Camp
 {
     public int Sector { get; set; }
@@ -392,6 +409,23 @@ public class AllianceInvite
     public string Kind { get; set; } = "invite";
     public string By { get; set; } = "";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>A member's best contribution to one weekly alliance event. Rewards are claimed
+/// per member, while the unlocked tier comes from every member's combined best score.</summary>
+public class AllianceEventScore
+{
+    public long Id { get; set; }
+    public long AllianceId { get; set; }
+    public Guid PlayerId { get; set; }
+    /// <summary>ISO week key, for example 2026-W43.</summary>
+    public string Cycle { get; set; } = "";
+    public int BestScore { get; set; }
+    public int PowerRating { get; set; }
+    public int Attempts { get; set; }
+    /// <summary>Highest cumulative alliance reward tier this member has claimed.</summary>
+    public int RewardTier { get; set; }
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
 
 /// <summary>A war between two nations. Ends when one side offers peace and the other accepts.</summary>
@@ -488,6 +522,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
     public DbSet<SectorName> SectorNames => Set<SectorName>();
     public DbSet<SectorPresence> SectorPresence => Set<SectorPresence>();
     public DbSet<AllianceInvite> AllianceInvites => Set<AllianceInvite>();
+    public DbSet<AllianceEventScore> AllianceEventScores => Set<AllianceEventScore>();
     public DbSet<Candidate> Candidates => Set<Candidate>();
     public DbSet<Ballot> Ballots => Set<Ballot>();
     public DbSet<Law> Laws => Set<Law>();
@@ -497,6 +532,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
     public DbSet<Contract> Contracts => Set<Contract>();
     public DbSet<Shipment> Shipments => Set<Shipment>();
     public DbSet<LedgerEntry> Ledger => Set<LedgerEntry>();
+    public DbSet<ActivityEntry> Activities => Set<ActivityEntry>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<Trade> Trades => Set<Trade>();
     public DbSet<Player> Players => Set<Player>();
@@ -525,6 +561,7 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
         b.Entity<ChatMessage>().HasIndex(m => new { m.Channel, m.Id });
         b.Entity<RecordEntry>().HasIndex(r => new { r.PlayerId, r.Id });
         b.Entity<LedgerEntry>().HasIndex(l => new { l.PlayerId, l.Id });
+        b.Entity<ActivityEntry>().HasIndex(a => new { a.PlayerId, a.Id });
         b.Entity<Order>().HasIndex(o => new { o.Resource, o.Side, o.Price });
         b.Entity<Trade>().HasIndex(t => new { t.Resource, t.Id });
         b.Entity<Contract>().HasIndex(c => c.Status);
@@ -537,5 +574,6 @@ public class GameDb(DbContextOptions<GameDb> options) : DbContext(options)
         b.Entity<Ballot>().HasIndex(x => new { x.NationId, x.ElectionNo, x.VoterId }).IsUnique();
         b.Entity<LawVote>().HasIndex(x => new { x.LawId, x.VoterId }).IsUnique();
         b.Entity<Law>().HasIndex(x => new { x.NationId, x.Status });
+        b.Entity<AllianceEventScore>().HasIndex(x => new { x.AllianceId, x.PlayerId, x.Cycle }).IsUnique();
     }
 }

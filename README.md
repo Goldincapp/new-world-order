@@ -1,4 +1,4 @@
-# New World Order
+# Nations Reborn
 
 A mobile strategy MMO on a real-world map with no real names. Players claim land, run a player-driven economy, smuggle and inspect, play politics, and unite against the Caretaker before fighting each other for the land it gives up.
 
@@ -34,6 +34,45 @@ Then open http://localhost:5080. In another terminal, verify the basic account f
 ```powershell
 .\scripts\smoke.ps1
 ```
+
+Run the deterministic tutorial and Operations regression suite in a disposable database with:
+
+```powershell
+.\scripts\qa-regression.ps1
+```
+
+The suite starts its own localhost-only server, checks all development QA checkpoints and controls, then removes the temporary database. It does not touch normal development or playtest saves.
+
+Add `-CaptureVisuals` to capture all checkpoints and the three Operations at 1600×900. The report is written to `artifacts/visual-regression/report.html`. After reviewing a good capture, use `-UpdateBaseline` to make it the comparison baseline:
+
+```powershell
+.\scripts\qa-regression.ps1 -CaptureVisuals
+.\scripts\qa-regression.ps1 -CaptureVisuals -UpdateBaseline
+```
+
+Add `-BalanceReport` to audit early-game affordability, construction waits, production, population growth, XP routes, research pacing, and Operation rewards. Guardrail failures stop the regression run; the readable report is written to `artifacts/balance-audit/report.html`:
+
+```powershell
+.\scripts\qa-regression.ps1 -BalanceReport
+```
+
+Add `-TutorialE2E` to launch an isolated Edge session and drive every highlighted control through the eight-step Survival tutorial, the complete Field Guide, and the handoff into the persistent Commander Roadmap. The runner builds and upgrades the Barracks, launches Last Stand, establishes timber, ore, and oil production, completes Extraction Run, upgrades Headquarters, builds the Research Lab, completes Mining research, makes the protected food purchase, dispatches the first legal delivery, deploys a Gunner in the guided militia assault, completes Leviathan Assault, joins or founds an Alliance, handles Politics, reviews the Caretaker Record, acknowledges the Sentinel briefing, and verifies all three Roadmap tracks. It saves 29 milestone screenshots and a readable failure report to `artifacts/tutorial-e2e/report.html`:
+
+```powershell
+.\scripts\qa-regression.ps1 -TutorialE2E
+```
+
+Add `-MidgameE2E` to test the persistent progression that follows the Field Guide. It claims the Settlement Foundation tracks, verifies the Motor Pool unlock and construction flow, deploys the first tank, completes Regional Command, verifies National Authority's territory, alliance, and civic tracks, constructs the National Command Center, completes the National Network chapter, activates the level-5 strategic network, and completes the Ashlands Campaign for its persistent frontier production bonus. Fourteen 1600×900 milestone screenshots and a readable report are written to `artifacts/midgame-e2e/report.html`:
+
+```powershell
+.\scripts\qa-regression.ps1 -MidgameE2E
+```
+
+## Continuous integration
+
+GitHub Actions runs the client validation, Release server build, deterministic checkpoints, the complete browser-driven onboarding and Field Guide, and all balance guardrails on every push and pull request. The balance audit and onboarding browser report are attached to the workflow run for 14 days, including failed runs when a report was produced.
+
+Visual captures are intentionally opt-in because they launch Edge and produce a larger review set. From the **Verify** workflow, choose **Run workflow**, enable **Capture the deterministic 1600x900 visual review set**, and download the `visual-regression` artifact when the run finishes. Baselines are only updated locally after review; CI never replaces them automatically.
 
 The first playable milestone and the questions each test should answer are in [`docs/PLAYABLE_ALPHA.md`](docs/PLAYABLE_ALPHA.md).
 

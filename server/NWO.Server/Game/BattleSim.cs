@@ -73,7 +73,7 @@ public class BattleSim : IBattle
     public readonly Dictionary<string, int> EnemyGarrison = new();
     public string[] Deck;
     public string? LastPlayer;
-    public bool Done, Won;
+    public bool Done, Won, GuidedCamp;
     public string Why = "";
     /// <summary>Shots fired since the last broadcast, for the client to draw: [from unit, to unit or -1 for a tower, -2 for an artillery blast].</summary>
     public readonly List<double[]> Shots = new();
@@ -90,6 +90,22 @@ public class BattleSim : IBattle
             En = EnMax = 2200 + rival.Walls * 150;
         }
         else En = EnMax = 2600;
+    }
+
+    /// <summary>
+    /// The Field Guide's first camp is a deployment lesson, not a build-check. Keep the two
+    /// relevant unit choices, soften the camp and slow its waves so the tactic being taught
+    /// can win without requiring an optimised roster on the player's first attempt.
+    /// </summary>
+    public void MakeGuidedCamp()
+    {
+        GuidedCamp = true;
+        Deck = Deck.Where(x => x is "gunner" or "launcher").ToArray();
+        TimeLeft = 150;
+        Cp = 10;
+        You = YouMax = 2600;
+        En = EnMax = 900;
+        Wave = 7;
     }
 
     void Spawn(string type, int side, double z, double x)
@@ -160,10 +176,12 @@ public class BattleSim : IBattle
             if (Wave <= 0)
             {
                 WaveN++;
-                string[] pool = WaveN < 3 ? ["raider", "raider", "technical"] : ["raider", "technical", "mortar", "raider", "technical"];
-                var k = Math.Min(3, 1 + WaveN / 3);
+                string[] pool = GuidedCamp
+                    ? ["raider"]
+                    : (WaveN < 3 ? ["raider", "raider", "technical"] : ["raider", "technical", "mortar", "raider", "technical"]);
+                var k = GuidedCamp ? Math.Min(2, 1 + WaveN / 6) : Math.Min(3, 1 + WaveN / 3);
                 for (var i = 0; i < k; i++) Spawn(pool[rng.Next(pool.Length)], 1, Lanes[rng.Next(3)], 7.2 + i * 0.7);
-                Wave = Math.Max(4.4, 6.8 - WaveN * 0.15);
+                Wave = GuidedCamp ? Math.Max(7.5, 9.5 - WaveN * 0.1) : Math.Max(4.4, 6.8 - WaveN * 0.15);
             }
         }
 
@@ -204,7 +222,7 @@ public class BattleSim : IBattle
             var foe = Units.FirstOrDefault(u => u.Side != side && u.Hp > 0 && Math.Abs(u.X - sx) < 3.2 && (air || u.T.Kind != "air"));
             if (foe is not null && rng.NextDouble() < dt * 3)
             {
-                foe.Hp -= side == 1 ? (Opponent?.TurretDmg ?? 12) : 8;
+                foe.Hp -= side == 1 ? (Opponent?.TurretDmg ?? (GuidedCamp ? 4 : 12)) : 8;
                 Shots.Add([side == 0 ? -10 : -11, foe.Id]);
             }
         }

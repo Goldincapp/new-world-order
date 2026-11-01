@@ -1,28 +1,103 @@
-name: Build
+name: Verify
 
 on:
   push:
   pull_request:
+  workflow_dispatch:
+    inputs:
+      visual_regression:
+        description: Capture the deterministic 1600x900 visual review set
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
 
 jobs:
-  server:
-    runs-on: ubuntu-latest
+  verify:
+    name: Build and deterministic QA
+    runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Restore
         run: dotnet restore server/NWO.Server/NWO.Server.csproj
+
+      - name: Validate client
+        run: node tools/check-client.mjs
+
       - name: Build
         run: dotnet build server/NWO.Server/NWO.Server.csproj --configuration Release --no-restore
 
-  client:
-    runs-on: ubuntu-latest
+      - name: Run tutorial, Operations, and balance guardrails
+        shell: pwsh
+        run: ./scripts/qa-regression.ps1 -BalanceReport -TutorialE2E
+
+      - name: Publish balance audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: balance-audit-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts/balance-audit/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish tutorial browser report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tutorial-e2e-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts/tutorial-e2e/
+          if-no-files-found: warn
+          retention-days: 14
+
+  visual-regression:
+    name: Manual visual review set
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.visual_regression }}
+    needs: verify
+    runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Syntax-check the game client
-        run: node tools/check-client.mjs
+          node-version: 22
+
+      - name: Restore
+        run: dotnet restore server/NWO.Server/NWO.Server.csproj
+
+      - name: Capture deterministic checkpoints and Operations
+        shell: pwsh
+        run: ./scripts/qa-regression.ps1 -CaptureVisuals
+
+      - name: Publish visual review set
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-regression-${{ github.run_number }}-${{ github.run_attempt }}
+          path: artifacts/visual-regression/
+          if-no-files-found: warn
+          retention-days: 14

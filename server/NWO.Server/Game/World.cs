@@ -59,10 +59,14 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (parcel is not null) return parcel.OwnerId == me.Id ? "You already own this parcel." : $"{parcel.Owner!.Name} already owns this parcel.";
         var r2 = Region2.Contains(sector);
         if (r2 && await Region2.CanClaim(db, me) is { } why) return why;
-        var cost = r2 ? Region2.ClaimCost : Economy.ClaimCost;
+        var landCode = SectorTemplate.Code(sector, i, j);
+        var guidedPermit = !r2 &&
+            ((Guide.Current(me, "mine") && landCode == "ro" && !me.Parcels.Any(x => SectorTemplate.Code(x.Sector, x.I, x.J) == "ro")) ||
+             (Guide.Current(me, "oil") && landCode == "oi" && !me.Parcels.Any(x => SectorTemplate.Code(x.Sector, x.I, x.J) == "oi")));
+        var cost = guidedPermit ? 0 : r2 ? Region2.ClaimCost : Economy.ClaimCost;
         if (me.Cash < cost) return "Not enough cash to claim this parcel.";
         Economy.Settle(db, me, now);
-        Ledger.Add(db, me, "cash", -cost, $"Claimed parcel {sector}:{i},{j}");
+        if (cost > 0) Ledger.Add(db, me, "cash", -cost, $"Claimed parcel {sector}:{i},{j}");
         Guide.Advance(db, me, "claim");
         if (r2) { me.WarScore += Region2.ClaimScore; Caretaker.Remember(db, me, 0, "war", $"Staked a claim in the Ashlands, Sector {sector}"); }
         var p = new Parcel { Sector = sector, I = i, J = j, Resource = SectorTemplate.Resource(sector, i, j), Owner = me, ClaimedAt = now };
@@ -139,6 +143,11 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         if (parcel is null || parcel.OwnerId != me.Id) return "You can only build on your own parcels.";
         if (parcel.PendingBuilding is not null) return "Finish the building already under construction on this parcel first.";
         if (Research.Unlocking(type) is { } tech && !Research.Has(me, tech.Id)) return $"Research {tech.Name} in your Research lab to build a {t.Name.ToLower()}.";
+        var landCode = SectorTemplate.Code(sector, i, j);
+        if (Guide.Current(me, "mine") && type == "mine" && landCode != "ro")
+            return "Use the highlighted rocky parcel for this Mine. Your timber parcel is much better kept for its Sawmill.";
+        if (Guide.Current(me, "oil") && type == "rig" && landCode != "oi")
+            return "Use the highlighted oil-sands parcel for this Oil Rig so it can operate at full output.";
         var guideBuild = Guide.Current(me, "build") ? "sawmill" : Guide.Current(me, "mine") ? "mine" : Guide.Current(me, "oil") ? "rig" : null;
         if (guideBuild is not null && type != guideBuild)
             return $"For this lesson, build the highlighted {Economy.Buildings[guideBuild].Name}. The other choices remain available afterward.";
@@ -150,7 +159,25 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         var seconds = Economy.BuildSeconds(me, t, guideAction is not null);
         if (seconds == 0) parcel.Buildings = string.IsNullOrEmpty(parcel.Buildings) ? type : parcel.Buildings + "," + type;
         else { parcel.PendingBuilding = type; parcel.BuildingEndsAt = now.AddSeconds(seconds); }
-        if (guideAction is not null) Guide.Advance(db, me, guideAction);
+        // Timed construction advances from HomeBase.FinalizeReady. This keeps the next
+        // Caretaker briefing off screen until the completed building is actually usable.
+        if (seconds == 0 && guideAction is not null) Guide.Advance(db, me, guideAction);
+        return null;
+    });
+
+    /// <summary>Sell one completed parcel building and recover half of its original cash cost.</summary>
+    public Task<Result> SellBuilding(Guid playerId, int sector, int i, int j, string type) => Change(playerId, sector, i, j, async (db, me, parcel, now) =>
+    {
+        if (!Economy.Buildings.TryGetValue(type, out var building)) return "Unknown building.";
+        if (parcel is null || parcel.OwnerId != me.Id) return "You can only sell buildings on your own parcels.";
+        if (parcel.PendingBuilding is not null) return "Finish the building under construction before changing this parcel.";
+        var buildings = Economy.BuildingsOn(parcel).ToList();
+        if (!buildings.Remove(type)) return $"There is no completed {building.Name.ToLower()} on this parcel.";
+        Economy.Settle(db, me, now);
+        parcel.Buildings = string.Join(",", buildings);
+        var refund = Math.Floor(building.Cost * 0.5);
+        Ledger.Add(db, me, "cash", refund, $"Sold {building.Name} from {sector}:{i},{j}");
+        Activity.Add(db, me, "construction", $"{building.Name} sold", $"Recovered {refund:N0} cash from the completed parcel building.", "sector", now);
         return null;
     });
 
@@ -177,6 +204,9 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
 
     public Task<Result> MoveHome(Guid playerId, long id, int x, int y, bool rotate) =>
         ChangePlayer(playerId, (db, me) => HomeBase.Move(db, me, me.HomeTiles, id, x, y, rotate));
+
+    public Task<Result> SellHome(Guid playerId, long id) =>
+        ChangePlayer(playerId, (db, me) => HomeBase.Sell(db, me, me.HomeTiles, id));
 
     public Task<Result> UpgradeHome(Guid playerId, long id) =>
         ChangePlayer(playerId, (db, me) => HomeBase.Upgrade(db, me, me.HomeTiles, id));
@@ -210,7 +240,9 @@ public class World(IServiceScopeFactory scopes, IHubContext<GameHub> hub)
         var seconds = HomeBase.HqUpgradeSeconds(me, target, sponsored);
         if (seconds == 0) me.HqLevel = target;
         else { me.PendingHqLevel = target; me.HqUpgradeEndsAt = DateTime.UtcNow.AddSeconds(seconds); }
-        Guide.Advance(db, me, "hq");
+        // Timed upgrades advance from HomeBase.FinalizeReady so their next briefing cannot
+        // appear underneath a countdown and then be displaced by the completion refresh.
+        if (seconds == 0) Guide.Advance(db, me, "hq");
         return null;
     });
 

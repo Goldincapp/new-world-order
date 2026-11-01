@@ -168,7 +168,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
         Guide.Advance(db, me, "vote");
         if (b is null) db.Ballots.Add(new Ballot { NationId = n.Id, ElectionNo = n.ElectionNo, VoterId = me.Id, CandidateId = c.Id });
         else b.CandidateId = c.Id;
-        return (new Result(true, Summary: $"Your vote is for {c.Name}. You can change it until the polls close."), null);
+        return (new Result(true, Player: Dto.Me(me), Summary: $"Your vote is for {c.Name}. You can change it until the polls close."), null);
     });
 
     public Task<Result> Propose(Guid playerId, string kind, double value, bool decree) => Do(playerId, async (db, me, n) =>
@@ -212,7 +212,7 @@ public class Politics(World world, IHubContext<GameHub> hub)
         Guide.Advance(db, me, "vote");
         if (yes) l.For++; else l.Against++;
         if (v is null) Caretaker.Remember(db, me, 1, "order", $"Voted in the council: {l.Title}");
-        return (new Result(true, Summary: $"Vote recorded: {(yes ? "for" : "against")}."), null);
+        return (new Result(true, Player: Dto.Me(me), Summary: $"Vote recorded: {(yes ? "for" : "against")}."), null);
     });
 
     static void CheckSnapElection(Nation n)
@@ -262,6 +262,10 @@ public class Politics(World world, IHubContext<GameHub> hub)
                     notes.Add((n.Name, $"Law passed {l.For} to {l.Against}: {l.Title}"));
                 }
                 else { l.Status = "failed"; notes.Add((n.Name, $"Law failed {l.For} to {l.Against}: {l.Title}")); }
+                var citizens = await db.Players.Where(p => p.Nation == n.Name && !p.IsBot).ToListAsync();
+                foreach (var citizen in citizens)
+                    Activity.Add(db, citizen, "politics", l.Status == "passed" ? "Council proposal passed" : "Council proposal rejected",
+                        $"{l.Title} · {l.For} for, {l.Against} against.", "politics", now);
             }
             if (n.ElectionAt <= now)
             {
@@ -279,6 +283,11 @@ public class Politics(World world, IHubContext<GameHub> hub)
                     notes.Add((n.Name, $"{winner.c.Name} wins the election with {winner.votes} of {ballots.Count} votes and becomes President of {n.Name}."));
                 }
                 else notes.Add((n.Name, $"No one stood for office. {(n.PresidentName is null ? "The Caretaker continues as steward." : n.PresidentName + " stays in office.")}"));
+                var resultText = winner.c is not null
+                    ? $"{winner.c.Name} won with {winner.votes} of {ballots.Count} votes."
+                    : n.PresidentName is null ? "No candidate stood. The Caretaker continues as steward." : $"No candidate stood. {n.PresidentName} remains President.";
+                foreach (var citizen in await db.Players.Where(p => p.Nation == n.Name && !p.IsBot).ToListAsync())
+                    Activity.Add(db, citizen, "politics", $"Election {n.ElectionNo} concluded", resultText, "politics", now);
                 n.ElectionNo++;
                 n.ElectionAt = now + Term;
             }

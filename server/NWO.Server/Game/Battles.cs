@@ -11,8 +11,8 @@ namespace NWO.Server.Game;
 /// </summary>
 public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker) : BackgroundService
 {
-    /// <summary>GuideLesson: this camp battle is the Field Guide's first-battle step, finished by deploying a Gunner.</summary>
-    record Live(long Id, Guid PlayerId, string Kind, int Sector, string? RivalKey, IBattle Sim, bool GuideLesson = false);
+    /// <summary>GuidedBattle keeps the introductory protections; GuideLesson stays true only until the first Gunner is deployed.</summary>
+    record Live(long Id, Guid PlayerId, string Kind, int Sector, string? RivalKey, IBattle Sim, bool GuidedBattle = false, bool GuideLesson = false);
 
     static readonly ConcurrentDictionary<Guid, Live> Active = new();
     static long nextId;
@@ -70,8 +70,9 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     var camp = await db.Camps.FindAsync(sector);
                     if (camp is null) return new Result(false, "There's no militia camp here.");
                     if (camp.ClearedUntil > now) return new Result(false, $"{camp.ClearedBy} already cleared this camp. The militia will be back later.");
-                    fuel = CampFuel;
+                    fuel = guideLesson ? 0 : CampFuel;
                     sim = new BattleSim($"Assault on the militia camp: Sector {sector}", "Militia camp", null, deck, Random.Shared.Next(), troops);
+                    if (guideLesson) sim.MakeGuidedCamp();
                     break;
                 case "raid":
                     if (rivalKey is null || !Rivals.TryGetValue(rivalKey, out var rv) || rv.sector != sector) return new Result(false, "There's no garrison to raid here.");
@@ -142,12 +143,12 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
         });
         if (!r.Ok || (sim is null && arena is null)) return r;
         IBattle battle = (IBattle?)sim ?? arena!;
-        var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, battle, guideLesson);
+        var live = new Live(Interlocked.Increment(ref nextId), playerId, kind, sector, rivalKey, battle, guideLesson, guideLesson);
         if (target is { } t0) SeizeTargets[live.Id] = t0;
         if (raidTarget is { } rt) RaidTargets[live.Id] = rt;
         if (outpostStart is { } os) OutpostStarts[live.Id] = os;
         Active[playerId] = live;
-        return r with { Battle = new { id = live.Id, title = battle.Title, enemy = battle.Enemy, deck = battle.Deck, rival = sim?.Opponent?.Name, arena = arena is not null, state = battle.State() } };
+        return r with { Battle = new { id = live.Id, title = battle.Title, enemy = battle.Enemy, deck = battle.Deck, guided = guideLesson, rival = sim?.Opponent?.Name, arena = arena is not null, state = battle.State() } };
     }
 
     public async Task<string?> Deploy(Guid playerId, string type, int lane)
@@ -219,7 +220,8 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
     {
         Active.TryRemove(b.PlayerId, out _);
         var s = b.Sim;
-        Cooldowns[$"{b.PlayerId}:{b.Kind}:{b.Sector}"] = DateTime.UtcNow + (b.Kind == "outpost" ? (Admin.DevTools ? TimeSpan.FromMinutes(5) : Presence.AssaultCooldown) : b.Kind == "raid" ? TimeSpan.FromMinutes(20) : TimeSpan.FromMinutes(5));
+        if (!b.GuidedBattle)
+            Cooldowns[$"{b.PlayerId}:{b.Kind}:{b.Sector}"] = DateTime.UtcNow + (b.Kind == "outpost" ? (Admin.DevTools ? TimeSpan.FromMinutes(5) : Presence.AssaultCooldown) : b.Kind == "raid" ? TimeSpan.FromMinutes(20) : TimeSpan.FromMinutes(5));
         var rows = new List<string[]> { new[] { "Result", s.Why } };
         string? announce = null;
         object? player = null;
@@ -292,6 +294,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                     if (!v.IsBot) Caretaker.Remember(db, v, 0, "war", $"{me.Name} beat your base" + (conquered is null ? "" : $" and took parcel {conquered}"));
                     victimId = v.IsBot ? null : v.Id; victimMe = v.IsBot ? null : Dto.Me(v);
                     victimNote = $"{me.Name} beat your base ({stars}★) and took {cash:N0} cash, {oil:N0} oil and {grain:N0} grain" + (conquered is null ? "." : $", and parcel {conquered}.") + $" Your walls are manned for the next {PlayerShield.TotalHours:0} hours.";
+                    if (!v.IsBot) Activity.Add(db, v, "battle", "Your settlement was raided", victimNote, "home");
                     rows.Add(["Loot", $"+{cash:N0} cash, +{oil:N0} oil, +{grain:N0} grain"]);
                     announce = conquered is null ? $"{me.Name} raided {v.Name}'s base in Sector {v.HomeSector}." : $"{me.Name} conquered land from {v.Name} in Sector {v.HomeSector}.";
                 }
@@ -349,6 +352,7 @@ public class Battles(World world, IHubContext<GameHub> hub, Caretaker caretaker)
                 return true;
             });
         }
+        if (b.GuidedBattle) rows.Add(["Caretaker support", "0 fuel spent · your full field roster is restored after the battle"]);
         rows.Add(["Their losses", BattleSim.Losses(s.ELost)]);
         rows.Add(["Your losses", BattleSim.Losses(s.Lost)]);
         if (!s.Won) rows.Add(["Tip", s is ArenaSim ? "Take out a guard tower first: it stops shooting and opens the way to the HQ" : (s as BattleSim)?.Opponent?.Doctrine == "counter" ? "They counter what you send: mix units and switch lanes" : "Launchers break camps; gunners stop helis"]);

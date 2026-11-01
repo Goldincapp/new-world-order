@@ -35,12 +35,12 @@ public static class Economy
         // from outperforming a sawmill or mine on land suited to those businesses.
         ["housing"] = new("Housing", 800, 2, "cash", 10),
         ["farm"] = new("Farm", 600, 3, "grain", 24),
-        ["rig"] = new("Oil rig", 1500, 2, "oil", 36),
+        ["rig"] = new("Oil Rig", 1500, 2, "oil", 36),
         ["sawmill"] = new("Sawmill", 700, 2, "timber", 24),
         ["mine"] = new("Mine", 900, 2, "ore", 20),
         ["warehouse"] = new("Warehouse", 1000, 3, "cash", 10),
-        ["solar"] = new("Solar farm", 900, 2, "power", 12),
-        ["wind"] = new("Wind turbine", 1400, 2, "power", 20),
+        ["solar"] = new("Solar Farm", 900, 2, "power", 12),
+        ["wind"] = new("Wind Turbine", 1400, 2, "power", 20),
     };
 
     /// <summary>
@@ -75,8 +75,8 @@ public static class Economy
     {
         if (p.IsBot) return 0;
         if (guided) return 12;
-        var quality = 35 + building.Cost / 5 + building.Slots * 20;
-        return (int)Math.Clamp(Math.Round(quality * (1 + Math.Max(0, p.HqLevel - 1) * .12)), 60, 30 * 60);
+        // Parcel construction uses stable slot-based bands so players can compare options at a glance.
+        return building.Slots <= 2 ? 4 * 60 : 6 * 60;
     }
 
     public static TimeSpan Storage(Player p)
@@ -99,7 +99,9 @@ public static class Economy
         foreach (var parcel in p.Parcels.Where(x => !x.IsHome))
         {
             var (res, perHour) = Yield[parcel.Resource];
-            var rich = (Region2.Contains(parcel.Sector) ? Region2.YieldMult : 1) * (1 - Presence.Tithe(parcel.Sector));
+            var ashlands = Region2.Contains(parcel.Sector);
+            var charter = ashlands && Research.Has(p, Research.AshlandsCommand) ? 1.10 : 1;
+            var rich = (ashlands ? Region2.YieldMult : 1) * charter * (1 - Presence.Tithe(parcel.Sector));
             r[res] += perHour * rich;
             var land = SectorTemplate.Code(parcel.Sector, parcel.I, parcel.J);
             foreach (var b in BuildingsOn(parcel))
@@ -115,6 +117,10 @@ public static class Economy
         if (Research.Has(p, "refining")) r["fuel"] *= 1.5;
         var labs = Math.Min(5, p.HomeTiles.Where(t => t.Type == "research").Sum(HomeBase.Level));
         if (labs > 0) foreach (var k in r.Keys.ToList()) r[k] *= 1 + 0.05 * labs;
+        // The National Command Center coordinates every settlement supply chain. Apply its
+        // bonus to gross output before staffing and household consumption so upkeep is never amplified.
+        var command = HomeBase.CommandProductionMultiplier(p);
+        if (command > 1) foreach (var k in r.Keys.ToList()) r[k] *= command;
         // Buildings need workers. Upkeep starts only after the opening has taught the
         // player how to create both supplies, so the first food lesson never starts red.
         var staffed = Society.Staffing(p);
@@ -133,8 +139,8 @@ public static class Economy
         var hours = Math.Clamp((now - p.LastCollectAt).TotalHours, 0, Storage(p).TotalHours);
         // What people eat and use can only come out of what's in store
         return RatesPerHour(p).ToDictionary(kv => kv.Key, kv => kv.Value >= 0
-            ? Math.Floor(kv.Value * hours)
-            : -Math.Min(Math.Floor(-kv.Value * hours), Math.Floor(Ledger.Get(p, kv.Key))));
+            ? Math.Floor(kv.Value * hours * 10) / 10
+            : -Math.Min(Math.Floor(-kv.Value * hours * 10) / 10, Math.Floor(Ledger.Get(p, kv.Key) * 10) / 10));
     }
 
     public static Dictionary<string, double> Collect(GameDb db, Player p, DateTime now, string reason = "Collected production")
@@ -142,11 +148,15 @@ public static class Economy
         var got = Pending(p, now);
         // Collecting pays up to 25 XP for each hour of production since the last collection, so tapping Collect
         // again and again doesn't farm XP.
-        var xp = (int)Math.Min(25, Math.Max(0, (now - p.LastCollectAt).TotalHours) * 25);
+        var elapsedXp = (int)Math.Min(25, Math.Max(0, (now - p.LastCollectAt).TotalHours) * 25);
+        var hasProduction = got.Values.Any(x => x > 0);
+        // The Stabilising checkpoint needs one real collection, not an hour-long idle
+        // wait. Later collections retain the time-based anti-spam rule.
+        var xp = Guide.Current(p, "readiness") && hasProduction ? 25 : elapsedXp;
         foreach (var (res, amount) in got) Ledger.Add(db, p, res, amount, reason);
         Society.Advance(p, now);
         p.LastCollectAt = now;
-        if (reason != "Production banked before a change" && xp > 0 && got.Values.Any(x => x >= 1))
+        if (reason != "Production banked before a change" && xp > 0 && hasProduction)
             Progression.Add(db, p, xp, "collected production");
         return got;
     }

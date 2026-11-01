@@ -11,7 +11,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddSimpleConsole(o => o.SingleLine = true);
 
-var dbPath = Environment.GetEnvironmentVariable("NWO_DB") ?? "nwo.db";
+// Keep the live save beside the server project regardless of the shell directory
+// used to launch it. A relative path here can silently create a second, empty
+// database and make the current client appear to be the offline fallback demo.
+var dbPath = Environment.GetEnvironmentVariable("NWO_DB")
+    ?? Path.Combine(builder.Environment.ContentRootPath, "nwo.db");
 builder.Services.AddDbContext<GameDb>(o => o.UseSqlite($"Data Source={dbPath}"));
 builder.Services.AddSignalR();
 // The nation map and the client are big text files: send them compressed
@@ -129,6 +133,8 @@ api.MapGet("/me", async (HttpContext ctx, GameDb db, World world) =>
         // Anything finished while away starts producing at its finish time; what that banks is part of the welcome total.
         var banked = new Dictionary<string, double>();
         HomeBase.FinalizeReady(gdb, p, now, banked);
+        // A returning player may have retained an alliance through a restart.
+        Guide.SkipSatisfied(p);
         var away = now - p.LastSeenAt;
         p.LastSeenAt = now;
         Dictionary<string, double>? collected = null;
@@ -137,7 +143,53 @@ api.MapGet("/me", async (HttpContext ctx, GameDb db, World world) =>
             collected = Economy.Collect(gdb, p, now, "Collected on return");
             foreach (var (res, amount) in banked) collected[res] = collected.GetValueOrDefault(res) + amount;
         }
-        return new { player = Dto.Me(p), awaySeconds = (int)away.TotalSeconds, collected, token = sentToken };
+        return new { player = Dto.Me(p), awaySeconds = (int)away.TotalSeconds, collected, activity = await Activity.View(gdb, p.Id, 12), token = sentToken };
+    }));
+});
+
+api.MapGet("/roadmap", async (HttpContext ctx, GameDb db) =>
+{
+    var who = await Auth.PlayerFrom(ctx, db);
+    if (who is null) return Results.Unauthorized();
+    var p = await db.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+    return Results.Ok(await Roadmap.View(db, p));
+});
+
+api.MapPost("/roadmap/claim", async (HttpContext ctx, string track, GameDb db, World world) =>
+{
+    var who = await Auth.PlayerFrom(ctx, db);
+    if (who is null) return Results.Unauthorized();
+    return Results.Ok(await world.Locked(async gdb =>
+    {
+        var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+        var result = await Roadmap.Claim(gdb, p, track);
+        return new
+        {
+            result.Ok,
+            result.Error,
+            result.Summary,
+            player = result.Ok ? Dto.Me(p) : null,
+            roadmap = await Roadmap.View(gdb, p),
+        };
+    }));
+});
+
+api.MapGet("/activity", async (HttpContext ctx, GameDb db) =>
+{
+    var who = await Auth.PlayerFrom(ctx, db);
+    return who is null ? Results.Unauthorized() : Results.Ok(await Activity.View(db, who.Id));
+});
+
+api.MapPost("/activity/read", async (HttpContext ctx, GameDb db, World world) =>
+{
+    var who = await Auth.PlayerFrom(ctx, db);
+    if (who is null) return Results.Unauthorized();
+    return Results.Ok(await world.Locked(async gdb =>
+    {
+        var now = DateTime.UtcNow;
+        var read = await gdb.Activities.Where(a => a.PlayerId == who.Id && a.SeenAt == null)
+            .ExecuteUpdateAsync(s => s.SetProperty(a => a.SeenAt, now));
+        return new { ok = true, read };
     }));
 });
 
@@ -202,6 +254,140 @@ api.MapPost("/me/restart", async (HttpContext ctx, GameDb db, World world) =>
         return new { player = Dto.Me(p) };
     }));
 });
+
+// Playtest automation uses the same deterministic checkpoints as the in-game QA console.
+// These routes do not exist at all unless the server was explicitly started with NWO_DEV_TOOLS=1.
+if (Admin.DevTools)
+{
+    api.MapGet("/dev/qa/scenarios", async (HttpContext ctx, GameDb db) =>
+    {
+        var who = await Auth.PlayerFrom(ctx, db);
+        return who is null ? Results.Unauthorized() : Results.Ok(new { ok = true, scenarios = DevQa.Scenarios });
+    });
+    api.MapGet("/dev/qa/balance", async (HttpContext ctx, GameDb db) =>
+    {
+        var who = await Auth.PlayerFrom(ctx, db);
+        return who is null ? Results.Unauthorized() : Results.Ok(BalanceAudit.Report());
+    });
+    api.MapPost("/dev/qa/load", async (HttpContext ctx, QaScenarioRequest req, GameDb db, World world) =>
+    {
+        var who = await Auth.PlayerFrom(ctx, db);
+        return who is null ? Results.Unauthorized() : Results.Ok(await DevQa.Apply(world, who.Id, req.Scenario ?? ""));
+    });
+    api.MapPost("/dev/qa/resources", async (HttpContext ctx, GameDb db, World world) =>
+    {
+        var who = await Auth.PlayerFrom(ctx, db);
+        return who is null ? Results.Unauthorized() : Results.Ok(await DevQa.GrantResources(world, who.Id));
+    });
+    api.MapPost("/dev/qa/timers", async (HttpContext ctx, GameDb db, World world) =>
+    {
+        var who = await Auth.PlayerFrom(ctx, db);
+        return who is null ? Results.Unauthorized() : Results.Ok(await DevQa.FinishTimers(world, who.Id));
+    });
+    api.MapGet("/dev/qa/operation", async (HttpContext ctx, GameDb db, string operation) =>
+    {
+        var who = await Auth.PlayerFrom(ctx, db);
+        return who is null ? Results.Unauthorized() : Results.Ok(await Operations.Start(db, who.Id, operation));
+    });
+    api.MapPost("/dev/qa/operation/complete", async (HttpContext ctx, GameDb db, World world, string operation) =>
+    {
+        var who = await Auth.PlayerFrom(ctx, db);
+        return who is null ? Results.Unauthorized() : Results.Ok(await Operations.CompleteForQa(world, who.Id, operation));
+    });
+    api.MapPost("/dev/qa/tutorial-action", async (HttpContext ctx, QaTutorialActionRequest req, GameDb db, World world, Research research, Market market, Logistics logistics, Caretaker caretaker, Battles battles, Alliances alliances, Politics politics) =>
+    {
+        var who = await Auth.PlayerFrom(ctx, db);
+        if (who is null) return Results.Unauthorized();
+        object result = (req.Action ?? "") switch
+        {
+            "LearnHeadquarters" => await world.Locked(async gdb =>
+            {
+                var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+                HomeBase.Advance(gdb, p, "hqintro");
+                return new World.Result(true, Player: Dto.Me(p));
+            }),
+            "PlaceHome" => await world.PlaceHome(who.Id, req.Type ?? "", req.X, req.Y, req.Rotate),
+            "RefreshConstruction" => await world.RefreshConstruction(who.Id),
+            "GetDefense" => Defense.View(await db.Players.Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id)),
+            "TrainDefenders" => await world.Locked(async gdb =>
+            {
+                var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+                return Defense.Train(gdb, p, req.Type ?? "", req.Count) is { } why
+                    ? new World.Result(false, why)
+                    : new World.Result(true, Player: Dto.Me(p));
+            }),
+            "ReinforceWalls" => await world.ReinforceWalls(who.Id),
+            "LearnPopulation" => await world.Locked(async gdb =>
+            {
+                var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+                HomeBase.Advance(gdb, p, "people");
+                return new World.Result(true, Player: Dto.Me(p));
+            }),
+            "StartOperation" => await Operations.Start(db, who.Id, req.Type ?? "", req.Practice),
+            "EconomyView" => await Society.Overview(db, who.Id),
+            "WatchSector" => await world.Snapshot(req.Sector),
+            "Claim" => await world.Claim(who.Id, req.Sector, req.I, req.J),
+            "Build" => await world.Build(who.Id, req.Sector, req.I, req.J, req.Type ?? ""),
+            "UpgradeHq" => await world.UpgradeHq(who.Id),
+            "UpgradeHome" => await world.UpgradeHome(who.Id, req.Id),
+            "StartResearch" => await research.Start(who.Id, req.Tech ?? ""),
+            "WatchMarket" => new object[] { await market.Book("oil", who.Id), await market.Book("grain", who.Id), await market.Book("fuel", who.Id) },
+            "MyBook" => await market.Book(req.Resource ?? "oil", who.Id),
+            "PlaceOrder" => await market.Place(who.Id, req.Resource ?? "", req.Side ?? "", req.Qty, req.Price),
+            "WatchShipping" => await logistics.Snapshot(who.Id),
+            "Ship" => await logistics.Ship(who.Id, req.Id, req.Legal, req.Envelope),
+            "GuideSeen" => await world.Locked(async gdb =>
+            {
+                var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+                if (req.What == "ship")
+                {
+                    var cutoff = DateTime.UtcNow.AddSeconds(-6);
+                    var observed = await gdb.Shipments.AnyAsync(x => x.PlayerId == who.Id && x.Legal && x.Status == "moving" && x.DepartAt <= cutoff);
+                    if (!observed) return new World.Result(false, "Follow the delivery truck for a few more seconds.", Player: Dto.Me(p));
+                }
+                else if (req.What is not ("record" or "sentinel")) return new World.Result(false, "Unsupported tutorial QA acknowledgement.");
+                Guide.Advance(gdb, p, req.What!);
+                return new World.Result(true, Player: Dto.Me(p));
+            }),
+            "GetAlliance" => await alliances.View(who.Id),
+            "CreateAlliance" => await alliances.Create(who.Id, req.Name ?? "", req.Tag ?? "", req.Open),
+            "RequestAlliance" => await alliances.RequestJoin(who.Id, req.Id),
+            "GetPolitics" => await politics.View(who.Id),
+            "VoteFor" => await politics.Vote(who.Id, req.Id),
+            "VoteLaw" => await politics.VoteLaw(who.Id, req.Id, req.Yes),
+            "MyRecord" => await caretaker.Record(who.Id),
+            "SkipGuideStep" => await world.Locked(async gdb =>
+            {
+                var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == who.Id);
+                return Guide.SkipOptional(p)
+                    ? new World.Result(true, Player: Dto.Me(p))
+                    : new World.Result(false, "This objective is part of the core path.");
+            }),
+            "OpenCamp" => await caretaker.OpenCamp(),
+            "VisitSector" => await caretaker.SectorState(req.Sector),
+            "StartBattle" => await battles.Start(who.Id, req.Kind ?? "", req.Sector, req.Rival, req.Deck),
+            "Deploy" => new { ok = true, error = await battles.Deploy(who.Id, req.Type ?? "", req.Lane) },
+            "Retreat" => new { ok = true, error = battles.Retreat(who.Id) },
+            _ => new World.Result(false, "Unsupported tutorial QA action."),
+        };
+        return Results.Ok(result);
+    });
+    api.MapGet("/dev/qa/capture", async (HttpContext ctx, GameDb db, World world, string scenario, string commander, string key, string? operation) =>
+    {
+        var expected = Environment.GetEnvironmentVariable("NWO_QA_KEY");
+        if (string.IsNullOrWhiteSpace(expected) || expected != key) return Results.NotFound();
+        var player = await db.Players.FirstOrDefaultAsync(p => p.Name == commander && !p.IsBot);
+        if (player is null) return Results.NotFound();
+        var sessionToken = Auth.NewToken();
+        Auth.AddDevice(player, sessionToken);
+        await db.SaveChangesAsync();
+        var loaded = await DevQa.Apply(world, player.Id, scenario);
+        if (!loaded.Ok) return Results.BadRequest(new { error = loaded.Error });
+        Auth.Remember(ctx, sessionToken);
+        var suffix = string.IsNullOrWhiteSpace(operation) ? "?visualQa=1" : $"?visualQa=1&visualOperation={Uri.EscapeDataString(operation)}";
+        return Results.Redirect("/" + suffix);
+    });
+}
 
 api.MapGet("/sentinel", (Siege siege) => siege.Status());
 
@@ -502,6 +688,8 @@ app.Run();
 record GuestRequest(string? Name);
 record FeedbackRequest(string? Kind, string? Text, string? Context, string? Shot);
 record RecoverRequest(string? Code);
+record QaScenarioRequest(string? Scenario);
+record QaTutorialActionRequest(string? Action, string? Type = null, string? Tech = null, string? Resource = null, string? Side = null, string? What = null, string? Kind = null, string? Rival = null, string? Name = null, string? Tag = null, string[]? Deck = null, int Count = 0, int X = 0, int Y = 0, bool Rotate = false, bool Practice = false, bool Legal = false, bool Yes = false, bool Open = false, int Sector = 0, int I = 0, int J = 0, int Lane = 0, long Id = 0, double Qty = 0, double? Price = null, double Envelope = 0);
 
 static class Dto
 {
@@ -515,9 +703,12 @@ static class Dto
             pending = Economy.Pending(p, now),
             people = Math.Floor(Society.PopulationNow(p, now)), housing = Society.Capacity(p),
             productivity = Math.Round(Society.Staffing(p) * 100),
+            population = Society.GrowthView(p, now),
             ratesPerHour = Economy.RatesPerHour(p),
             parcels = p.Parcels.Select(x => new { x.Sector, x.I, x.J, x.Resource, home = x.IsHome, b = Economy.BuildingsOn(x), construction = x.PendingBuilding is null ? null : new { type = x.PendingBuilding, completesAt = x.BuildingEndsAt } }),
-            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, owner = p.IsOwner, progression = Progression.View(p), guide = Guide.View(p), operations = Operations.View(p), allianceId = p.AllianceId, allianceRole = p.AllianceRole, warScore = Region2.Score(p),
+            home = HomeBase.View(p, p.HomeTiles), startCash = new Player().Cash, dev = Admin.DevTools, owner = p.IsOwner, progression = Progression.View(p), guide = Guide.View(p), motorPoolGuide = MotorPoolGuide.View(p), commandCenterGuide = CommandCenterGuide.View(p), operations = Operations.View(p), allianceId = p.AllianceId, allianceRole = p.AllianceRole, warScore = Region2.Score(p),
+            nationalCommand = new { unlocked = Research.Has(p, Research.NationalCommand), networkAuthorized = Research.Has(p, Research.NationalNetwork), active = HomeBase.CommandCenterLevel(p) > 0, level = HomeBase.CommandCenterLevel(p), productionBonus = HomeBase.CommandCenterLevel(p) >= 5 ? 15 : HomeBase.CommandCenterLevel(p) > 0 ? 10 : 0 },
+            ashlandsCommand = new { chartered = Research.Has(p, Research.AshlandsCommand), productionBonus = Research.Has(p, Research.AshlandsCommand) ? 10 : 0 },
             claimCost = Economy.ClaimCost,
             buildings = Economy.Buildings.Select(kv => new { type = kv.Key, kv.Value.Name, kv.Value.Cost, kv.Value.Slots, res = kv.Value.Res, perHour = kv.Value.PerHour, buildSeconds = Economy.BuildSeconds(p, kv.Value, Guide.Current(p, "build")), tech = Research.Unlocking(kv.Key)?.Name, locked = Research.Unlocking(kv.Key) is { } tk && !Research.Has(p, tk.Id) }),
             research = Research.View(p),

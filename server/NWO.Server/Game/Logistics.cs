@@ -106,9 +106,6 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
             db.Shipments.Add(s);
             await db.SaveChangesAsync();
             view = View(s);
-            // The first delivery is specifically the safe-route lesson. Back-road
-            // smuggling stays available, but it cannot silently satisfy that lesson.
-            if (legal) Guide.Advance(db, me, "ship");
             var dest = c.Sector == me.HomeSector ? $"across Sector {c.Sector} to the hall" : $"to Sector {c.Sector}";
             return new Result(true, Player: Dto.Me(me), Summary: legal
                 ? $"Truck sent on the main road {dest}. Tax and the Caretaker fee are paid on delivery."
@@ -370,6 +367,8 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         var feeRate = Research.Has(owner, "haulage") ? CaretakerFee / 2 : CaretakerFee;
         var fee = s.Legal ? Math.Round(s.Reward * feeRate) : 0;
         Ledger.Add(db, owner, "cash", s.Reward, $"Delivered {s.Qty:N0} {s.Resource} to Sector {s.To}");
+        var commandBonus = HomeBase.CommandCenterLevel(owner) >= 3 ? Math.Round(s.Reward * .05) : 0;
+        if (commandBonus > 0) Ledger.Add(db, owner, "cash", commandBonus, "National Command logistics premium");
         if (tax > 0) Ledger.Add(db, owner, "cash", -tax, $"{nation.Name} delivery tax ({nation.TaxRate:P0})");
         if (fee > 0) Ledger.Add(db, owner, "cash", -fee, $"Caretaker transit fee ({feeRate:P1})");
         if (s.Envelope > 0) { Ledger.Add(db, owner, "cash", s.Envelope, "Envelope returned unopened"); }
@@ -377,7 +376,11 @@ public class Logistics(World world, IHubContext<GameHub> hub, Caretaker caretake
         s.Envelope = 0;
         if (s.Legal) Caretaker.Remember(db, owner, 2, "trade", $"Paid tax on a delivery to Sector {s.To}");
         else Caretaker.Remember(db, owner, -4, "smuggle", $"Smuggled {s.Resource} past the checkpoints");
-        var net = s.Reward - tax - fee + env;
+        // "Complete a delivery" finishes on arrival, not when the truck leaves. This lets
+        // the player watch it, leave it running, or continue playing without skipping the outcome.
+        if (s.Legal) Guide.Advance(db, owner, "ship");
+        var net = s.Reward + commandBonus - tax - fee + env;
+        Activity.Add(db, owner, "delivery", "Delivery completed", $"{s.Qty:N0} {s.Resource} reached Sector {s.To}. Net payment: +{net:N0} cash.", "contracts");
         if (s.ContractId is { } cid) { var c = db.Contracts.Find(cid); if (c is not null) c.Status = "done"; }
         var view = View(s);
         events.Add(() => Notify(owner.Id, "notice", new

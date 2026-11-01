@@ -11,6 +11,11 @@ namespace NWO.Server.Game;
 /// </summary>
 public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
 {
+    public const string MotorPoolPlans = "motorpool-plans";
+    public const string MotorPoolCertified = "motorpool-certified";
+    public const string NationalCommand = "national-command";
+    public const string NationalNetwork = "national-network";
+    public const string AshlandsCommand = "ashlands-command";
     public record Tech(string Id, string Branch, int Tier, string Name, string Effect, double Cash, double Gold, double Minutes, string? Unlocks = null);
 
     public static readonly (string id, string name, string blurb)[] Branches =
@@ -24,21 +29,21 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
 
     public static readonly Tech[] Techs =
     [
-        new("solar", "energy", 1, "Solar arrays", "Unlocks Solar farms on your parcels", 1500, 0, 10, "solar"),
-        new("wind", "energy", 2, "Wind power", "Unlocks Wind turbines on your parcels", 5000, 0, 60, "wind"),
-        new("grid", "energy", 3, "Grid storage", "+25% to all the power you make", 15000, 30, 240),
+        new("solar", "energy", 1, "Solar arrays", "Unlocks Solar Farms on your parcels", 1500, 0, 10, "solar"),
+        new("wind", "energy", 2, "Wind power", "Unlocks Wind Turbines on your parcels", 5000, 0, 60, "wind"),
+        new("grid", "energy", 3, "Grid storage", "+25% power production, unlocks the Last Stand Arc Coil, and recharges Lumen abilities faster in Operations", 15000, 30, 240),
         new("housing", "people", 1, "Housing blocks", "Unlocks Housing on your parcels", 1500, 0, 10, "housing"),
         new("irrigation", "people", 2, "Irrigation", "+25% grain from every farm and crop plot", 5000, 0, 60),
         new("planning", "people", 3, "Town planning", "Housing earns 40% more, and your HQ runs 2 more buildings", 15000, 30, 240),
-        new("drill", "war", 1, "Mobilization", "Deploy with 25% more troops in every battle and Sentinel siege", 1500, 0, 10),
-        new("air", "war", 2, "Air support", "An extra artillery strike and helicopter in every battle", 5000, 0, 60),
-        new("engineers", "war", 3, "Siege engineers", "+20% damage to the Sentinel, and enemy garrisons start 20% smaller", 15000, 30, 240),
+        new("drill", "war", 1, "Mobilization", "Deploy with 25% more troops in battles and Sentinel sieges, and improve strike-team damage in Leviathan Assault", 1500, 0, 10),
+        new("air", "war", 2, "Air support", "Improves operation airstrikes and Leviathan missile salvos, unlocks the Last Stand Missile Battery, and adds artillery and helicopters in battles", 5000, 0, 60),
+        new("engineers", "war", 3, "Siege engineers", "+20% Sentinel damage, smaller enemy garrisons, unlocks the Last Stand Field Workshop, and exposes Leviathan systems faster", 15000, 30, 240),
         new("mining", "industry", 1, "Mining", "Unlocks Mines on your parcels", 1500, 0, 10, "mine"),
         new("drilling", "industry", 2, "Deep drilling", "+25% oil from every rig and pump", 5000, 0, 60),
         new("refining", "industry", 3, "Refining", "+50% fuel from everything that makes it", 15000, 30, 240),
-        new("storage", "trade", 1, "Warehousing", "Unlocks Warehouses on your parcels", 1500, 0, 10, "warehouse"),
-        new("haulage", "trade", 2, "Haulage", "Halves the Caretaker's 5% fee on legal deliveries", 5000, 0, 60),
-        new("channels", "trade", 3, "Back channels", "Back-road trucks are 30% less likely to be stopped", 15000, 30, 240),
+        new("storage", "trade", 1, "Warehousing", "Unlocks Warehouses on your parcels and the Last Stand Salvage Crane", 1500, 0, 10, "warehouse"),
+        new("haulage", "trade", 2, "Haulage", "Halves the Caretaker's 5% fee on legal deliveries and improves the Extraction rover's speed and cargo recovery", 5000, 0, 60),
+        new("channels", "trade", 3, "Back channels", "Back-road trucks are 30% less likely to be stopped, and Extraction patrols detect you more slowly", 15000, 30, 240),
     ];
 
     /// <summary>Playtests can compress research: NWO_RESEARCH_SPEED=60 makes an hour take a minute.</summary>
@@ -48,6 +53,16 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
     public static Tech? Find(string id) => Techs.FirstOrDefault(t => t.Id == id);
     public static HashSet<string> Owned(Player p) => (p.Techs ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
     public static bool Has(Player p, string id) => Owned(p).Contains(id);
+    public static void GrantMotorPoolPlans(Player p) =>
+        p.Techs = string.Join(",", Owned(p).Append(MotorPoolPlans).Distinct());
+    public static void CertifyMotorPool(Player p) =>
+        p.Techs = string.Join(",", Owned(p).Append(MotorPoolCertified).Distinct());
+    public static void GrantNationalCommand(Player p) =>
+        p.Techs = string.Join(",", Owned(p).Append(NationalCommand).Distinct());
+    public static void GrantNationalNetwork(Player p) =>
+        p.Techs = string.Join(",", Owned(p).Append(NationalNetwork).Distinct());
+    public static void GrantAshlandsCommand(Player p) =>
+        p.Techs = string.Join(",", Owned(p).Append(AshlandsCommand).Distinct());
     /// <summary>The tech a parcel building needs, if any.</summary>
     public static Tech? Unlocking(string building) => Techs.FirstOrDefault(t => t.Unlocks == building);
 
@@ -90,6 +105,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
     {
         var owned = Owned(p);
         if (owned.Contains(t.Id)) return "Already researched.";
+        if (Guide.Current(p, "research") && t.Id != "mining") return "Begin with Mining during this lesson.";
         if (Labs(p) == 0) return "Build a Research lab in your base first.";
         if (LabLevel(p) < t.Tier) return $"Upgrade a Research lab to level {t.Tier} for Tier {t.Tier} research.";
         if (p.ResearchId is not null) return $"Your lab is busy with {Find(p.ResearchId)?.Name}.";
@@ -111,6 +127,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
             labs = Labs(p),
             labCount = p.HomeTiles.Count(t => t.Type == "research" && HomeBase.Level(t) > 0),
             labLevel = LabLevel(p),
+            credits = Math.Round(p.ResearchCreditMinutes, 1),
             current = p.ResearchId is null ? null : new { id = p.ResearchId, name = Find(p.ResearchId)?.Name, endsAt = p.ResearchEndsAt },
             recommended = recommended is null ? null : new { recommended.Id, recommended.Name, recommended.Effect },
             branches = Branches.Select(b => new
@@ -151,6 +168,14 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
         }
         else
         {
+            // Recovered tech parts are useful even when the player found them before building a lab.
+            // Keep at least one minute of every normal project so starting research remains legible.
+            var credit = Math.Min(p.ResearchCreditMinutes, Math.Max(0, time.TotalMinutes - 1));
+            if (credit > 0)
+            {
+                time -= TimeSpan.FromMinutes(credit);
+                p.ResearchCreditMinutes -= credit;
+            }
             p.ResearchId = t.Id;
             p.ResearchEndsAt = DateTime.UtcNow + time;
         }
@@ -178,6 +203,7 @@ public class Research(World world, IHubContext<GameHub> hub) : BackgroundService
                         p.Techs = string.Join(",", Owned(p).Append(p.ResearchId!).Distinct());
                         p.ResearchId = null; p.ResearchEndsAt = null;
                         if (t is not null) Caretaker.Remember(db, p, 1, "order", $"Researched {t.Name}");
+                        if (t is not null) Activity.Add(db, p, "research", $"Research complete: {t.Name}", t.Effect, "research", now);
                         list.Add((p.Id, t?.Name ?? "", Dto.Me(p)));
                     }
                     return list;

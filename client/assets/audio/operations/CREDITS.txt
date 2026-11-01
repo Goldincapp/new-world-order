@@ -1,0 +1,25 @@
+NATIONS REBORN - OPERATION SOUND EFFECTS
+
+Gun report
+- Source: "Gunshot Sounds" by Tabasco / Vince Sevedge
+- https://opengameart.org/content/gunshot-sounds
+- License: Creative Commons Zero (CC0)
+- The 10 gauge recording was trimmed, filtered, gain-adjusted, and converted to OGG.
+
+Rover engine loop
+- Source: "racing car engine sound loops" by domasx2
+- https://opengameart.org/content/racing-car-engine-sound-loops
+- License: Creative Commons Zero (CC0)
+- loop_3.wav is used at reduced volume and playback speed.
+
+Impacts, explosions, construction, shields, and energy weapons
+- Source packs: Kenney Impact Sounds, RPG Audio, and Sci-Fi Sounds
+- https://kenney.nl/assets/impact-sounds
+- https://kenney.nl/assets/rpg-audio
+- https://kenney.nl/assets/sci-fi-sounds
+- License: Creative Commons Zero (CC0)
+- Files were obtained from the CC0 collection at:
+  https://github.com/GeorgeQLe/assets-sfx-combat
+
+CC0 permits use, modification, and redistribution without attribution. These
+credits are retained to preserve asset provenance for the project.

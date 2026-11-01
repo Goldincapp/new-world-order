@@ -64,6 +64,7 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
             {
                 active = Active, practice = Active && practice, bots = Active ? bots.Count : 0, fighters = sim?.ActiveFighters ?? 0, phase = sim?.Phase ?? 0,
                 hp = sim is null ? 0 : Math.Round(sim.Hp / sim.MaxHp, 3),
+                remaining = sim is null ? 0 : Math.Max(0, Math.Round(SentinelSim.TimeLimit - sim.T)),
                 nextAt = st?.SentinelNextAt, attempts = st?.SentinelAttempts ?? 0,
                 region2Open = st?.Region2Open ?? false, gatebreakers = st?.Gatebreakers,
             };
@@ -143,7 +144,7 @@ public class Siege(World world, IHubContext<GameHub> hub) : BackgroundService
                         }
                         if (frame % 4 == 0)
                             mine = sim.Fighters.Values.Where(f => sim.T - f.LastActive < 120)
-                                .Select(f => (f.Id, (object)new { cp = f.Cp, troops = f.Troops, damage = Math.Round(f.Damage + f.RelayDamage), drones = f.Drones, relays = f.Relays, emp = sim.T < f.EmpUntil })).ToList();
+                                .Select(f => (f.Id, (object)new { cp = f.Cp, troops = f.Troops, damage = Math.Round(f.Damage + f.RelayDamage), drones = f.Drones, relays = f.Relays, deployed = f.Deployed, emp = sim.T < f.EmpUntil })).ToList();
                     }
                     if (common is not null) await hub.Clients.Group(Group).SendAsync("siege", common, stop);
                     if (mine is not null) foreach (var (id, me) in mine) await hub.Clients.Clients(GameHub.ConnectionsOf(id)).SendAsync("siegeMe", me, stop);

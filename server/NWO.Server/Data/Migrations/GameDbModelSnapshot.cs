@@ -17,6 +17,43 @@ namespace NWO.Server.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.10");
 
+            modelBuilder.Entity("NWO.Server.Data.ActivityEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Action")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("At")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlayerId", "Id");
+
+                    b.ToTable("Activities");
+                });
+
             modelBuilder.Entity("NWO.Server.Data.Alliance", b =>
                 {
                     b.Property<long>("Id")
@@ -53,6 +90,45 @@ namespace NWO.Server.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Alliances");
+                });
+
+            modelBuilder.Entity("NWO.Server.Data.AllianceEventScore", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("AllianceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Attempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BestScore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Cycle")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("PowerRating")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RewardTier")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AllianceId", "PlayerId", "Cycle")
+                        .IsUnique();
+
+                    b.ToTable("AllianceEventScores");
                 });
 
             modelBuilder.Entity("NWO.Server.Data.AllianceInvite", b =>
@@ -382,17 +458,17 @@ namespace NWO.Server.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid>("PlayerId")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime?>("ConstructionEndsAt")
                         .HasColumnType("TEXT");
 
-                      b.Property<int>("Level")
-                          .HasColumnType("INTEGER");
+                    b.Property<int>("Level")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("PendingLevel")
                         .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("PlayerId")
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("Rotated")
                         .HasColumnType("INTEGER");
@@ -612,16 +688,14 @@ namespace NWO.Server.Data.Migrations
 
             modelBuilder.Entity("NWO.Server.Data.Parcel", b =>
                 {
-                    b.Property<DateTime?>("BuildingEndsAt")
-                        .HasColumnType("TEXT");
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("Buildings")
+                    b.Property<DateTime?>("BuildingEndsAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("PendingBuilding")
+                    b.Property<string>("Buildings")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ClaimedAt")
@@ -637,6 +711,9 @@ namespace NWO.Server.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("OwnerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PendingBuilding")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Resource")
@@ -689,14 +766,14 @@ namespace NWO.Server.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("DailyRewardDay")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Defenders")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("DefenseDoctrine")
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("DailyRewardDay")
-                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("DroneHuntAt")
                         .HasColumnType("TEXT");
@@ -736,9 +813,6 @@ namespace NWO.Server.Data.Migrations
 
                     b.Property<DateTime?>("HqUpgradeEndsAt")
                         .HasColumnType("TEXT");
-
-                    b.Property<int?>("PendingHqLevel")
-                        .HasColumnType("INTEGER");
 
                     b.Property<DateOnly>("InspectDay")
                         .HasColumnType("TEXT");
@@ -796,9 +870,6 @@ namespace NWO.Server.Data.Migrations
                     b.Property<double>("Oil")
                         .HasColumnType("REAL");
 
-                    b.Property<double>("Ore")
-                        .HasColumnType("REAL");
-
                     b.Property<string>("OperationLevels")
                         .HasColumnType("TEXT");
 
@@ -806,6 +877,12 @@ namespace NWO.Server.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<int>("OperationPaidWins")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("Ore")
+                        .HasColumnType("REAL");
+
+                    b.Property<int?>("PendingHqLevel")
                         .HasColumnType("INTEGER");
 
                     b.Property<double>("Population")
@@ -822,6 +899,9 @@ namespace NWO.Server.Data.Migrations
 
                     b.Property<DateTime?>("ResearchEndsAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<double>("ResearchCreditMinutes")
+                        .HasColumnType("REAL");
 
                     b.Property<string>("ResearchHelpers")
                         .HasColumnType("TEXT");
@@ -848,10 +928,10 @@ namespace NWO.Server.Data.Migrations
                     b.Property<int>("WallLevel")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("Xp")
+                    b.Property<int>("WarScore")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("WarScore")
+                    b.Property<int>("Xp")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");

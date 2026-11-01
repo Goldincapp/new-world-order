@@ -65,9 +65,13 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
 
     public Task<World.Result> Build(int sector, int i, int j, string type) => world.Build(Me.Id, sector, i, j, type);
 
+    public Task<World.Result> SellParcelBuilding(int sector, int i, int j, string type) => world.SellBuilding(Me.Id, sector, i, j, type);
+
     public Task<World.Result> PlaceHome(string type, int x, int y, bool rotate) => world.PlaceHome(Me.Id, type, x, y, rotate);
 
     public Task<World.Result> MoveHome(long id, int x, int y, bool rotate) => world.MoveHome(Me.Id, id, x, y, rotate);
+
+    public Task<World.Result> SellHome(long id) => world.SellHome(Me.Id, id);
 
     public Task<World.Result> UpgradeHome(long id) => world.UpgradeHome(Me.Id, id);
     public Task<World.Result> CancelHomeUpgrade() => world.CancelHomeUpgrade(Me.Id);
@@ -78,9 +82,16 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public Task<World.Result> UpgradeHq() => world.UpgradeHq(Me.Id);
     public Task<World.Result> RefreshConstruction() => world.RefreshConstruction(Me.Id);
 
-    public Task<Operations.StartResult> StartOperation(string operation) => Operations.Start(db, Me.Id, operation);
+    public Task<Operations.StartResult> StartOperation(string operation, bool practice = false) => Operations.Start(db, Me.Id, operation, practice);
 
-    public Task<Operations.EndResult> CompleteOperation(string operation, int score) => Operations.Complete(world, Me.Id, operation, score);
+    public Task<Operations.EndResult> CompleteOperation(string operation, int score, Dictionary<string, int>? cargo = null) => Operations.Complete(world, Me.Id, operation, score, cargo);
+
+    // ---------- Development QA console. Every method is also gated inside DevQa so a
+    // production client cannot enable these by guessing the SignalR method names.
+    public object DevQaScenarios() => Admin.DevTools ? new { ok = true, scenarios = DevQa.Scenarios } : new { ok = false, scenarios = Array.Empty<DevQa.Scenario>() };
+    public Task<World.Result> DevQaLoad(string scenario) => DevQa.Apply(world, Me.Id, scenario);
+    public Task<World.Result> DevQaGrantResources() => DevQa.GrantResources(world, Me.Id);
+    public Task<World.Result> DevQaFinishTimers() => DevQa.FinishTimers(world, Me.Id);
 
     /// <summary>Start receiving live order books and trades, and get the current ones.</summary>
     public async Task<object[]> WatchMarket()
@@ -174,11 +185,22 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public Task<World.Result> NameSector(int sector, string name) => sectorNames.Name(Me.Id, sector, name);
     public Task<World.Result> PetitionCaretaker(int sector) => presence.Petition(Me.Id, sector);
 
-    /// <summary>Field Guide chapters that are done by reading (the record, the Sentinel), and skipping the guide.</summary>
+    /// <summary>Field Guide chapters completed by acknowledgement or a short observation.</summary>
     public async Task<World.Result> GuideSeen(string what)
     {
-        if (what is not ("record" or "sentinel")) return new(false, "Unknown.");
-        return await world.Locked(async gdb => { var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == Me.Id); Guide.Advance(gdb, p, what); return new World.Result(true, Player: Dto.Me(p)); });
+        if (what is not ("record" or "sentinel" or "ship")) return new(false, "Unknown.");
+        return await world.Locked(async gdb =>
+        {
+            var p = await gdb.Players.Include(x => x.Parcels).Include(x => x.HomeTiles).FirstAsync(x => x.Id == Me.Id);
+            if (what == "ship")
+            {
+                var cutoff = DateTime.UtcNow.AddSeconds(-6);
+                var observed = await gdb.Shipments.AnyAsync(x => x.PlayerId == Me.Id && x.Legal && x.Status == "moving" && x.DepartAt <= cutoff);
+                if (!observed) return new World.Result(false, "Follow the delivery truck for a few more seconds.", Player: Dto.Me(p));
+            }
+            Guide.Advance(gdb, p, what);
+            return new World.Result(true, Player: Dto.Me(p));
+        });
     }
     public async Task<World.Result> SkipGuide() => await world.Locked(async gdb =>
     {
@@ -207,6 +229,9 @@ public class GameHub(GameDb db, World world, Market market, Logistics logistics,
     public Task<Alliances.Result> DonateToAlliance(string res, double amount) => alliances.Donate(Me.Id, res, amount);
     public Task<Alliances.Result> GrantFromAlliance(string player, string res, double amount) => alliances.Grant(Me.Id, player, res, amount);
     public Task<Alliances.Result> HelpAlliance() => alliances.Help(Me.Id);
+    public Task<Alliances.EventStart> StartAllianceEvent() => alliances.StartEvent(Me.Id);
+    public Task<Alliances.EventResult> CompleteAllianceEvent(int score, bool extracted = false) => alliances.CompleteEvent(Me.Id, score, extracted);
+    public Task<Alliances.EventResult> ClaimAllianceEvent() => alliances.ClaimEvent(Me.Id);
     public async Task<object> AllianceChat()
     {
         var aid = await db.Players.Where(p => p.Id == Me.Id).Select(p => p.AllianceId).FirstOrDefaultAsync();

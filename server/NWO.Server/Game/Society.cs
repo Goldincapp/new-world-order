@@ -97,13 +97,13 @@ public static class Society
         return new(pop, Capacity(p), rates["grain"] + eaten, eaten, rates["power"] + used, used, jobs, Math.Min(pop, jobs));
     }
 
-    static object View(Line l, string? status = null) => new
+    static object View(Line l, string? status = null, object? growth = null) => new
     {
         people = Math.Floor(l.People), housing = l.Housing,
         food = new { made = R(l.FoodMade), eaten = R(l.FoodEaten), net = R(l.Food) },
         power = new { made = R(l.PowerMade), used = R(l.PowerUsed), net = R(l.Power) },
         work = new { jobs = l.Jobs, filled = Math.Floor(l.Filled), output = l.Jobs == 0 ? 100 : Math.Round(100 * StaffingFor(l.People, l.Jobs)) },
-        status,
+        status, growth,
     };
 
     static double StaffingFor(double people, int jobs)
@@ -123,6 +123,41 @@ public static class Society
         return l.People < l.Housing - 0.5 ? "growing" : "full";
     }
 
+    /// <summary>A plain-language bridge between housing, supplies and population movement.</summary>
+    public static object GrowthView(Player p, DateTime now)
+    {
+        var line = LineOf(p, now);
+        var status = HomeStatus(p, line, now);
+        var rates = Economy.RatesPerHour(p);
+        var foodReady = rates["grain"] >= 0 || Ledger.Get(p, "grain") > 0;
+        var powerReady = rates["power"] >= 0 || Ledger.Get(p, "power") > 0;
+        var freeHomes = Math.Max(0, line.Housing - (int)Math.Floor(line.People));
+        var perHour = status == "growing"
+            ? Math.Max(0, (line.Housing - line.People) / GrowHours)
+            : status is "starving" or "no power" ? -line.People * ShrinkPerHour : 0;
+        double? nextHours = null;
+        var nextPerson = Math.Floor(line.People) + 1;
+        if (status == "growing" && nextPerson < line.Housing && line.Housing > line.People)
+            nextHours = -GrowHours * Math.Log((line.Housing - nextPerson) / (line.Housing - line.People));
+        var recommendation = status switch
+        {
+            "growing" => "No action needed. Keep food and power available while settlers fill the open homes.",
+            "full" => "Build or upgrade Housing, or upgrade Headquarters, to create room for more settlers.",
+            "starving" => "Restore food with a Crop plot, Farm, market purchase, or collected supplies.",
+            _ => "Restore power with Solar panels, a Generator, Solar farm, or Wind turbine.",
+        };
+        return new
+        {
+            status,
+            freeHomes,
+            foodReady,
+            powerReady,
+            perHour = R(perHour),
+            nextPersonMinutes = nextHours is null ? (int?)null : Math.Max(1, (int)Math.Ceiling(nextHours.Value * 60)),
+            recommendation,
+        };
+    }
+
     /// <summary>Your base, your sector and the nation, each as the same ledger, for the Economy card.</summary>
     public static async Task<object> Overview(GameDb db, Guid playerId)
     {
@@ -138,7 +173,7 @@ public static class Society
             .Select(kv => new { sector = kv.Key, food = R(kv.Value.line.Food) });
         return new
         {
-            home = View(mine, HomeStatus(me, mine, now)),
+            home = View(mine, HomeStatus(me, mine, now), GrowthView(me, now)),
             sector = new { n = me.HomeSector, homes = sec.homes, ledger = View(sec.line) },
             nation = new { sectors = bySector.Count, homes = lines.Count, ledger = View(nation), shortOfFood = bySector.Count(kv => kv.Value.line.Food < 0), shortOfPower = bySector.Count(kv => kv.Value.line.Power < 0), hungry },
             rates = new { food = FoodPerPerson, power = PowerPerPerson, housingBlock = HousingBlock },

@@ -1,4 +1,4 @@
-# New World Order: complete game overview
+# Nations Reborn: complete game overview
 
 A handoff document for anyone (human or AI agent) picking up this project. It covers what the game is, how it plays from minute one to the endgame, every system with its real numbers, how the server and client are built, and how to run, test and deploy. Numbers here are read from the code as of 2026-10-07; when in doubt, the code wins.
 
@@ -6,7 +6,7 @@ A handoff document for anyone (human or AI agent) picking up this project. It co
 
 ## 1. The pitch
 
-**New World Order** is a real-time, persistent, mobile-first strategy MMO set on a fictionalised real-world map (no real country names). An AI called **the Caretaker** has run the world since the old order collapsed. It hands out rations, taxes trade, patrols with drones and keeps a permanent **record** of how every player behaves. Players arrive as settlers, build a walled home base, claim land, trade in a player-run economy, smuggle or ship legally, vote and stage coups, form alliances, and gradually push the Caretaker out of their sector. Together the server must beat **the Sentinel**, a raid boss guarding Region 2 (**the Ashlands**), where land is richer and nations fight over every parcel.
+**Nations Reborn** is a real-time, persistent, mobile-first strategy MMO set on a fictionalised real-world map (no real country names). An AI called **the Caretaker** has run the world since the old order collapsed. It hands out rations, taxes trade, patrols with drones and keeps a permanent **record** of how every player behaves. Players arrive as settlers, build a walled home base, claim land, trade in a player-run economy, smuggle or ship legally, vote and stage coups, form alliances, and gradually push the Caretaker out of their sector. Together the server must beat **the Sentinel**, a raid boss guarding Region 2 (**the Ashlands**), where land is richer and nations fight over every parcel.
 
 Tone: grounded, a little bleak, dry. The Caretaker speaks in short, cold lines ("Taxes received. Order is expensive, and you are paying for it.").
 
@@ -63,24 +63,25 @@ Core server patterns:
 **First session (about 15 minutes)**
 
 1. **Sign up.** Pick a name (3 to 16 letters, numbers, `._-`). No email or password: the device keeps a secret token, and a year-long cookie backs it up. The player gets a home plot in the least-crowded open Region 1 sector.
-2. **Survival chapter (8 focused objectives).** The opening uses a problem → action → visible reward rhythm: learn what the Headquarters does, build a Barracks, train five gunners, defend the base in Last Stand, reinforce the entry gate, meet the settlers, then add food and power. The Caretaker can read each prompt aloud. Its copy explains why; an arrow points at the real control the player must press, without a shortcut button that opens it automatically. Only the controls and resource counters needed for the current objective are shown. Every objective names its reward before the player acts.
-3. **Field Guide (15 visible objectives grouped into chapters, plus one hidden legacy compatibility step).** A short Stabilising checkpoint first asks the player to earn 100 XP through collection, construction/upgrades or replaying Last Stand. Then: claim land → build a terrain-matched structure → Extraction Run → upgrade HQ with timber → research → build a Mine → upgrade the Barracks with ore → oil rig → market → legal delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Alliance and voting objectives can be passed individually, or the player can end the guide while keeping every system available.
-4. **Chaptered Field Guide.** Expansion, Growth, Trade, Defence, World Threats and the Caretaker each introduce one new system through a concrete action. Community and Leadership are explicitly optional so an empty server cannot block a solo tester. Each prompt defines the new term, gives one direct call to action and points at the relevant control: a gold callout with a bouncing arrow sits beside the button, or beside a building in the 3D view, and places itself so it doesn't cover the target or the tutorial card. The rest of the screen is no longer darkened. Three mobile action games break up that strategy path. Last Stand now appears during Survival, immediately after the Barracks, so the building has an understandable purpose and an instant payoff. Extraction Run and Leviathan Assault arrive later as tests of expansion and world-threat readiness. Completed Operations remain replayable without repeat tutorial payouts.
+2. **Survival chapter (8 focused objectives).** The opening uses a problem → action → visible reward rhythm: learn what the Headquarters does, build a Barracks, train five gunners, defend the base in Last Stand, reinforce the entry gate, meet the settlers, then add food and power. The Headquarters explanation ends with **Got it!** and opens the focused Barracks construction card directly; it does not repeat the same instruction in a second full-width Caretaker panel. Routine success moments such as training the first squad or reinforcing the walls appear briefly and then advance automatically; choices and operation results remain under player control. Finishing Solar opens the newly unlocked supply calendar first; the Field Guide begins only after that calendar is dismissed. Reloading safely resumes from the saved objective without preserving a stale client-side presentation lock. The Caretaker can read each prompt aloud. Its copy explains why; a gold glow identifies the real control the player must press, while objects in the 3D world use a pulsing gold marker. Only the controls and resource counters needed for the current objective are shown. Every objective names its reward before the player acts.
+3. **Field Guide (15 visible objectives grouped into chapters, plus one hidden legacy compatibility step).** A short Stabilising checkpoint first asks the player to earn 100 XP through collection, construction/upgrades or replaying Last Stand. Then: claim land → build a terrain-matched structure → Extraction Run → upgrade HQ with timber → research → claim a sponsored rocky parcel and build a Mine → upgrade the Barracks with ore → claim a sponsored oil-sands parcel and build an Oil Rig → make a Caretaker-sponsored market purchase → complete a legal delivery → first battle → Leviathan Assault → alliance → vote → Caretaker record → Sentinel. Each state-changing chapter now uses an explicit presentation handoff: the completed building, research result, market receipt, delivery arrival, battle report, alliance or politics confirmation, Caretaker record and final Sentinel acknowledgement remain in control until the player presses **Continue guide**. The next chapter cannot narrate underneath one of those surfaces. The final chapter opens the persistent World event control and completes only when the player acknowledges the Sentinel command briefing; merely opening it no longer dismisses the guide. The first guided Research Lab takes 5 seconds to build; later labs use their normal timers. Construction and upgrade objectives advance only after their timer finishes, so completion refreshes cannot dismiss the instruction that explains the next action. Alliance and voting objectives can be passed individually with an explicit confirmation, or the player can end the guide while keeping every system available.
+4. **Chaptered Field Guide.** Expansion, Growth, Trade, Defence, World Threats and the Caretaker each introduce one new system through a concrete action. Community and Leadership are explicitly optional so an empty server cannot block a solo tester. Each prompt defines the new term, gives one direct call to action and highlights the relevant control in gold; objects in the 3D view use a pulsing gold marker. Contextual explanations wait until the relevant object is open—for example, the first-unit lesson appears beside the inspected militia camp instead of covering the player's home base. The rest of the screen is no longer darkened. Three mobile action games break up that strategy path. Last Stand now appears during Survival, immediately after the Barracks, so the building has an understandable purpose and an instant payoff. Extraction Run and Leviathan Assault arrive later as tests of expansion and world-threat readiness. Completed Operations remain replayable without repeat tutorial payouts.
 
 **Every session after that (the core loop, 5 to 15 minutes)**
 
-1. **Come back.** Opening the game auto-collects everything made while away (if away 60 seconds or more), up to storage limits: 8 hours base, plus 2 hours for each warehouse on your land and each level of each home Warehouse, up to 20 extra hours. The welcome card says what was made.
+1. **Come back.** Opening the game auto-collects everything made while away (if away 60 seconds or more), up to storage limits: 8 hours base, plus 2 hours for each warehouse on your land and each level of each home Warehouse, up to 20 extra hours. The return briefing shows exactly what was deposited, flags only issues that need attention, summarizes current hourly production and presents the current Field Guide objective instead of repeating the completed checklist.
 2. **Spend.** Claim parcels (2,500 cash), build on them, place or expand home buildings, start research, upgrade the HQ.
 3. **Trade and ship.** Sell surplus oil, grain or fuel on the market. Take a delivery contract by the legal road (taxed, safe) or the back road (untaxed, risk of checkpoints and drones). Inspect other players' trucks for profit.
 4. **Fight.** Clear militia camps, ambush patrols, raid rival garrisons, attack AI or neighbour bases (3 stars conquers a parcel), and chip at the Caretaker's outpost with your sector.
 5. **Social.** Alliance chat and bank, research help, elections and laws, coups.
-6. **Leave.** Land keeps producing up to the storage cap, so there's a reason to return within about 8 to 10 hours.
+6. **Activity inbox.** A persistent command log records completed construction and research, delivered contracts, alliance rewards, national vote results and attacks on the player's settlement. Unread events appear on the HUD and in the welcome-back briefing; opening an item links back to the relevant game system.
+7. **Leave.** Land keeps producing up to the storage cap, so there's a reason to return within about 8 to 10 hours.
 
 **The long arc (days to weeks)**
 
 - **Grow** from one parcel to dozens. Specialise in a research branch, upgrade the HQ (more buildings, bigger expansions up to 26×26) and train defenders.
 - **Free your sector.** Develop it, petition, and siege the Caretaker's outpost together until its presence hits 0%. Name the sector by holding 10% of its land.
-- **The Sentinel.** On the season timeline (default 21 days after season start), the Sentinel appears at the Region 2 fog wall. Everyone joins one shared 15-minute battle; it takes 10 to 15 coordinated players to win. A win opens the Ashlands for everyone, with a 12-hour head start for the gatebreakers.
+- **The Sentinel.** The Sentinel is an autonomous pre-collapse containment weapon sealing the Region 2 fog wall; its old command link no longer answers to the Caretaker, which coordinates the human assault. On the season timeline (default 21 days after season start), everyone joins one shared 15-minute battle; it takes 10 to 15 coordinated players to win. The HUD's World event control shows its schedule, live status, player readiness and exact participation rewards from any map. A win opens the Ashlands for everyone, with a 12-hour head start for the gatebreakers.
 - **The Ashlands.** Land there yields 1.5× but anyone can seize it by beating its garrison. Players found nations, declare wars and fight for war score.
 
 ### 3b. The server's loops (BackgroundServices)
@@ -140,7 +141,7 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
 - **Remembered sign-in.** The token is kept in `localStorage` and in an HttpOnly year-long cookie `nwo_t`. If the page loses its copy, `/me` authenticates by cookie and hands the token back.
 - **Recovery codes.** `POST /api/me/recovery` issues a 12-character code like `ABCD-EFGH-JKLM` (no look-alike letters). `POST /api/auth/recover {code}` signs in on another device and adds that device to `ExtraTokens` (keeps the last 6), so other devices stay signed in.
 - **Returning players.** The client retries `/me` through bad connections (a "Reconnecting…" toast, then a Try again card). It only shows sign-up on a real 401. Devices that have played skip the intro.
-- **Start over.** `POST /me/restart` resets base, land, money, tutorial, research, XP, operation threat levels and daily operation wins; name, nation and record stay.
+- **Start over.** `POST /me/restart` resets base, land, money, tutorial, research, XP, operation threat levels, daily operation wins, and the 30-day login calendar; name, nation, record and alliance membership stay. When the replayed Field Guide reaches the alliance chapter, existing members skip it automatically.
 
 ### 5.2 Resources and economy (`Economy.cs`, `Ledger.cs`)
 
@@ -169,14 +170,14 @@ Production, storage, rations and HQ effects are not ticked: they're computed fro
   |---|---|---|---|---|
   | Housing | 800 | 2 | 10 cash | Housing blocks |
   | Farm | 600 | 3 | 24 grain | none |
-  | Oil rig | 1,500 | 2 | 36 oil | none |
+  | Oil Rig | 1,500 | 2 | 36 oil | none |
   | Sawmill | 700 | 2 | 24 timber | none |
   | Mine | 900 | 2 | 20 ore | Mining |
   | Warehouse | 1,000 | 3 | 10 cash | Warehousing |
-  | Solar farm | 900 | 2 | 12 power | Solar arrays |
-  | Wind turbine | 1,400 | 2 | 20 power | Wind power |
+  | Solar Farm | 900 | 2 | 12 power | Solar arrays |
+  | Wind Turbine | 1,400 | 2 | 20 power | Wind power |
 
-- **Suitability.** Anything can be built anywhere, but land decides output. A rig on oil sands runs at 1.0, on barren ground 0.06. A farm gets 1.5 on fertile land. Solar gets 1.25 on barren land.
+- **Suitability.** Outside the guided first builds, anything can be built anywhere, but land decides output. A rig on oil sands runs at 1.0, on barren ground 0.06. A farm gets 1.5 on fertile land. Solar gets 1.25 on barren land. The Field Guide supplies a free rocky permit for the first Mine and a free oil-sands permit for the first Oil Rig, then requires each building to be placed on that suitable parcel so the lesson does not leave the player with an inefficient permanent build.
 - **HQ upgrade** costs 2,000 × level² cash and 100 × level timber, and from level 2 also 15 × level power. The Field Guide's HQ step is free: the Caretaker sponsors that one upgrade so the guide can't dead-end.
 - **Daily login rewards** (`DailyRewards.cs`). After Survival, one claim per UTC day walks a 30-day calendar of cash, food, oil, fuel, gold and power, with bigger caches on days 7, 14, 21, 28 and 30. Claiming on consecutive days continues the streak; a missed day starts again at day 1, and after day 30 it loops. Claims don't change standing.
 - **Account XP and level** (`Progression.cs`). Level is `1 + XP / 100`; see 5.18 for what pays XP.
@@ -205,13 +206,14 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   - **Yard:** a 3-tile strip outside the walls where field buildings can go.
   - **Fog:** beyond the yard is fog. It's drawn as white low-poly clouds in the new graphics.
 - **HQ.** 3×3 in the centre.
+- **Restarting onboarding.** Selecting the Headquarters shows **Restart tutorial** throughout Survival, the Field Guide, and normal play (except the first Headquarters explanation itself). Its in-game confirmation explains that this is a full settlement restart: the player keeps identity, nation, alliance membership and Caretaker record, while buildings, land, resources, research, operation progress and open orders reset. The player can return directly to the first Headquarters objective or replay the introduction first.
 - **Building limit:** 4 + 3 × HQ level buildings, +2 with Town planning research.
 - **Walls** (`HomeBase.ReinforceWalls`, selected from the visible entry gate). Wall strength, separate from the base's size, goes from level 1 to 5. Reaching level 2 costs 400 cash, then 2,000, then 6,000 and 40 power, then 15,000 and 120 power. Each level adds 25 to Last Stand's gate integrity (100 at level 1) and 10% to the base's tower and HQ health when it's raided. The tutorial's fourth step points to the gate, has the player reinforce once (reward 200 cash), then closes the gate card automatically.
 - **Home buildings:**
 
   | Building | Cost (cash) | Size | Effect |
   |---|---|---|---|
-  | Barracks | 600 | 2×2 | Trains and houses troops |
+  | Barracks | 600 | 2×2 | Trains and houses soldiers for player raids and settlement defence; each level adds 15 trained-unit capacity |
   | Warehouse | 500 | 2×2 | +2 h storage |
   | Research lab | 800 | 2×2 | +5% to all land output per lab level (up to +25% in all); hosts the tech tree, and its level sets the highest research tier |
   | Workshop | 500 | 2×2 | 25 cash/h |
@@ -220,12 +222,12 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   | Solar panel | 350 | 1×1, field | 5 power/h |
   | Generator | 700 | 1×1, field | 4 fuel/h |
 
-- **Construction timers.** New buildings take 20 seconds to 10 minutes (longer at higher HQ levels; tutorial builds take 5 to 12 seconds). Building upgrades take 90 seconds to level 2, 15 minutes to 3, 2 hours to 4 and 24 hours to 5. HQ upgrades take 30 seconds to level 2, then 5 minutes, 30 minutes, 2, 4, 8, 12 and 18 hours, and 24 hours from level 10. Only one upgrade (a building or the HQ) can run at a time. A building or HQ switches on at its finish time even if the player is away: production is banked at the old levels up to that moment.
+- **Construction timers.** New compact home utilities take 30 seconds and larger home buildings take 60 seconds; guided tutorial builds remain 5 to 10 seconds. Parcel structures use predictable four-minute (compact) or six-minute (large) timers. Building upgrades take 90 seconds to level 2, 15 minutes to 3, 2 hours to 4 and 24 hours to 5. HQ upgrades take 30 seconds to level 2, then 5 minutes, 30 minutes, 2, 4, 8, 12 and 18 hours, and 24 hours from level 10. Only one upgrade (a building or the HQ) can run at a time. A building or HQ switches on at its finish time even if the player is away: production is banked at the old levels up to that moment. While an upgrade is active, the existing completed building remains visible and operational inside a physical work site with scaffolding, stored materials and a world-space countdown. A completed home building may be sold for 50% of every cash and ore cost invested through its current level. The new architecture appears only when the timer finishes; the site then clears with a restrained dust-and-camera reveal.
 - **Cancelling an upgrade** refunds 90% of the cash, ore or timber and power at the start, falling steadily to 25% near the end.
-- **Building levels.** Every home building has its own level from 1 to 5 and cannot rise above the HQ level. Its model gains visible detail and a stronger silhouette with each level. Production buildings improve output; Warehouses add storage time; Research labs open higher research tiers; Barracks add defender capacity and unlock Gunners at level 1, Launchers at level 2, Tanks at level 3 and Helicopters at level 4.
+- **Building levels.** Every home building has its own level from 1 to 5 and cannot rise above the HQ level. Each family now gains functional architectural detail and a stronger silhouette with every level instead of generic roof blocks or floating light markers: Barracks add training and command facilities; Housing adds rooms and storeys; Research adds clean rooms and instrumentation; Workshops add fabrication bays and cranes; Generators add fuel, switchgear and turbine capacity; Crop Plots add irrigation and greenhouse infrastructure; Oil Pumps add tanks, derricks and processing; Solar sites add panels, batteries and transformers; Warehouses add loading, storage and freight handling. Production buildings improve output; Warehouses add storage time; Research labs open higher research tiers; Barracks add defender capacity and unlock Gunners at level 1, Launchers at level 2, Tanks at level 3 and Helicopters at level 4.
   - **Costs and effects.** Upgrading costs the building's price × 1, 2, 4 and 7 for levels 2 to 5 (rounded up to 50), plus ore. Production buildings make ×1.35, ×1.75, ×2.25 and ×3 at levels 2 to 5. Production made before an upgrade is banked at the old rate.
 - **The entrance.** The front wall has one full-width gate with a paved approach, labelled with the wall level. Its look follows the wall level through five stages: a scrap gate with amber beacons, then side buttresses and armour bands, a powered arch with status lamps, watch posts with close-range guns, and finally a second armoured gate forming a lit airlock.
-- **Placement UI.** A ghost model appears at the nearest free spot by the HQ. Drag it or use the arrows, Rotate, then confirm. Green means it fits, red means blocked.
+- **Placement UI.** A ghost model appears at the nearest free spot by the HQ. Drag it or use the arrows, Rotate, then confirm. Green means it fits, red means blocked. Tutorial targets use a soft gold wash and corner brackets matched to the building footprint; world-space arrows and floating circular markers are not used.
 - **Defence:**
   - **Free garrison** of 6 + 4 × (all Barracks levels added up) + 2 × HQ level troops. Its mix depends on the best Barracks level: gunners and militia at level 1, then launchers, tanks and helicopters as levels 2, 3 and 4 unlock them. Tower and HQ health also grow 10% per wall level.
   - **Capacity** for trained defenders is 10 + 15 × (all Barracks levels added up).
@@ -241,11 +243,11 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
 
 | Branch | Tier 1 | Tier 2 | Tier 3 |
 |---|---|---|---|
-| Energy | Solar arrays (unlocks Solar farms) | Wind power (unlocks Wind turbines) | Grid storage (+25% power) |
+| Energy | Solar arrays (unlocks Solar farms) | Wind power (unlocks Wind turbines) | Grid storage (+25% power, unlocks Last Stand Arc Coil, faster Extraction Scramble) |
 | People | Housing blocks (unlocks Housing) | Irrigation (+25% grain) | Town planning (Housing +40%, +2 HQ buildings) |
-| War | Drill sergeants (+25% troops) | Air support (+1 strike, +1 heli per battle) | Siege engineers (+20% vs Sentinel, enemy garrisons 20% smaller) |
+| War | Drill sergeants (+25% troops) | Air support (+1 strike, +1 heli per battle; unlocks Missile Battery) | Siege engineers (+20% vs Sentinel, smaller enemy garrisons; unlocks Field Workshop) |
 | Industry | Mining (unlocks Mines) | Deep drilling (+25% oil) | Refining (+50% fuel) |
-| Trade | Warehousing (unlocks Warehouses) | Haulage (halves the Caretaker's 5% fee) | Back channels (back-road trucks 30% less likely to be stopped) |
+| Trade | Warehousing (unlocks Warehouses and Last Stand Salvage Crane) | Haulage (halves the Caretaker's 5% fee; improves Extraction rover) | Back channels (back-road trucks 30% less likely to be stopped; reduces Extraction detection) |
 
 ### 5.5 The Caretaker and standing (`Caretaker.cs`)
 
@@ -255,7 +257,7 @@ Every home base runs a small economy, and the same ledger adds up to the sector 
   - **Rations** grow with tier.
   - **In base battles:** good standing may bring Caretaker sentries to your side; poor standing brings them against you.
 - **Drones.** Three over each Caretaker sector and one over each settled sector. Players can shoot them down in a flak mini-game (20 fuel ammo, 180 salvage). They respawn in 2 hours and cost standing.
-- **Militia camps.** Assault costs 100 fuel and must be won within 10 minutes. Clearing a camp keeps the sector safe for 24 h; the camp returns after that.
+- **Militia camps.** Assault costs 100 fuel and must be won within 10 minutes, except for the protected first guided assault, whose fuel cost is waived. Clearing a camp keeps the sector safe for 24 h; the camp returns after that.
 - **On the map.** Every sector's drones and militia camp are drawn on the seamless sector map as you scroll (they come with each sector's snapshot). Tap a drone to shoot it down, or a camp to assault it; the battle is fought on the camp's spot. Drones patrol their own stretch of the sector, and your standing sets how close they come: from 60 up, their patrol loop moves clear of your base (further the higher your standing, at least 5 to 13 parcels) and they don't hover over where you're looking; below 40 they drift over to circle your base and tail you around their sector; in between they ignore you.
 
 ### 5.6 Caretaker presence and outposts (`Presence.cs`)
@@ -289,6 +291,7 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 - **Order book.** A player-run book for oil, grain and fuel. Orders match by best price, then by who came first.
   - **Limit orders** wait on the book.
   - **Market orders** fill what they can and drop the rest.
+- **Protected first trade.** The Field Guide asks the player to receive 100 grain through the live market, but the Caretaker sponsors the full purchase. Sellers are paid normally, the player receives the grain, and no cash is deducted, so market movement cannot make the lesson unaffordable or economically harmful. During this one lesson the interface focuses on the selected commodity, the protected transaction and its receipt; charts, the order book and advanced orders return when the lesson is finished.
 - **Escrow and fee.** Goods and cash sit in escrow until filled. Fee: 2%.
 - **Caretaker standing orders.** It always buys and sells at the edges, with 1,000,000 depth on each side. This stops prices crashing or running away.
 
@@ -302,12 +305,13 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 
 ### 5.8 Logistics: contracts, trucks, smuggling (`Logistics.cs`)
 
-- **Contracts.** Sectors post contracts for goods; there are 6 open at a time. A contract in your own sector is a short haul from your base to the sector hall (taxed or smuggled like any other).
+- **Contracts.** Sectors post contracts for goods; there are 6 open at a time. A contract in your own sector is a short haul from your base to the sector hall (taxed or smuggled like any other). For the first guided delivery, the board temporarily focuses on one affordable request and teaches the sequence as choose contract → review route → dispatch; the full contract list returns afterward.
 - **Ship.**
   - **Legal road:** pays the nation's delivery tax (8% default) and the Caretaker's 5% fee.
   - **Back road:** untaxed and 1.3× slower. It risks the Caretaker checkpoint: a 35% base chance, scaled by standing, drones over the destination, Back channels research and sector presence.
   - **Bribes:** a stopped truck can be bribed through by raising the bribe.
   - **Audits:** a 35% chance, with a 1,800 fine.
+  - **Travel:** dispatch requires no steering or follow-up input. The player can track the truck, review it under Active deliveries or continue playing; legal-contract payment is deposited automatically on arrival. The guided route review exposes only the safe main-road option and explicitly explains that the truck completes the trip on its own; smuggling choices remain available outside the lesson. The Field Guide objective completes on arrival rather than at departure.
 - **Inspection.**
   - **Costs and limits:** an inspection costs 150, up to 20 a day per player.
   - **Wrong calls:** searching a clean truck costs compensation. The first two cost 300 each, then every miss in a row doubles it.
@@ -319,6 +323,7 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 - **Lane battles (`BattleSim`):**
   - **Layout:** 3 lanes with towers at both ends.
   - **Command points:** they refill over time and pay for deploys. An artillery strike costs 6.
+  - **First guided camp:** the inspection card marks it as introductory and shows the player's advantage before they commit. It costs 0 fuel, uses only Gunners and Launchers, lasts 150 seconds, starts with 10 command points, and has a 900-health camp, a 2,600-health reinforced player barricade, a one-third-strength camp turret and slow infantry-only waves. The player's field roster is restored after every lane battle, and retreating before the lesson deploy does not impose a retry cooldown. Later camps cost 100 fuel and use the full 2,600-health standard encounter with armoured patrols. The introductory battle is intentionally a deployment lesson rather than a roster optimisation check.
   - **Units (cost, HP, notes):**
 
     | Unit | Cost | HP | Notes |
@@ -339,7 +344,7 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
   - **Stars:** one per tower destroyed; the HQ gives all 3.
   - **Used for:** attacks on AI and neighbour bases, and outpost sieges.
 - **Kinds of battle:**
-  - `camp`: militia camp, 100 fuel.
+  - `camp`: militia camp, 100 fuel; 0 fuel for the first guided assault.
   - `raid`: rival garrison, loot only.
   - `ambush`: 90 s against a patrol.
   - `raidbase`: 40 fuel. Works against AI bases anywhere, or real players **in your own home sector**. Loot is 10/15/20% of cash, oil and grain by stars. **3 stars also conquers one of the defender's non-home parcels in that sector.** The defender gets an 8 h shield afterwards and is alerted in chat. New accounts are protected for 24 h (10 min with dev tools). Alliance members can't attack each other.
@@ -364,10 +369,12 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 - **Size and roles.** Up to 30 members. Roles are leader, officer and member.
 - **Officer powers.** Officers invite players, accept requests and grant from the bank.
 - **What members share:** a bank (cash and fuel donations), a private chat (only members receive it) and research help.
+- **Weekly alliance campaign: Operation Severance.** A hostile machine intelligence is operating beneath Aurelia, and the Caretaker coordinates the alliance response. Each member leads a four-person squad through a 90-second facility incursion: press the floor to move, use physical cover, focus robot patrols and turrets, break shield generators, capture data vaults, dodge security-grid strikes, and destroy progressively stronger command cores. Secure rooms award intelligence and open the next door. Field-modification choices improve the squad for the current run, while every third room becomes a checkpoint where the commander can extract and bank the score or push deeper. The Alliance Headquarters shows weekly and daily-reset countdowns, participation, attempts, personal rank/share, the leaderboard, exact alliance-tier payouts and personal milestone progress. Replays remain unlimited, but only each member's personal-best intelligence for the ISO week contributes. Crossing 2,000, 5,000 and 9,000 personal intelligence pays cumulative individual rewards; cooperative thresholds scale with the eligible human roster and pay every member separately. Profile power—derived from HQ, walls, XP, permanent research, buildings, trained defenders, and war score—improves squad armour and damage contribution while deeper facility sectors provide the main difficulty escalation. A returning player who retained an alliance through a restart automatically skips the already-satisfied alliance setup chapter.
 - **Protection.** Allies can't seize, raid or conquer each other.
 
 ### 5.12 Politics (`Politics.cs`)
 
+- **Player-facing decision flow:** Politics opens with the current government, election timer, legitimacy, treasury and tax rates, followed by a plain-language action summary. Only ballots the player has not answered receive the gold attention state. Recorded votes remain changeable until their poll closes. Campaigning and policy proposals are collapsed optional actions, while nation founding, diplomacy, war and coups remain in a separate advanced section. If the optional guide reaches Politics while no vote exists, the player can skip that lesson without disabling the system.
 - **Aurelia's government:**
   - **Elections:** a President is elected every 24 h (`NWO_ELECTION_MINUTES`). Standing costs a 1,000 deposit, and candidates give speeches.
   - **Laws:** cost 500 to propose and are voted on for 2 h. They set:
@@ -381,6 +388,9 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
 
 ### 5.13 The Sentinel siege (`Siege.cs`, `SentinelSim.cs`)
 
+- **Player-facing command screen.** Once the final Field Guide chapter is reached, a persistent World event control opens the briefing from any map. It separates the story, live/scheduled state, mission mechanics, available unit classes, qualification rules and rewards. A live event receives a red `LIVE` state; a defeated Sentinel receives an `OPEN` state. Developer drills are clearly labeled as a solo mechanics drill (not expected to win) or full-force rehearsal with 11 AI allies.
+- **Battle command HUD.** On joining, a one-time field card explains the five approach lanes, automatic relay targeting, direct flak fire and regenerating command points. The live panel turns each phase into a plain objective, gives both the Sentinel core and humanity's line proper health meters, explains armour coordination, and shows the player's damage, drone kills, relay kills, deployments and reward qualification. Returning to the map asks for confirmation and explains that deployed forces and earned contribution remain in the shared battle.
+- **Story.** The Sentinel is a pre-collapse containment weapon whose command link no longer answers to the Caretaker. The Caretaker begins as the player's coordinating partner and organizes human forces to open the sealed Ashlands rather than owning or commanding the machine.
 - **Shape.** One shared server-wide battle over 5 lanes, with a 15-minute limit. Base health is 2.6M (`NWO_SENTINEL_HP_MULT`), and it grows for every active fighter beyond 12.
 - **Armour.** It only cracks when about 12 commanders hit within 10 s (`NWO_SENTINEL_FULL_ARMOR`); a lone player does almost nothing.
 - **Phases:**
@@ -389,7 +399,8 @@ Each open Region 1 sector has a **presence** from 100 (the Caretaker rules) to 0
   3. **Below 30%:** vents open, giving 3× damage windows. EMP pulses freeze command points and the drone swarm thickens.
 - **Throughout.** Drones attack units and repair relays, so players fire flak at them (1 CP, 70% hit chance).
 - **Schedule.** It appears 21 days into the season (`NWO_SENTINEL_AFTER_HOURS`) and retries after 60 min (`NWO_SENTINEL_RETRY_MINUTES`).
-- **Practice sieges.** With dev tools on, practice sieges with AI allies are available; they carry no rewards.
+- **Rewards and qualification.** On a real victory, qualified participants receive 4,000 cash and 40 gold. The top three earn another 100/60/40 gold and are named Gatebreakers. Qualification requires at least three deployments or a contribution through damage, relay kills or drone kills.
+- **Practice sieges.** With dev tools on, a solo mechanics drill and a full-force rehearsal with 11 AI allies are available; they carry no rewards or world-state changes.
 - **Simulated balance.** 8 AI players lose; 12 to 20 win in 9 to 13 minutes.
 
 ### 5.14 The Ashlands, Region 2 (`Region2.cs`)
@@ -423,7 +434,12 @@ Hold 10% of a sector's claimable land (about 98 parcels) to name it. Anyone who 
 
 Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Leviathan Assault** (Field Guide). They share one look: Blender-rendered arenas fitted to the screen's height, solid outlined projectiles with glow, damage numbers, red screen edges when hurt, and **Lumen**, a friendly AI drone that flies with the player in every operation and talks them through it.
 
-- **Threat levels.** Each operation has its own threat level (`Player.OperationLevels`), starting at 1. Every win raises it by one, up to 30; losing keeps it. The level sets the enemies and the target. Player damage doesn't grow with it. Starting the character over clears every operation back to threat 1.
+Operation audio uses layered CC0 recordings for physical objects: firearm reports, metal strikes, construction locks, explosions and the Extraction rover engine. Distinct designed effects remain for fictional rail weapons, shields and sensor scrambling. Fire rates are throttled and pitch varies slightly so sustained weapons do not stack into a harsh repeated sample. The separate drone flak game uses the same grounded reports, explosions and shield impacts. Provenance is recorded in `client/assets/audio/operations/CREDITS.txt`.
+
+- **Operations Command.** The operation screen is a progression dashboard rather than a simple launch list. Each card shows current Threat and profile, target, victory reward, personal best, next mastery milestone, next mechanic unlock and the player's real base/research support. This makes permanent settlement improvements discoverable before deployment.
+- **Threat levels.** Each operation has its own threat level (`Player.OperationLevels`), starting at 1. Every standard win raises it by one, up to 30; losing keeps it. The level sets the enemies and the target. Every two levels also rotates an explicitly named threat profile: Last Stand alternates fast assaults, armour and mortar support; Extraction alternates patrol, sentry and drone pressure; Leviathan alternates hunter, quarantine and enforcer attack weights. Threat itself does not increase player damage; only the displayed base and research support does. Starting the character over clears every operation back to threat 1. Results identify ranks in full (for example, **S rank · Exceptional**) rather than showing an unexplained letter.
+- **Practice.** Every completed non-guided operation can be launched at the player's current Threat as practice. Practice uses all current mechanics and base support but pays no resources, consumes no daily rewarded win, records no personal best and never changes Threat. The result is clearly labelled as a practice report.
+- **Mastery.** Reaching Threat 5, 10, 20 and 30 for an individual operation grants a one-time milestone reward. Rewards are respectively 1,000 cash; 2,500 cash and 2 gold; 6,000 cash and 5 gold; and 15,000 cash and 10 gold. Since Threat only rises, the milestone cannot be paid twice.
 - **Account XP.** After Survival, a successful operation gives 50 XP, collecting ready production gives 25 XP per hour of production since the last collection (at most 25), construction gives 25 XP and a building upgrade gives 30 XP. Level is `1 + XP / 100`. Expansion stays gated behind the first 100-XP Stabilising checkpoint.
 - **Rewards.** The guided run (the tutorial or Field Guide step) pays that step's reward, as before. Every other win pays a reward that grows 20% per level (up to five times the base at level 21), for the first **5 wins each UTC day** across all operations (`OperationPaidDay`, `OperationPaidWins`). Wins after that still raise the level.
 
@@ -434,23 +450,33 @@ Three short action games: **Last Stand** (tutorial), **Extraction Run** and **Le
   | Leviathan Assault | 90 s | 1,800 damage | +120 | 250 cash, 1 gold (+1 gold per 4 levels) |
 
 - **Balance.** Tuned with simulated players (`sim` harness, not in the repo): levels 1 to 3 can be passed with little input; a careful player tops out around level 12 to 16.
-- **Art.** `tools/blender/leviathan_assault.py` and `tools/blender/operations_art.py` (sharing `ops_kit.py`) build the units and arenas; `leviathan_post.py` and `operations_post.py` add the glow. Sprites are used in the 2D view; the optional 3D view only has models for the Leviathan.
+- **Debrief.** Results include operation-specific telemetry instead of only a score: gate integrity, towers and scrap for Last Stand; rover hull, peak security and directive for Extraction; and disabled systems, strike armour and adaptations for Leviathan. Mastery rewards receive their own callout.
+- **Art.** `tools/blender/leviathan_assault.py` and `tools/blender/operations_art.py` (sharing `ops_kit.py`) build the units and arenas; `leviathan_post.py` and `operations_post.py` add the glow. The enhanced renderer uses the current `hq-turret.glb` for the Last Stand base turret and a purpose-built clean metal Scorcher model, alongside the other operation GLBs; the illustrated renderer remains the performance fallback.
 
 #### Last Stand
 
 A tower defence with a hands-on turret. Raiders follow a winding road to the base's gate over 2 minutes: a 7-second build window, four waves with short lulls, and a War Rig (a boss truck) in the last 16 seconds. Vehicles are drawn from overhead and turned to follow the road, which the game rounds off at the bends; each keeps its own lane, eases off into turns, bounces and kicks up dust.
 
-- **Scrap and towers.** Every raider stopped earns scrap (bike 2, technical 5, mortar 6, truck 8, War Rig 20; +10 at the start of each wave after the first; 35 to start). Press one of the six pads to build, then press a tower to upgrade it (three levels):
+Threats 1 and 2 preserve the straightforward opening experience. From Threat 3 onward, later waves receive a visible battlefield condition: **Raider surge** increases numbers and speed, **High-value convoy** yields extra scrap, **Smoke screen** reduces tower range while focused HQ fire still reaches, and **Veteran escort** fields more elite raiders. Elite units appear as either slower armoured veterans with substantially more health or faster raider aces; both hit the gate harder and pay bonus scrap.
 
-  | Tower | Cost (I / II / III) | Does |
+After each non-final wave at Threat 3 or higher, the operation clock pauses for one tactical order. The player chooses from emergency gate repairs, a salvage delivery, a tower-wide damage overclock, HQ turret calibration, or rallying and reviving the gunner line. These upgrades last for the remainder of that run, allowing the same tower layout to develop differently between attempts.
+
+- **Permanent base support.** Last Stand now reads the player's actual settlement when the run begins. Walls add 25 gate integrity per level; Headquarters levels increase HQ-turret damage, range and fire rate and unlock turret ranks IV and V; Barracks levels improve the gunner line's health and damage; each Workshop level grants 5 starting scrap and 4% tower damage; Mobilization improves the squad, Air Support adds a fourth airstrike target, damage and faster recharge, Siege Engineers add 12% tower damage and unlock the Field Workshop, and Warehousing unlocks the Salvage Crane. These bonuses make base progression useful without removing the need to make tactical choices during the operation.
+- **Scrap and towers.** Every raider stopped earns scrap (bike 2, technical 5, mortar 6, truck 8, War Rig 20; +10 at the start of each wave after the first; 35 to start, plus 5 per Workshop level). Press one of the six pads to build, then press a tower to upgrade it. Headquarters levels 1–2 permit rank III, levels 3–4 rank IV, and level 5 or higher rank V. A built tower can be moved to any empty pad for free or salvaged for 50% of all scrap invested in it:
+
+  | Tower | Cost (I / II / III / IV / V) | Does |
   |---|---|---|
-  | Gun nest | 20 / 25 / 35 | Fast single shots at the raider furthest along the road |
-  | Burner | 25 / 30 / 40 | Damages every raider close to it |
-  | Rail gun | 35 / 35 / 45 | Long range, slow, heavy hits: for trucks and the War Rig |
-  | Lumen beacon | 25 / 25 / 30 | Slows raiders in range (35 to 55%) and marks them to take 25 to 50% more damage |
+  | Gun nest | 20 / 25 / 35 / 50 / 65 | Fast single shots at the raider furthest along the road |
+  | Scorcher | 25 / 30 / 40 / 55 / 70 | Damages every raider close to it |
+  | Rail gun | 35 / 35 / 45 / 60 / 80 | Long range, slow, heavy hits: for trucks and the War Rig |
+  | Lumen beacon | 25 / 25 / 30 / 45 / 60 | Slows and marks every raider within its field |
+  | Missile Battery | 40 / 45 / 55 / 70 / 90 | Air Support research unlock; long-range splash damage with a minimum firing distance |
+  | Arc Coil | 35 / 40 / 50 / 65 / 85 | Grid Storage research unlock; chains between nearby raiders and temporarily disables technical and mortar weapons, but deals 55% less damage to heavy armour |
+  | Field Workshop | 45 / 50 / 65 / 80 / 100 | Siege Engineers research unlock; one per run, repairs 10–34 gate HP between waves and gives nearby towers 12–30% faster attacks |
+  | Salvage Crane | 30 / 35 / 45 / 60 / 80 | Warehousing research unlock; one per run, recovers 1–4 additional scrap from each enemy destroyed inside its collection radius |
 
-- **The squad.** The defenders the player has trained (the tutorial trains five gunners; 3 to 8 shown) hold a sandbag line just before the gate. Raiders that reach it stop and fight them; trucks and the War Rig smash through.
-- **The HQ turret** fires by itself at raiders on the lower road; pressing a raider focuses it at any range and fires faster. Abilities: Overcharge (14 s: fire rate x2.5 for 4 s) and Lumen: Airstrike (10 s: 4 damage to the three raiders furthest along).
+- **The squad.** The defenders the player has trained (the tutorial trains five gunners; 3 to 8 shown) hold a sandbag line just before the gate. Barracks levels and Mobilization improve their health and damage. Raiders that reach the line stop and fight them; trucks and the War Rig smash through.
+- **The HQ turret** fires by itself at raiders on the lower road; pressing a raider focuses it at any range and fires faster. Its range, damage, and rate improve with Headquarters level. Abilities: Overcharge (14 s: fire rate x2.5 for 4 s) and Lumen: Airstrike (normally 10 s, 4 damage to three targets; Air Support improves all three values).
 - **Raiders.** Bikes (6 gate damage); technicals that also shoot at the gate (level 2+); armoured trucks (level 3+, 20 gate damage); mortar teams that park mid-road and shell the turret platform, with a red warning ring before each shell (level 4+); the War Rig (40 gate damage). Raiders get 18% tougher per level and come faster; towers don't, so later levels need upgrades and good placement. At level 1 a gun nest is already built.
 - **Losing.** Gate integrity starts at 100, plus 25 per wall level above 1 (reinforcement plates show on the gate); at 0 the run ends. The road and pad positions are shared by `client/operations.js` and `tools/blender/operations_art.py` (keep them in step).
 
@@ -458,17 +484,26 @@ A tower defence with a hands-on turret. Raiders follow a winding road to the bas
 
 Drive the rover over crates in a Caretaker supply yard; the beacon opens in the final 12 seconds: reach the pad or press Extract. Running out of time without extracting scores 0. The distinctive black cache is worth 3 cargo at first and gains value after Threat 20, when the arena has reached its safe crate-density limit. This keeps every server target achievable without filling the yard with overlapping pickups.
 
-- **Getting hit** drops the last crate: it's flung clear and the Caretaker reclaims it after 2.5 s unless you grab it back. Rams knock the rover clear and stall it briefly.
-- **Abilities.** Nitro (6 s: faster and can't be hit for 1.6 s) and Lumen: Scramble (12 s: blinds patrols, sentries and drones for 3.5 s and clears their shots).
-- **Defences.** Patrols with vision cones that chase when they see you (from level 1, more every 2 levels); sentries with telegraphed shots (level 2+); patrols that shoot (level 3+); searchlight drones that alert every patrol (level 4+). Crates: 8 plus 1.5 per level; one black cache worth 3.
+Extracted cargo now pays by manifest in addition to the operation's normal completion reward. Fuel caches add 15 fuel per cargo point, trade goods add 200 cash per point, and tech parts bank two minutes of research acceleration per point. Black-cache points provide a mixed payout of 100 cash, 8 fuel and one research minute each. Research acceleration applies immediately to an active project when possible; otherwise it remains banked for the next normal project. Field Parts retain their in-run role of repairing the rover. Cargo knocked off the rover is removed from the payable manifest unless recovered, so collecting beyond the mission minimum and protecting the load are both meaningful.
+
+- **Recovery directives.** Threats 1–2 keep the straightforward tutorial route. Later threats rotate among an Overstocked Convoy with more cargo and route-combo bonuses, a Volatile Manifest with a richer black cache but two-cache losses on impact, and Yard Lockdown with more mines, faster security escalation and route bonuses.
+- **Rover hull.** The rover now has visible hull integrity. Impacts damage the vehicle as well as threatening its cargo; reaching zero hull disables the rover and fails the run. Green Field Parts caches repair 18 hull. Each home Workshop level adds 10 maximum hull, reduces collision damage, and adds up to 20% driving speed.
+- **Cargo security.** Home Warehouses provide up to three cargo-lock charges. Haulage adds another lock, increases rover speed, extends Nitro and leaves dropped crates recoverable longer. When a lock absorbs an impact, hull is still damaged but no cargo is dropped.
+- **Security heat.** Patrol vision and drone searchlights raise a visible heat meter while breaking contact cools it. Crossing 35% and 70% deploys faster interceptor rovers. Lumen Scramble also removes heat; Back Channels shrinks detection areas and slows heat gain.
+- **Route checkpoint.** At Threat 3+, the clock pauses once after 18 seconds so the player can choose a field modification: two cargo locks, drivetrain tuning, a ghost transponder, or additional armour. Three choices are offered per run.
+- **Getting hit** drops the last crate (two during a Volatile Manifest): it is flung clear and reclaimed after 2.5 seconds unless recovered. Rams knock the rover clear and stall it briefly. Cargo collected in a quick route chain can earn directive-specific bonus cargo.
+- **Abilities.** Nitro normally recharges in 6 seconds and prevents impacts for 1.6 seconds. Lumen Scramble normally recharges in 12 seconds, blinds patrols, sentries and drones for 3.5 seconds, clears incoming shots and removes 18 heat. Haulage improves Nitro; Grid Storage reduces Scramble recharge to 9 seconds and extends its duration.
+- **Defences.** Autonomous patrol rovers with vision cones chase when they see you (from level 1, more every 2 levels); the humanoid facility-security robots are reserved for Operation Severance. Sentries add telegraphed shots at level 2+, patrol rovers shoot from level 3+, searchlight drones alert every patrol from level 4+, and shock mines enter from level 5. Crates: 8 plus 1.5 per level, directive extras, and one black cache whose value scales after Threat 20.
 
 #### Leviathan Assault
 
-A 90-second boss fight against a Caretaker war-mech, unlocked by the Field Guide's World threats chapter (guided reward 800 cash and 10 gold).
+A 90-second boss fight against a rogue pre-collapse war machine, unlocked by the Field Guide's World threats chapter (guided reward 800 cash and 10 gold). The Caretaker identifies its legacy command network and supports the interception through Lumen. The mission briefing separates movement, disabling systems, damage and survival into concrete instructions; the live header shows the damage target and the condition of each exposed Leviathan system. The first guided interception starts both abilities ready, delays the opening attack, reduces incoming damage by 35% and omits field-modification pauses; later replay threats use the full progression. The enemy identifies itself as the Leviathan core, not the Caretaker.
 
-- **The team.** The player is a strike leader on foot, with Lumen circling them. The leader's rifle fires a fan of rounds by itself (3 rounds, widening to 5 in phase 2), and Lumen fires its own bolts at the mech's core. Hits on the glass dome are critical (double damage).
-- **Abilities.** Missile Salvo (6 s cooldown, two homing missiles) and Lumen: Overwatch (12 s: a 2.6 s shield that also scrambles every enemy shot on screen).
-- **Phases** (30 s each): Hunt, Crossfire, then Overheat, when the mech turns crimson and fires extra aimed shots between attacks.
+- **The team.** The player is a strike leader on foot, with Lumen circling them. The leader's rifle fires a fan of rounds by itself (3 rounds, widening to 5 in phase 2), and Lumen fires its own aimed bolts. Barracks levels add up to 48 armour and 20% weapon damage; Workshop levels add up to 30 armour and 18% fire rate. Mobilization adds another 12% damage and Siege Engineers deal 10% more system damage.
+- **Breakable systems.** The port cannon, starboard cannon, core armour and command core have independent condition bars and marked hit areas. Breaking a system awards 25 damage, weakens the attacks fired by that weapon, and exposes the next target. The command core becomes available when its armour breaks or phase 3 begins; damage rises after the armour is removed.
+- **Abilities.** Missile Salvo normally recharges in 6 seconds and fires two homing missiles. Air Support reduces recharge to 5 seconds, adds a missile and increases impact damage. Lumen: Overwatch normally recharges in 12 seconds, grants a 2.6-second shield, clears every enemy shot and damages core armour; Grid Storage reduces its recharge to 9 seconds.
+- **Phases** (30 s each): Hunt, Crossfire, then Core Exposed, when the mech turns crimson and fires extra aimed shots between attacks. At Threat 3+, replay runs pause before phases 2 and 3 to offer three of four upgrades: Sabot Rounds, Split Warheads, Emergency Plating or a Lumen Overclock.
+- **Threat profiles and combinations.** Hunter Protocol adds and accelerates aimed cannon shots, Quarantine Protocol marks another floor tile, and Enforcer Protocol adds a disc and narrows breach-wall safe lanes. At Threat 6+, phases 2 and 3 can chain two different attacks with a clear Combined Pattern warning.
 - **Attacks**, one at a time with a named warning:
 
   | Attack | From | What it does | Hit |
@@ -480,7 +515,7 @@ A 90-second boss fight against a Caretaker war-mech, unlocked by the Field Guide
   | Enforcer Discs | phase 2 | Spinning blades that bounce off the walls three times | 14 |
   | Breach Wall | phase 2 | A falling wall with one safe lane | 12 |
 
-- **Losing.** Armour starts at 100; at 0 the run ends.
+- **Losing.** Armour starts at 100 plus permanent Barracks and Workshop bonuses; at 0 the run ends.
 - **Art.** `tools/blender/leviathan_assault.py` builds the mech, leader, Lumen and the arena (sprites for the 2D view, GLBs for the optional 3D view); `tools/blender/leviathan_post.py` adds the glow. The arena backdrop is drawn to the screen's height, so the floor keeps its shape on any screen.
 
 ---
@@ -545,6 +580,7 @@ Before sign-in (or in the offline demo), the old prototype county appears. It's 
 | Health | `GET /health` |
 | Sign-in | `POST /auth/guest`, `POST /auth/recover` |
 | Your account | `GET /me` (auto-collects), `POST /collect`, `POST /me/recovery`, `POST /me/restart` |
+| Activity | `GET /activity` (latest persistent events), `POST /activity/read` (marks the inbox read) |
 | World data | `GET /sentinel`, `GET /sectors/names`, `GET /region2`, `GET /sector/{n}/map`, `GET /chat/{channel}` |
 
 **Admin** (header `X-Admin-Key`):
@@ -574,7 +610,7 @@ Before sign-in (or in the offline demo), the old prototype county appears. It's 
 | Logistics | `WatchShipping`, `MyShipping`, `Ship`, `Inspect`, `ResolveEnvelope`, `RaiseBribe` |
 | Caretaker | `MyRecord`, `ClaimRation`, `StartDroneHunt`, `ShootDrone` |
 | Politics | `GetPolitics`, `RunForOffice`, `GiveSpeech`, `VoteFor`, `ProposeLaw`, `VoteLaw`, `FoundNation`, `JoinNation`, `DeclareWar`, `MakePeace`, `StartCoup`, `BackCoup` |
-| Alliances | `GetAlliance`, `CreateAlliance`, `InviteToAlliance`, `RequestAlliance`, `AnswerAlliance`, `LeaveAlliance`, `KickFromAlliance`, `SetAllianceRole`, `EditAlliance`, `DonateToAlliance`, `GrantFromAlliance`, `HelpAlliance`, `AllianceChat` |
+| Alliances | `GetAlliance`, `CreateAlliance`, `InviteToAlliance`, `RequestAlliance`, `AnswerAlliance`, `LeaveAlliance`, `KickFromAlliance`, `SetAllianceRole`, `EditAlliance`, `DonateToAlliance`, `GrantFromAlliance`, `HelpAlliance`, `StartAllianceEvent`, `CompleteAllianceEvent`, `ClaimAllianceEvent`, `AllianceChat` |
 | Research and guide | `StartResearch`, `GuideSeen`, `SkipGuide` |
 | Chat | `SendChat` |
 
@@ -596,10 +632,10 @@ Server → client events include:
 |---|---|
 | Players | **Player** (resources, standing, HQ level, wall level, home sector, tutorial and guide step, techs, research, alliance and role, nation, defence doctrine and trained defenders, raid timestamps, token hash plus `ExtraTokens`, recovery hash, `IsBot`), **HomeTile** |
 | Land | **Parcel** (sector, i, j, resource, buildings CSV, owner, `IsHome`, claimed at) |
-| Economy | **LedgerEntry**, **Order**, **Trade**, **Contract**, **Shipment** |
+| Economy | **LedgerEntry**, **ActivityEntry**, **Order**, **Trade**, **Contract**, **Shipment** |
 | Caretaker | **RecordEntry**, **Drone**, **Camp**, **SectorPresence** (presence, target, concessions, petition and assault times, outpost T1/T2/HQ fractions, contributors) |
 | Politics | **Nation**, **Candidate**, **Ballot**, **Law**, **LawVote**, **War**, **Coup** |
-| Social | **Alliance**, **AllianceInvite**, **ChatMessage**, **ChatLog**, **SectorName** |
+| Social | **Alliance**, **AllianceInvite**, **AllianceEventScore**, **ChatMessage**, **ChatLog**, **SectorName** |
 | Server | **ServerState** (season start, Sentinel schedule, Region 2 open, gatebreakers) |
 
 **Schema changes.**
